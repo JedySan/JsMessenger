@@ -4,7 +4,7 @@
 [LiveKit](https://livekit.io) (MatrixRTC). Совместим с Element, Element X и Element Call: можно переписываться
 и созваниваться вперемешку.
 
-> Ранняя версия, пет-проект. Работает на macOS 13+ (Apple Silicon и Intel). Сборки пока не подписаны
+> Ранняя версия. Работает на macOS 13+ (Apple Silicon и Intel). Сборки пока не подписаны
 > сертификатом Apple.
 
 ## Возможности
