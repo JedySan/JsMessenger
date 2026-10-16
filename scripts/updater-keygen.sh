@@ -16,10 +16,16 @@ if [[ -f "$KEY" ]]; then
 fi
 mkdir -p "$(dirname "$KEY")"
 
+command -v npm >/dev/null || { echo "Не найден npm (brew install node)"; exit 1; }
+# зависимости проекта (в них tauri CLI) — если ещё не ставились
+[[ -x node_modules/.bin/tauri ]] || npm install --no-audit --no-fund
+# вызываем CLI напрямую: через «npm run» пустой пароль "" теряется
+TAURI=node_modules/.bin/tauri
+
 if [[ "${1:-}" == "--password" ]]; then
-  npm run tauri signer generate -- -w "$KEY"
+  "$TAURI" signer generate -w "$KEY"
 else
-  npm run tauri signer generate -- --ci -p "" -w "$KEY"
+  "$TAURI" signer generate --ci -p "" -w "$KEY"
 fi
 chmod 600 "$KEY"
 
