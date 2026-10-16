@@ -873,3 +873,25 @@ textarea.text-input { resize: vertical; font: inherit; }
 .toast-main span span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; color: var(--text-2); }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+/* ---------- обновления ---------- */
+.update-bar {
+  margin: 0 12px 10px; padding: 9px 8px 9px 12px; border-radius: 10px;
+  display: flex; align-items: center; gap: 10px; background: var(--accent-soft);
+}
+.update-bar.quiet { background: var(--hover); color: var(--text-2); font-size: 12.5px; padding: 7px 6px 7px 12px; }
+.update-bar.err { color: var(--danger); }
+.update-icon { color: var(--accent); flex-shrink: 0; }
+.update-text { flex: 1; min-width: 0; font-size: 12.5px; }
+.update-text b { display: block; font-size: 13px; color: var(--text); }
+.update-text > span { display: block; color: var(--text-2); }
+.update-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.update-actions .pill { height: 28px; font-size: 12px; }
+.update-text .progress { margin-top: 5px; }
+.progress .indeterminate { animation: indet 1.2s ease-in-out infinite; }
+@keyframes indet { 0% { transform: translateX(-100%); } 100% { transform: translateX(330%); } }
+@media (prefers-reduced-motion: reduce) { .progress .indeterminate { animation: none; } }
+.update-bar.stack { flex-wrap: wrap; align-items: flex-start; padding: 10px 10px 10px 12px; }
+.update-bar.stack .update-icon { margin-top: 2px; }
+.update-bar.stack .update-actions { flex-basis: 100%; justify-content: flex-end; gap: 6px; }
+.small-ghost { padding: 4px 10px; font-size: 12px; border-radius: 8px; }

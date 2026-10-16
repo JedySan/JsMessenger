@@ -1,0 +1,135 @@
+// Возможности настольного приложения: автообновление, автозапуск, выход.
+// В браузере (npm run dev) всё это тихо выключено.
+
+const isTauri = () => "__TAURI_INTERNALS__" in window;
+
+// ---------- автообновление ----------
+export type UpdateState =
+  | { kind: "idle" }
+  | { kind: "checking" }
+  | { kind: "none" }
+  | { kind: "available"; version: string; notes?: string }
+  | { kind: "downloading"; version: string; percent: number | null }
+  | { kind: "ready"; version: string }
+  | { kind: "error"; message: string };
+
+let state: UpdateState = { kind: "idle" };
+const listeners = new Set<() => void>();
+function set(s: UpdateState) {
+  state = s;
+  listeners.forEach((f) => f());
+}
+export function getUpdateState() {
+  return state;
+}
+export function subscribeUpdate(f: () => void): () => void {
+  listeners.add(f);
+  return () => {
+    listeners.delete(f);
+  };
+}
+
+// Найденное обновление — объект плагина; держим его до установки
+let pending: import("@tauri-apps/plugin-updater").Update | null = null;
+
+/** Включено ли автообновление в этой сборке (зависит от ключа подписи при сборке). */
+export async function updaterEnabled(): Promise<boolean> {
+  if (!isTauri()) return false;
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<boolean>("updater_enabled").catch(() => false);
+}
+
+/** Проверить наличие обновления. silent — не показывать «обновлений нет» и ошибки сети. */
+export async function checkForUpdate(silent = false): Promise<void> {
+  if (!(await updaterEnabled())) {
+    if (!silent) set({ kind: "error", message: "В этой сборке автообновление выключено" });
+    return;
+  }
+  if (state.kind === "downloading" || state.kind === "ready") return;
+  set({ kind: "checking" });
+  try {
+    const { check } = await import("@tauri-apps/plugin-updater");
+    const update = await check();
+    if (update) {
+      pending = update;
+      set({ kind: "available", version: update.version, notes: update.body ?? undefined });
+    } else {
+      set(silent ? { kind: "idle" } : { kind: "none" });
+    }
+  } catch (e) {
+    console.warn("update check", e);
+    set(silent ? { kind: "idle" } : { kind: "error", message: `Не удалось проверить обновления: ${String(e)}` });
+  }
+}
+
+/** Скачать и установить; после установки — перезапуск. */
+export async function installUpdate(): Promise<void> {
+  if (!pending) return;
+  const version = pending.version;
+  let total = 0;
+  let got = 0;
+  set({ kind: "downloading", version, percent: null });
+  try {
+    await pending.downloadAndInstall((ev) => {
+      if (ev.event === "Started") total = ev.data.contentLength ?? 0;
+      else if (ev.event === "Progress") {
+        got += ev.data.chunkLength;
+        set({ kind: "downloading", version, percent: total ? Math.min(100, Math.round((got / total) * 100)) : null });
+      }
+    });
+    set({ kind: "ready", version });
+    const { relaunch } = await import("@tauri-apps/plugin-process");
+    await relaunch();
+  } catch (e) {
+    console.error("update install", e);
+    set({ kind: "error", message: `Не удалось установить обновление: ${String(e)}` });
+  }
+}
+
+export function dismissUpdate() {
+  if (state.kind === "available" || state.kind === "error" || state.kind === "none") set({ kind: "idle" });
+}
+
+let timer: number | undefined;
+/** Проверка при запуске и затем каждые 6 часов. */
+export function startUpdateChecks() {
+  if (!isTauri() || timer) return;
+  setTimeout(() => checkForUpdate(true), 15_000);
+  timer = window.setInterval(() => checkForUpdate(true), 6 * 60 * 60 * 1000);
+}
+
+// ---------- автозапуск ----------
+const FIRST_RUN_KEY = "jsm.autostart.initialized";
+
+export async function isAutostartEnabled(): Promise<boolean> {
+  if (!isTauri()) return false;
+  const { isEnabled } = await import("@tauri-apps/plugin-autostart");
+  return isEnabled().catch(() => false);
+}
+
+export async function setAutostart(on: boolean): Promise<void> {
+  if (!isTauri()) return;
+  const a = await import("@tauri-apps/plugin-autostart");
+  if (on) await a.enable();
+  else await a.disable();
+}
+
+/** При первом запуске включаем автозапуск — мессенджер должен работать всегда. Дальше решает пользователь. */
+export async function initAutostartOnce(): Promise<void> {
+  if (!isTauri() || import.meta.env.DEV) return;
+  try {
+    if (localStorage.getItem(FIRST_RUN_KEY)) return;
+    localStorage.setItem(FIRST_RUN_KEY, "1");
+  } catch {
+    return;
+  }
+  await setAutostart(true).catch((e) => console.warn("autostart", e));
+}
+
+// ---------- выход ----------
+/** Полный выход (крестик только прячет окно). */
+export async function quitApp(): Promise<void> {
+  if (!isTauri()) return;
+  const { exit } = await import("@tauri-apps/plugin-process");
+  await exit(0);
+}

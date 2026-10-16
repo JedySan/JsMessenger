@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, type MatrixClient } from "matrix-js-sdk";
-import { Bell, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, ShieldAlert } from "lucide-react";
+import { Bell, Check, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert } from "lucide-react";
 import { useClientUpdates } from "../hooks";
 import { isThisDeviceVerified } from "../matrix";
 import { call } from "../call";
@@ -18,6 +18,16 @@ import DialogHost from "./DialogHost";
 import { CallAudio, useCallState } from "./CallPanel";
 import AboutDialog from "./AboutDialog";
 import Toasts from "./Toasts";
+import UpdateBanner from "./UpdateBanner";
+import {
+  checkForUpdate,
+  initAutostartOnce,
+  isAutostartEnabled,
+  quitApp,
+  setAutostart,
+  startUpdateChecks,
+  updaterEnabled,
+} from "../desktop";
 import { PopupMenu } from "./ui";
 import { attachNotifications, onNotificationClick, testNotification, updateBadge } from "../notifications";
 
@@ -32,6 +42,15 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
   const [verifyTick, setVerifyTick] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
   const [meMenu, setMeMenu] = useState<{ x: number; y: number } | null>(null);
+  const [autostart, setAutostartState] = useState(false);
+  const [canUpdate, setCanUpdate] = useState(false);
+
+  // Настольные возможности: автообновление и автозапуск
+  useEffect(() => {
+    startUpdateChecks();
+    updaterEnabled().then(setCanUpdate);
+    initAutostartOnce().then(() => isAutostartEnabled().then(setAutostartState));
+  }, []);
 
   // Уведомления: не показываем по открытой комнате, если окно активно
   const currentRoom = useRef<string | null>(null);
@@ -138,6 +157,8 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           </div>
         )}
 
+        <UpdateBanner />
+
         <RoomList
           client={client}
           scope={scope}
@@ -203,7 +224,28 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
               icon: <Bell size={15} />,
               onClick: () => testNotification().then((msg) => alert(msg)),
             },
+            {
+              label: "Запускать при входе в систему",
+              icon: autostart ? <Check size={15} /> : <Power size={15} />,
+              hidden: !("__TAURI_INTERNALS__" in window),
+              onClick: () =>
+                setAutostart(!autostart)
+                  .then(() => setAutostartState(!autostart))
+                  .catch((e) => alert(`Не удалось изменить автозапуск: ${e}`)),
+            },
+            {
+              label: "Проверить обновления",
+              icon: <Download size={15} />,
+              hidden: !canUpdate,
+              onClick: () => checkForUpdate(false),
+            },
             { label: "О программе", icon: <Info size={15} />, onClick: () => setShowAbout(true) },
+            {
+              label: "Закрыть JsMessenger полностью",
+              icon: <Power size={15} />,
+              hidden: !("__TAURI_INTERNALS__" in window),
+              onClick: () => quitApp(),
+            },
             {
               label: "Выйти из аккаунта",
               icon: <LogOut size={15} />,
