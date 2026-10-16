@@ -158,6 +158,24 @@ export async function initAutostartOnce(): Promise<void> {
   await setAutostart(true).catch((e) => console.warn("autostart", e));
 }
 
+// ---------- полноэкранный режим (для демонстрации экрана в звонке) ----------
+/** На весь экран — само окно приложения (на macOS — отдельный рабочий стол, как у видео). */
+export async function setWindowFullscreen(on: boolean): Promise<void> {
+  try {
+    if (isTauri()) {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const w = getCurrentWindow();
+      if ((await w.isFullscreen()) !== on) await w.setFullscreen(on);
+      return;
+    }
+    // Electron и браузер — стандартный Fullscreen API
+    if (on && !document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else if (!on && document.fullscreenElement) await document.exitFullscreen();
+  } catch (e) {
+    console.warn("fullscreen", e);
+  }
+}
+
 // ---------- выход ----------
 /** Полный выход (крестик только прячет окно). */
 export async function quitApp(): Promise<void> {

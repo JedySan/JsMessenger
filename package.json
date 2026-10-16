@@ -1,6 +1,6 @@
 {
   "name": "jsmessenger",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Matrix-мессенджер для macOS и Linux со звонками через LiveKit (MatrixRTC)",
   "license": "AGPL-3.0-or-later",
   "author": "JedySan",

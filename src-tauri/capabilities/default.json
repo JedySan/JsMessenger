@@ -34,6 +34,8 @@
     "core:window:allow-unminimize",
     "core:window:allow-is-visible",
     "core:window:allow-is-minimized",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-is-fullscreen",
     "process:default",
     "autostart:default",
     "updater:default"
