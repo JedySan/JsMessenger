@@ -21,7 +21,7 @@ export default function CallButtons({ client, room }: { client: MatrixClient; ro
     };
   }, [session]);
 
-  const inThisCall = st?.roomId === room.roomId && st.status !== "error";
+  const inThisCall = st?.roomId === room.roomId && st.status !== "error" && st.status !== "ended";
   const others = session.memberships.filter(
     (m) => !(m.sender === client.getSafeUserId() && m.deviceId === client.getDeviceId()),
   );

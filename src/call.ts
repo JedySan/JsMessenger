@@ -1,6 +1,7 @@
 // Звонки: MatrixRTC (сигналинг в комнате, m.call.member) + LiveKit (медиа).
 // Совместимо с Element Call / Element X на том же lk-jwt-service.
-import type { MatrixClient, Room } from "matrix-js-sdk";
+import { EventType, RoomEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
+import { startRingtone, stopRingtone } from "./ringtone";
 import {
   MatrixRTCSessionEvent,
   type LivekitTransport,
@@ -32,8 +33,10 @@ class MatrixKeyProvider extends BaseKeyProvider {
 
 export interface CallState {
   roomId: string;
-  status: "connecting" | "connected" | "error";
+  status: "connecting" | "connected" | "error" | "ended";
   error?: string;
+  /** исходящий звонок в личном чате: ждём, пока собеседник ответит */
+  calling?: boolean;
   encrypted: boolean;
   lk: LkRoom;
 }
@@ -46,6 +49,8 @@ class CallController {
   private listeners = new Set<Listener>();
   private session: MatrixRTCSession | null = null;
   private keyListener: ((...a: any[]) => void) | null = null;
+  /** снятие подписок, связанных с ожиданием ответа */
+  private stopWaiting: (() => void) | null = null;
 
   subscribe(fn: Listener): () => void {
     this.listeners.add(fn);
@@ -95,7 +100,7 @@ class CallController {
       lk.on(ev as any, () => this.emit());
     }
     lk.on(LkEvent.Disconnected, () => {
-      if (this.state?.lk === lk) this.leave();
+      if (this.state?.lk === lk && this.state.status !== "ended") this.leave();
     });
 
     try {
@@ -114,6 +119,8 @@ class CallController {
 
       // Публикуем своё участие в комнате (m.call.member) — нас видят Element Call/X
       const isDm = room.getJoinedMemberCount() <= 2;
+      const outgoing = session.memberships.length === 0;
+      if (isDm && outgoing) this.waitForAnswer(client, session, lk);
       session.join(
         { userId: client.getSafeUserId(), deviceId: client.getDeviceId()!, memberId: `${client.getSafeUserId()}:${client.getDeviceId()}` },
         [transport],
@@ -147,6 +154,59 @@ class CallController {
     }
   }
 
+  /**
+   * Исходящий звонок в личном чате: гудки, пока собеседник не подключится;
+   * «отклонил» (MSC4310) или 60 секунд без ответа — завершаем.
+   */
+  private waitForAnswer(client: MatrixClient, session: MatrixRTCSession, lk: LkRoom) {
+    let notificationId: string | null = null;
+    const onSent = (n: { event_id: string }) => {
+      notificationId = n.event_id;
+    };
+    const onTimeline = (ev: MatrixEvent) => {
+      if (ev.getType() !== EventType.RTCDecline || ev.getSender() === client.getSafeUserId()) return;
+      if (notificationId && ev.getContent()["m.relates_to"]?.event_id === notificationId) this.end(lk, "Собеседник отклонил звонок");
+    };
+    const answered = () => {
+      if (lk.remoteParticipants.size === 0) return;
+      if (this.state?.lk === lk) {
+        this.state.calling = false;
+        this.emit();
+      }
+      stop();
+    };
+    const timeout = window.setTimeout(() => {
+      if (lk.remoteParticipants.size === 0) this.end(lk, "Собеседник не ответил");
+    }, 60_000);
+    const stop = () => {
+      stopRingtone();
+      window.clearTimeout(timeout);
+      session.off(MatrixRTCSessionEvent.DidSendCallNotification, onSent as any);
+      client.off(RoomEvent.Timeline, onTimeline as any);
+      lk.off(LkEvent.ParticipantConnected, answered);
+      if (this.stopWaiting === stop) this.stopWaiting = null;
+    };
+    session.on(MatrixRTCSessionEvent.DidSendCallNotification, onSent as any);
+    client.on(RoomEvent.Timeline, onTimeline as any);
+    lk.on(LkEvent.ParticipantConnected, answered);
+    lk.once(LkEvent.Connected, () => {
+      if (lk.remoteParticipants.size > 0 || this.state?.lk !== lk) return answered();
+      this.state.calling = true;
+      this.emit();
+      startRingtone("ringback");
+    });
+    this.stopWaiting = stop;
+  }
+
+  /** Завершить звонок с пояснением («не ответил», «отклонил»). */
+  private async end(lk: LkRoom, message: string) {
+    const st = this.state;
+    if (!st || st.lk !== lk) return;
+    this.state = { ...st, status: "ended", error: message, calling: false };
+    this.emit();
+    await this.cleanup(lk);
+  }
+
   async leave() {
     const st = this.state;
     this.state = null;
@@ -156,13 +216,14 @@ class CallController {
 
   /** Убрать сообщение об ошибке после неудачного подключения. */
   dismiss() {
-    if (this.state?.status === "error") {
+    if (this.state?.status === "error" || this.state?.status === "ended") {
       this.state = null;
       this.emit();
     }
   }
 
   private async cleanup(lk: LkRoom) {
+    this.stopWaiting?.();
     try {
       await lk.disconnect();
     } catch {

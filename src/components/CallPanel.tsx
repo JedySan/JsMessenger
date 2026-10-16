@@ -21,10 +21,27 @@ export function useCallState() {
   );
 }
 
+/** Собеседник в личном чате. */
+function otherOf(client: MatrixClient, room: Room) {
+  return room.getJoinedMembers().find((m) => m.userId !== client.getSafeUserId()) ?? null;
+}
+
 /** Панель активного звонка: плитки участников и управление. */
 export default function CallPanel({ client, room }: { client: MatrixClient; room: Room }) {
   const st = useCallState();
   if (!st || st.roomId !== room.roomId) return null;
+
+  if (st.status === "ended") {
+    return (
+      <div className="call-error ended">
+        <PhoneOff size={16} />
+        <span className="call-error-text">{st.error}</span>
+        <button className="pill" onClick={() => call.dismiss()}>
+          Закрыть
+        </button>
+      </div>
+    );
+  }
 
   if (st.status === "error") {
     return (
@@ -59,6 +76,11 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
     <div className="call-panel">
       {!ready ? (
         <div className="call-connecting">Подключаюсь к звонку…</div>
+      ) : st.calling ? (
+        <div className="call-connecting calling">
+          <Avatar client={client} mxc={otherOf(client, room)?.getMxcAvatarUrl()} name={otherOf(client, room)?.name ?? room.name} seed={otherOf(client, room)?.userId ?? room.roomId} size={72} />
+          <span>Вызываю {otherOf(client, room)?.name ?? room.name}…</span>
+        </div>
       ) : (
         <div className={"call-grid" + (screens.length ? " with-screen" : "") + ` n${Math.min(participants.length, 4)}`}>
           {screens.map(({ p, pub }) => (

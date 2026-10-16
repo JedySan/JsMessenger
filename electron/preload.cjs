@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("jsmDesktop", {
     return () => ipcRenderer.off("notification-click", h);
   },
   attention: () => ipcRenderer.send("attention"),
+  showWindow: () => ipcRenderer.send("show-window"),
   setBadge: (count) => ipcRenderer.send("badge", count),
 
   saveDownload: (name, data) => ipcRenderer.invoke("save-download", { name, data }),

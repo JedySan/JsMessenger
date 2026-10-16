@@ -88,6 +88,28 @@ async function show(title: string, body: string, roomId = "") {
   }
 }
 
+/** Системное уведомление (для звонков и т. п.). */
+export function notifySystem(title: string, body: string, roomId = "") {
+  return show(title, body, roomId);
+}
+
+/** Входящий звонок: показать спрятанное окно (не перехватывая фокус) и настойчиво привлечь внимание. */
+export async function presentWindow() {
+  const el = electron();
+  if (el) return el.showWindow();
+  if (!isTauri()) return;
+  try {
+    const { getCurrentWindow, UserAttentionType } = await import("@tauri-apps/api/window");
+    const w = getCurrentWindow();
+    if (!(await w.isVisible())) await w.show();
+    if (await w.isMinimized()) await w.unminimize();
+    // Dock подпрыгивает, пока пользователь не переключится на приложение
+    if (!document.hasFocus()) await w.requestUserAttention(UserAttentionType.Critical);
+  } catch (e) {
+    console.warn("present window", e);
+  }
+}
+
 /** Клик по системному уведомлению → открыть чат. */
 export async function onNotificationClick(open: (roomId: string) => void): Promise<() => void> {
   const el = electron();

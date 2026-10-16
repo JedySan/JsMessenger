@@ -216,6 +216,14 @@ ipcMain.on("attention", () => {
   if (win && !win.isFocused()) win.flashFrame(true);
 });
 
+// Входящий звонок: показать окно поверх, но не отнимать фокус у текущей программы
+ipcMain.on("show-window", () => {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  if (!win.isVisible()) win.showInactive();
+  if (!win.isFocused()) win.flashFrame(true);
+});
+
 ipcMain.on("badge", (_e, count) => {
   const n = Number(count) || 0;
   app.setBadgeCount(n); // счётчик на значке в доке Ubuntu (Unity/Dash to Dock)

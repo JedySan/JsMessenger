@@ -7,6 +7,8 @@ import { textToContent } from "../richtext";
 import { effectiveContent, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
 
+const PASTE_KEY = window.jsmDesktop && window.jsmDesktop.platform !== "darwin" ? "Ctrl+V" : "⌘V";
+
 export type ComposerMode = { kind: "normal" } | { kind: "reply"; ev: MatrixEvent } | { kind: "edit"; ev: MatrixEvent };
 
 export default function Composer({
@@ -188,7 +190,7 @@ export default function Composer({
         </button>
       </div>
       <div className="composer-hint">
-        **жирный**, _курсив_, `код`, Shift+Enter — новая строка, ⌘V — вставить скриншот
+        **жирный**, _курсив_, `код`, Shift+Enter — новая строка, {PASTE_KEY} — вставить скриншот
       </div>
     </div>
   );

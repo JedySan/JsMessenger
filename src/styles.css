@@ -338,6 +338,12 @@ html:not([data-platform="darwin"])[data-platform] .titlebar { height: 10px; }
   background: var(--call-bg); color: var(--call-text);
 }
 .call-connecting { margin: auto; color: #a2aab4; }
+.call-connecting.calling { display: flex; flex-direction: column; align-items: center; gap: 14px; font-size: 15px; color: #d5dbe1; }
+.call-connecting.calling .avatar { animation: ring-pulse 1.6s ease-out infinite; }
+@keyframes ring-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 22px transparent; }
+}
 .call-grid {
   flex: 1; min-height: 0; padding: 12px 12px 0; display: grid; gap: 10px; overflow-y: auto;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); grid-auto-rows: minmax(150px, 1fr);
@@ -896,3 +902,29 @@ textarea.text-input { resize: vertical; font: inherit; }
 .update-bar.stack .update-icon { margin-top: 2px; }
 .update-bar.stack .update-actions { flex-basis: 100%; justify-content: flex-end; gap: 6px; }
 .small-ghost { padding: 4px 10px; font-size: 12px; border-radius: 8px; }
+
+/* ---------- входящий звонок ---------- */
+.incoming {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 60;
+  display: flex; align-items: center; gap: 18px; padding: 14px 16px 14px 14px;
+  min-width: 360px; max-width: calc(100vw - 32px);
+  background: var(--raised); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow);
+  animation: incoming-in 0.22s ease-out;
+}
+.incoming.quiet { padding: 10px 12px; gap: 12px; border-radius: 14px; }
+@keyframes incoming-in { from { opacity: 0; transform: translate(-50%, -12px); } }
+.incoming-who { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.incoming-avatar { border-radius: 50%; display: inline-flex; }
+.incoming.ring .incoming-avatar { animation: ring-pulse 1.4s ease-out infinite; }
+.incoming-text { display: flex; flex-direction: column; min-width: 0; }
+.incoming-text b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.incoming-text span { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.incoming-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.round {
+  width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; transition: filter 0.12s, transform 0.12s;
+}
+.round:hover { filter: brightness(1.08); transform: scale(1.04); }
+.round.accept { background: #16a34a; }
+.round.decline { background: var(--danger); }
+.call-error.ended { color: inherit; }

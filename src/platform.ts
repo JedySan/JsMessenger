@@ -11,6 +11,7 @@ export interface ElectronBridge {
   notify(title: string, body: string, roomId: string): Promise<boolean>;
   onNotificationClick(cb: (roomId: string) => void): () => void;
   attention(): void;
+  showWindow(): void;
   setBadge(count: number): void;
   saveDownload(name: string, data: Uint8Array): Promise<string>;
   openExternal(url: string): Promise<void>;

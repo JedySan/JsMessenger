@@ -19,6 +19,8 @@ import { CallAudio, useCallState } from "./CallPanel";
 import AboutDialog from "./AboutDialog";
 import Toasts from "./Toasts";
 import UpdateBanner from "./UpdateBanner";
+import IncomingCall from "./IncomingCall";
+import { attachIncomingCalls } from "../incoming";
 import {
   checkForUpdate,
   initAutostartOnce,
@@ -57,6 +59,8 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
   const currentRoom = useRef<string | null>(null);
   currentRoom.current = roomId;
   useEffect(() => attachNotifications(client, () => currentRoom.current), [client]);
+  // Входящие звонки: окно вызова и мелодия
+  useEffect(() => attachIncomingCalls(client), [client]);
   // Клик по системному уведомлению открывает чат
   const openRef = useRef<(id: string) => void>(() => {});
   useEffect(() => {
@@ -142,7 +146,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           </button>
         )}
 
-        {callState && callRoom && callState.roomId !== roomId && (
+        {callState && callRoom && callState.roomId !== roomId && (callState.status === "connecting" || callState.status === "connected") && (
           <div className="call-bar">
             <button className="call-bar-room" onClick={() => openRoom(callState.roomId)}>
               <PhoneCall size={15} />
@@ -208,6 +212,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
       <CallAudio />
       <Lightbox />
       <Toasts onOpen={openRoom} />
+      <IncomingCall client={client} onOpenRoom={openRoom} />
       <DialogHost client={client} onOpenRoom={openRoom} />
       {showVerify && <VerifyDialog client={client} onClose={() => setShowVerify(false)} />}
       {showSessions && <SessionsDialog client={client} onClose={() => setShowSessions(false)} />}
