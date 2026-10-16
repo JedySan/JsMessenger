@@ -80,6 +80,10 @@ ARCHS=$(lipo -archs "${APP}/Contents/MacOS/${EXE}")
 echo "Архитектуры: ${ARCHS}"
 [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]] || die "сборка не универсальная"
 codesign --verify --deep --strict "$APP" && echo "Подпись: целостна (ad-hoc)"
+# без этих прав (при hardened runtime) macOS молча не даёт микрофон и камеру
+ENT=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null || true)
+[[ "$ENT" == *audio-input* && "$ENT" == *device.camera* ]] || die "в подписи нет прав на микрофон/камеру (src-tauri/Entitlements.plist)"
+echo "Права: микрофон и камера"
 
 say "Собираю пакет для установки"
 rm -rf "$OUT" "${OUT}.zip"

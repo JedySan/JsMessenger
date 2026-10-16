@@ -975,3 +975,9 @@ textarea.text-input { resize: vertical; font: inherit; }
 }
 .call-full .call-controls { flex-shrink: 0; }
 .call-full .call-full-stage .tile-avatar .avatar { --av-l: 26%; --av-s: 30%; --av-tl: 82%; }
+
+.call-media-error {
+  display: flex; align-items: center; gap: 10px; margin: 10px 12px 0; padding: 8px 8px 8px 12px; border-radius: 10px;
+  background: color-mix(in srgb, #e5534b 22%, transparent); color: #ffd7d4; font-size: 13px;
+}
+.call-media-error span { flex: 1; }

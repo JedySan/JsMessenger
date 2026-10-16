@@ -11,6 +11,7 @@ import {
   TriangleAlert,
   Video as Video_,
   VideoOff,
+  X,
 } from "lucide-react";
 import Avatar from "./Avatar";
 import { Track, type Participant, type TrackPublication } from "livekit-client";
@@ -139,14 +140,14 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
         <CtrlButton
           on={micOn}
           disabled={!ready}
-          onClick={() => local.setMicrophoneEnabled(!micOn).catch(alertErr)}
+          onClick={() => local.setMicrophoneEnabled(!micOn).then(() => call.clearMediaError(), (e) => call.mediaFailed(lk, "mic", e))}
           label={micOn ? "Выключить микрофон" : "Включить микрофон"}
           icon={micOn ? <Mic size={20} /> : <MicOff size={20} />}
         />
         <CtrlButton
           on={camOn}
           disabled={!ready}
-          onClick={() => local.setCameraEnabled(!camOn).catch(alertErr)}
+          onClick={() => local.setCameraEnabled(!camOn).then(() => call.clearMediaError(), (e) => call.mediaFailed(lk, "cam", e))}
           label={camOn ? "Выключить камеру" : "Включить камеру"}
           icon={camOn ? <Video_ size={20} /> : <VideoOff size={20} />}
         />
@@ -168,8 +169,19 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
     </div>
   );
 
+  const mediaBanner = st.mediaError ? (
+    <div className="call-media-error">
+      <MicOff size={15} />
+      <span>{st.mediaError}</span>
+      <button className="call-full-btn" onClick={() => call.clearMediaError()} aria-label="Скрыть">
+        <X size={15} />
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="call-panel">
+      {mediaBanner}
       {!ready ? (
         <div className="call-connecting">Подключаюсь к звонку…</div>
       ) : st.calling ? (

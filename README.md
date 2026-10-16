@@ -103,6 +103,13 @@ VITE_DEFAULT_SERVER=matrix.example.com ./scripts/build-mac.sh
 Когда появится сертификат Developer ID, укажите его в `bundle.macOS.signingIdentity`
 в `src-tauri/tauri.conf.json` или в переменной `APPLE_SIGNING_IDENTITY`.
 
+### Нет доступа к микрофону
+
+Приложение подписано с hardened runtime, поэтому права на микрофон и камеру прописаны в
+`src-tauri/Entitlements.plist` (скрипт сборки проверяет, что они попали в подпись). Если macOS
+запомнила отказ: `tccutil reset Microphone io.github.jedysan.jsmessenger` (и `Camera`), затем
+перезапустить приложение — запрос появится снова.
+
 ## Linux
 
 Linux-версия — тот же интерфейс в оболочке Electron (Chromium): звонки, демонстрация экрана и шифрование

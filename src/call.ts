@@ -35,6 +35,8 @@ export interface CallState {
   roomId: string;
   status: "connecting" | "connected" | "error" | "ended";
   error?: string;
+  /** не удалось включить микрофон или камеру — показываем, что делать */
+  mediaError?: string;
   /** исходящий звонок в личном чате: ждём, пока собеседник ответит */
   calling?: boolean;
   encrypted: boolean;
@@ -140,8 +142,8 @@ class CallController {
       this.state.status = "connected";
       this.emit();
 
-      await lk.localParticipant.setMicrophoneEnabled(true).catch((e) => console.warn("mic", e));
-      if (withVideo) await lk.localParticipant.setCameraEnabled(true).catch((e) => console.warn("cam", e));
+      await lk.localParticipant.setMicrophoneEnabled(true).catch((e) => this.mediaFailed(lk, "mic", e));
+      if (withVideo) await lk.localParticipant.setCameraEnabled(true).catch((e) => this.mediaFailed(lk, "cam", e));
       this.emit();
     } catch (e) {
       console.error("call join", e);
@@ -196,6 +198,33 @@ class CallController {
       startRingtone("ringback");
     });
     this.stopWaiting = stop;
+  }
+
+  /** Микрофон или камера не включились: чаще всего система не дала доступ. */
+  mediaFailed(lk: LkRoom, kind: "mic" | "cam", e: unknown) {
+    console.warn("media", kind, e);
+    if (this.state?.lk !== lk) return;
+    const name = e instanceof Error ? e.name : "";
+    const dev = kind === "mic" ? "микрофон" : "камеру";
+    const settings = window.jsmDesktop
+      ? "в настройках конфиденциальности системы"
+      : `в «Системных настройках → Конфиденциальность и безопасность → ${kind === "mic" ? "Микрофон" : "Камера"}»: включите JsMessenger и перезапустите его`;
+    this.state.mediaError =
+      name === "NotAllowedError" || name === "SecurityError"
+        ? `Нет доступа к ${kind === "mic" ? "микрофону" : "камере"}. Разрешите его ${settings}.`
+        : name === "NotFoundError" || name === "OverconstrainedError"
+          ? `Не найдено устройство: подключите ${dev}.`
+          : name === "NotReadableError"
+            ? `Не удалось включить ${dev}: устройство занято другой программой.`
+            : `Не удалось включить ${dev}: ${e instanceof Error ? e.message : String(e)}`;
+    this.emit();
+  }
+
+  clearMediaError() {
+    if (this.state?.mediaError) {
+      this.state.mediaError = undefined;
+      this.emit();
+    }
   }
 
   /** Завершить звонок с пояснением («не ответил», «отклонил»). */

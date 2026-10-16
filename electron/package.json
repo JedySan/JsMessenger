@@ -2,7 +2,7 @@
   "name": "jsmessenger",
   "productName": "JsMessenger",
   "desktopName": "jsmessenger.desktop",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Matrix-мессенджер со звонками через LiveKit",
   "homepage": "https://github.com/JedySan/JsMessenger",
   "license": "AGPL-3.0-or-later",
