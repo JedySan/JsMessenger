@@ -15,9 +15,13 @@ export type UpdateState =
 
 let state: UpdateState = { kind: "idle" };
 const listeners = new Set<() => void>();
+let hideTimer: number | undefined;
 function set(s: UpdateState) {
   state = s;
   listeners.forEach((f) => f());
+  // «У вас последняя версия» — короткое подтверждение, само скрывается
+  window.clearTimeout(hideTimer);
+  if (s.kind === "none") hideTimer = window.setTimeout(() => state.kind === "none" && set({ kind: "idle" }), 4000);
 }
 export function getUpdateState() {
   return state;
