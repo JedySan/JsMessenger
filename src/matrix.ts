@@ -10,7 +10,7 @@ import { decodeRecoveryKey } from "matrix-js-sdk/lib/crypto-api/recovery-key";
 /** Сервер по умолчанию задаётся при сборке: VITE_DEFAULT_SERVER=matrix.example.com npm run tauri build */
 export const DEFAULT_SERVER: string = (import.meta.env.VITE_DEFAULT_SERVER ?? "").trim();
 const SESSION_KEY = "jsm.session";
-const DEVICE_NAME = "JsMessenger (macOS)";
+const DEVICE_NAME = window.jsmDesktop?.platform === "linux" ? "JsMessenger (Linux)" : "JsMessenger (macOS)";
 
 export interface Session {
   baseUrl: string;

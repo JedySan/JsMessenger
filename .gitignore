@@ -16,3 +16,8 @@ public/THIRD_PARTY_LICENSES.txt
 # системное
 .DS_Store
 *.log
+
+# Linux-версия (Electron): интерфейс копируется сюда при сборке
+electron/web/
+electron/node_modules/
+electron/package-lock.json

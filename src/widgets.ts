@@ -48,7 +48,10 @@ export function getJitsiWidgets(room: Room): JitsiWidget[] {
 
 /** Открывает ссылку в системном браузере (в Tauri) или новой вкладке (в браузере). */
 export async function openExternal(url: string) {
-  if ("__TAURI_INTERNALS__" in window) {
+  const el = window.jsmDesktop;
+  if (el) {
+    await el.openExternal(url);
+  } else if ("__TAURI_INTERNALS__" in window) {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);
   } else {

@@ -70,11 +70,16 @@ export async function downloadMedia(client: MatrixClient, content: Record<string
   return new Blob([data], { type: content.info?.mimetype ?? "application/octet-stream" });
 }
 
-const isTauri = () => "__TAURI_INTERNALS__" in window;
+import { electron, isTauri } from "./platform";
 
 /** Сохраняет файл в «Загрузки» и показывает его в Finder (в браузере — обычное скачивание). */
 export async function saveToDownloads(name: string, blob: Blob): Promise<void> {
   const safe = name.replace(/[/\\:*?"<>|]+/g, "_").trim() || "file";
+  const el = electron();
+  if (el) {
+    await el.saveDownload(safe, new Uint8Array(await blob.arrayBuffer()));
+    return;
+  }
   if (!isTauri()) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);

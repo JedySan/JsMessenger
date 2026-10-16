@@ -1,0 +1,18 @@
+{
+  "name": "jsmessenger",
+  "productName": "JsMessenger",
+  "desktopName": "jsmessenger.desktop",
+  "version": "0.8.0",
+  "description": "Matrix-мессенджер со звонками через LiveKit",
+  "homepage": "https://github.com/JedySan/JsMessenger",
+  "license": "AGPL-3.0-or-later",
+  "author": {
+    "name": "JedySan",
+    "email": "61560967+JedySan@users.noreply.github.com"
+  },
+  "main": "main.cjs",
+  "private": true,
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  }
+}

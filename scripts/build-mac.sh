@@ -38,7 +38,8 @@ KEY="${JSM_UPDATER_KEY:-$HOME/.tauri/jsmessenger.key}"
 
 say "Версия ${VERSION}: готовлю инструменты"
 rustup target add aarch64-apple-darwin x86_64-apple-darwin >/dev/null
-npm install --no-audit --no-fund
+# Electron нужен только для Linux-версии — его бинарник на Маке не скачиваем
+ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install --no-audit --no-fund
 
 # ---------- автообновление: включается, если есть ключ подписи ----------
 # (в системном bash 3.2 на macOS пустые массивы ломаются при set -u — используем флаг)
@@ -112,9 +113,15 @@ if [[ $UPDATER -eq 1 ]]; then
   if [[ $PUBLISH -eq 1 ]]; then
     command -v gh >/dev/null || die "для --publish нужен GitHub CLI: brew install gh && gh auth login"
     say "Публикую релиз v${VERSION} на GitHub"
-    gh release create "v${VERSION}" \
-      "${UPD}/${FILE}" "${UPD}/latest.json" "${OUT}.zip" \
-      --title "JsMessenger ${VERSION}" --notes "${JSM_RELEASE_NOTES:-JsMessenger ${VERSION}}"
+    if gh release view "v${VERSION}" >/dev/null 2>&1; then
+      # релиз уже есть (например, создан раньше) — просто обновляем файлы macOS
+      gh release upload "v${VERSION}" --clobber "${UPD}/${FILE}" "${UPD}/latest.json" "${OUT}.zip"
+    else
+      gh release create "v${VERSION}" \
+        "${UPD}/${FILE}" "${UPD}/latest.json" "${OUT}.zip" \
+        --title "JsMessenger ${VERSION}" --notes "${JSM_RELEASE_NOTES:-JsMessenger ${VERSION}}"
+    fi
+    echo "Linux-версию GitHub соберёт сам и приложит к этому релизу (вкладка Actions, ~10 минут)"
   fi
 fi
 

@@ -1,0 +1,36 @@
+# Сборка Linux-версии (Electron): npm run linux  →  release/linux/
+appId: io.github.jedysan.jsmessenger
+productName: JsMessenger
+copyright: "© 2026 JedySan. AGPL-3.0-or-later"
+directories:
+  app: electron          # main.cjs, preload.cjs, web/ (интерфейс), свой package.json
+  output: release/linux
+  buildResources: electron/icons
+files:
+  - "**/*"
+  - "!web/**/*.map"
+electronLanguages: [ru, en-US]
+linux:
+  target: [deb, AppImage]
+  category: Network
+  icon: electron/icons/icon.png
+  executableName: jsmessenger
+  syncDesktopName: true
+  synopsis: Matrix-мессенджер со звонками
+  description: Matrix-мессенджер со звонками через LiveKit (MatrixRTC) и сквозным шифрованием.
+  maintainer: "JedySan <61560967+JedySan@users.noreply.github.com>"
+  desktop:
+    entry:
+      Name: JsMessenger
+      Comment: Matrix-мессенджер со звонками
+      Categories: Network;InstantMessaging;Chat;
+      StartupWMClass: jsmessenger
+      Keywords: matrix;chat;messenger;
+deb:
+  depends: [libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0]
+artifactName: "JsMessenger-${version}-${arch}.${ext}"
+publish:
+  provider: github
+  owner: JedySan
+  repo: JsMessenger
+  releaseType: release

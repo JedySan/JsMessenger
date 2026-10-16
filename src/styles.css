@@ -112,6 +112,7 @@ h1, h2 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 
 /* ---------- полоса заголовка macOS ---------- */
 .titlebar { height: 38px; flex-shrink: 0; }
+html:not([data-platform="darwin"])[data-platform] .titlebar { height: 10px; }
 
 /* ---------- экраны входа и загрузки ---------- */
 .login-screen, .splash {

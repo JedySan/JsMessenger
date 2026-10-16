@@ -29,6 +29,7 @@ import {
   updaterEnabled,
 } from "../desktop";
 import { PopupMenu } from "./ui";
+import { isDesktop } from "../platform";
 import { attachNotifications, onNotificationClick, testNotification, updateBadge } from "../notifications";
 
 export default function Main({ client, onLogout }: { client: MatrixClient; onLogout: () => void }) {
@@ -227,7 +228,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             {
               label: "Запускать при входе в систему",
               icon: autostart ? <Check size={15} /> : <Power size={15} />,
-              hidden: !("__TAURI_INTERNALS__" in window),
+              hidden: !isDesktop(),
               onClick: () =>
                 setAutostart(!autostart)
                   .then(() => setAutostartState(!autostart))
@@ -243,7 +244,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             {
               label: "Закрыть JsMessenger полностью",
               icon: <Power size={15} />,
-              hidden: !("__TAURI_INTERNALS__" in window),
+              hidden: !isDesktop(),
               onClick: () => quitApp(),
             },
             {

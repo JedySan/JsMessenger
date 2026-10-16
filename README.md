@@ -1,11 +1,11 @@
 # JsMessenger
 
-Настольный клиент [Matrix](https://matrix.org) для macOS со сквозным шифрованием и звонками через
+Настольный клиент [Matrix](https://matrix.org) для macOS и Linux со сквозным шифрованием и звонками через
 [LiveKit](https://livekit.io) (MatrixRTC). Совместим с Element, Element X и Element Call: можно переписываться
 и созваниваться вперемешку.
 
-> Ранняя версия. Работает на macOS 13+ (Apple Silicon и Intel). Сборки пока не подписаны
-> сертификатом Apple.
+> Ранняя версия. macOS 13+ (Apple Silicon и Intel) и Linux x86-64 (Ubuntu 22.04+, Debian 12+ и другие
+> через AppImage). Сборки для macOS пока не подписаны сертификатом Apple.
 
 ## Возможности
 
@@ -100,11 +100,28 @@ VITE_DEFAULT_SERVER=matrix.example.com ./scripts/build-mac.sh
 Когда появится сертификат Developer ID, укажите его в `bundle.macOS.signingIdentity`
 в `src-tauri/tauri.conf.json` или в переменной `APPLE_SIGNING_IDENTITY`.
 
+## Linux
+
+Linux-версия — тот же интерфейс в оболочке Electron (Chromium): звонки, демонстрация экрана и шифрование
+звонков работают внутри приложения. Пакеты собирает GitHub Actions (`.github/workflows/linux.yml`), когда
+`./scripts/build-mac.sh --publish` создаёт релиз, и прикладывает их к нему:
+
+- `JsMessenger-<версия>-amd64.deb` — Ubuntu и Debian: `sudo apt install ./JsMessenger-<версия>-amd64.deb`;
+- `JsMessenger-<версия>-x86_64.AppImage` — остальные дистрибутивы: `chmod +x` и запустить
+  (на Ubuntu 24.04 удобнее `.deb`: AppImage там требует `libfuse2` и настройки AppArmor).
+
+Значок в трее (меню «Открыть / Выйти»), крестик прячет окно, повторный запуск показывает его.
+Автозапуск — `~/.config/autostart`. Автообновление — `electron-updater` по `latest-linux.yml` из релиза:
+AppImage обновляется сам, для `.deb` система спросит пароль администратора.
+
+Собрать локально (на Linux): `npm run linux` → `release/linux/`. Запуск интерфейса в Electron
+при разработке: `npm run dev` и в соседнем терминале `npm run electron:dev`.
+
 ## Устройство
 
 | | |
 |---|---|
-| Оболочка | Tauri 2 (Rust), системный WebKit |
+| Оболочка | macOS: Tauri 2 (Rust), системный WebKit; Linux: Electron |
 | Интерфейс | React 19, TypeScript, Vite |
 | Matrix | matrix-js-sdk + matrix-sdk-crypto (WASM) |
 | Звонки | livekit-client + MatrixRTC |
@@ -117,8 +134,10 @@ src/attachments.ts     шифрование и загрузка вложений
 src/verification.ts    подтверждение сеансов
 src/notifications.ts   уведомления, счётчик в Dock
 src/desktop.ts         автообновление, автозапуск, выход
+src/platform.ts        Tauri / Electron / браузер — общий слой
 src/components/        интерфейс
 src-tauri/             оболочка: работа в фоне, App Nap, плагины; src/notify_mac.rs — уведомления
+electron/              Linux-оболочка: main.cjs (окно, трей, уведомления, обновления), preload.cjs
 scripts/               сборка и выпуск обновлений, ключ подписи, файл лицензий
 ```
 
@@ -126,7 +145,7 @@ scripts/               сборка и выпуск обновлений, клю
 
 - Входящие звонки с окном вызова
 - Хранение входа в Связке ключей macOS
-- Голосовые сообщения, профиль, сборка для Windows
+- Голосовые сообщения, профиль, сборка для Windows (на той же Electron-оболочке)
 
 ## Лицензия
 
