@@ -1,0 +1,18 @@
+# зависимости и сборка
+node_modules/
+dist/
+release/
+src-tauri/target/
+src-tauri/gen/
+
+# генерируется при сборке (npm run licenses)
+public/THIRD_PARTY_LICENSES.txt
+
+# локальные настройки
+.env
+.env.*
+!.env.example
+
+# системное
+.DS_Store
+*.log
