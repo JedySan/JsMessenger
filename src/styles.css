@@ -1033,3 +1033,13 @@ textarea.text-input { resize: vertical; font: inherit; }
 .picker-item img { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; border-radius: 7px; }
 .picker-item span { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .modal-bg:has(.picker) { z-index: 100; }
+
+/* ---------- прочитано / доставлено ---------- */
+.msg-status { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; vertical-align: -2px; color: var(--text-3); }
+.msg-status.read { color: var(--accent); }
+.msg-status.failed { color: var(--danger); font-size: 12px; cursor: pointer; vertical-align: 0; }
+.msg-status.failed:hover { text-decoration: underline; }
+.msg-readers { display: flex; justify-content: flex-end; align-items: center; gap: 2px; margin-top: 3px; }
+.msg-readers .reader { display: inline-flex; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--bg); }
+.msg-readers .reader + .reader { margin-left: -4px; }
+.reader-more { font-size: 11px; color: var(--text-3); margin-left: 4px; }

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { EventType, MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { Ban, Clock, Copy, Lock, MessagesSquare, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from "lucide-react";
+import { Ban, Check, CheckCheck, Circle, CircleAlert, Copy, Lock, MessagesSquare, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from "lucide-react";
 import { listTime, stripReplyFallback, timeHM } from "../format";
 import { htmlToText, linkify, sanitizeMessageHtml } from "../richtext";
 import { openExternal } from "../widgets";
 import { flashEvent, requestJump } from "../jump";
 import Avatar from "./Avatar";
+import type { SendStatus } from "../receipts";
 import { AudioMessage, FileMessage, ImageMessage, VideoMessage } from "./Media";
 
 export interface MessageActions {
@@ -62,12 +63,18 @@ export default function Message({
   ev,
   prev,
   actions,
+  status,
+  readers,
 }: {
   client: MatrixClient;
   room: Room;
   ev: MatrixEvent;
   prev?: MatrixEvent;
   actions: MessageActions;
+  /** для своих сообщений: отправляется / доставлено / прочитано */
+  status?: SendStatus;
+  /** кто дочитал до этого сообщения (в группах — аватарки) */
+  readers?: string[];
 }) {
   const me = client.getSafeUserId();
   const sender = ev.getSender() ?? "";
@@ -120,14 +127,18 @@ export default function Message({
             <Body client={client} ev={ev} content={content} />
           )}
           {!redacted && ev.replacingEvent() && <span className="msg-meta"> (изменено)</span>}
-          {ev.isSending() && (
-            <span className="msg-meta" title="Отправляется">
-              {" "}
-              <Clock size={11} />
-            </span>
+          {status ? (
+            <SendMark status={status} onRetry={() => client.resendEvent(ev, room).catch(() => {})} />
+          ) : (
+            ev.isSending() && (
+              <span className="msg-status sending" title="Отправляется">
+                <Circle size={10} strokeWidth={2.5} />
+              </span>
+            )
           )}
         </div>
         {!redacted && <Reactions client={client} room={room} ev={ev} />}
+        {readers && readers.length > 0 && <Readers client={client} room={room} userIds={readers} />}
         {threadCount > 0 && thread && (
           <button className="thread-summary" onClick={() => actions.onThread!(ev)}>
             <MessagesSquare size={14} />
@@ -395,4 +406,36 @@ function plural(n: number, one: string, few: string, many: string): string {
   if (m10 === 1 && m100 !== 11) return one;
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many;
+}
+
+/** У своих сообщений: кружок — отправляется, одна галочка — доставлено, две — прочитано. */
+function SendMark({ status, onRetry }: { status: SendStatus; onRetry: () => void }) {
+  if (status === "failed")
+    return (
+      <button className="msg-status failed" onClick={onRetry} title="Не отправлено — нажмите, чтобы повторить">
+        <CircleAlert size={13} /> Не отправлено
+      </button>
+    );
+  const label = status === "sending" ? "Отправляется" : status === "sent" ? "Доставлено" : "Прочитано";
+  return (
+    <span className={"msg-status " + status} title={label} aria-label={label}>
+      {status === "sending" ? <Circle size={10} strokeWidth={2.5} /> : status === "sent" ? <Check size={14} /> : <CheckCheck size={14} />}
+    </span>
+  );
+}
+
+/** Аватарки дочитавших до этого места; при наведении — имена. */
+function Readers({ client, room, userIds }: { client: MatrixClient; room: Room; userIds: string[] }) {
+  const names = userIds.map((u) => room.getMember(u)?.name ?? u);
+  const shown = userIds.slice(0, 5);
+  return (
+    <div className="msg-readers" title={`Прочитали: ${names.join(", ")}`}>
+      {shown.map((u, i) => (
+        <span key={u} className="reader">
+          <Avatar client={client} mxc={room.getMember(u)?.getMxcAvatarUrl()} name={names[i]} seed={u} size={16} />
+        </span>
+      ))}
+      {userIds.length > shown.length && <span className="reader-more">+{userIds.length - shown.length}</span>}
+    </div>
+  );
 }

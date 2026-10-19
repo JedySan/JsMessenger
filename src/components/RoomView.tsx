@@ -7,6 +7,7 @@ import CallPanel from "./CallPanel";
 import CallButtons from "./CallButtons";
 import Composer, { type ComposerMode } from "./Composer";
 import Message, { effectiveContent } from "./Message";
+import { readInfo } from "../receipts";
 import UploadDialog from "./UploadDialog";
 import RoomInfo from "./RoomInfo";
 import { isDirect } from "../rooms";
@@ -34,7 +35,11 @@ export default function RoomView({
   onToggleInfo: () => void;
   onOpenRoom: (roomId: string) => void;
 }) {
-  const events = room.getLiveTimeline().getEvents().filter(isVisibleMessage);
+  const allEvents = room.getLiveTimeline().getEvents();
+  const events = allEvents.filter(isVisibleMessage);
+  // Кто что прочитал: галочки у своих сообщений, в группах — аватарки дочитавших
+  const reads = readInfo(client, room, allEvents, events);
+  const isGroup = room.getJoinedMemberCount() > 2;
   const lastId = events.at(-1)?.getId();
   const me = client.getSafeUserId();
 
@@ -89,12 +94,21 @@ export default function RoomView({
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [lastId, events.length]);
 
-  // Отметка о прочтении последнего сообщения
+  // Отметка о прочтении последнего сообщения — сразу, если окно активно, иначе когда к нему вернутся
   useEffect(() => {
-    const last = room.getLiveTimeline().getEvents().at(-1);
-    if (last && !last.isSending() && document.hasFocus()) {
+    const send = () => {
+      const last = room.getLiveTimeline().getEvents().at(-1);
+      if (!last || last.isSending() || !document.hasFocus() || document.hidden) return;
+      if (room.getEventReadUpTo(client.getSafeUserId()) === last.getId()) return; // уже отмечено
       client.sendReadReceipt(last).catch(() => {});
-    }
+    };
+    send();
+    window.addEventListener("focus", send);
+    document.addEventListener("visibilitychange", send);
+    return () => {
+      window.removeEventListener("focus", send);
+      document.removeEventListener("visibilitychange", send);
+    };
   }, [client, room, lastId]);
 
   // Мало сообщений, чтобы появилась прокрутка, — подгружаем историю сразу
@@ -243,7 +257,15 @@ export default function RoomView({
                   <span>{dayLabel(ev.getTs())}</span>
                 </div>
               )}
-              <Message client={client} room={room} ev={ev} prev={newDay ? undefined : prev} actions={actions} />
+              <Message
+                client={client}
+                room={room}
+                ev={ev}
+                prev={newDay ? undefined : prev}
+                actions={actions}
+                status={reads.status.get(ev.getId() ?? "")}
+                readers={isGroup ? reads.readers.get(ev.getId() ?? "") : undefined}
+              />
             </div>
           );
         })}
