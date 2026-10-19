@@ -151,8 +151,10 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
     const items = menuItems(m).filter((i) => !i.hidden);
     return (
       <div key={m.userId} className="member-row">
-        <Avatar client={client} mxc={m.getMxcAvatarUrl()} name={m.name} seed={m.userId} size={32} />
-        <div className="member-text">
+        <button className="member-open" onClick={() => openDialog({ kind: "user", userId: m.userId })} title="Карточка">
+          <Avatar client={client} mxc={m.getMxcAvatarUrl()} name={m.name} seed={m.userId} size={32} />
+        </button>
+        <div className="member-text member-open" role="button" tabIndex={0} onClick={() => openDialog({ kind: "user", userId: m.userId })}>
           <div className="member-name">
             {m.name}
             {m.userId === me && <span className="member-you"> (вы)</span>}

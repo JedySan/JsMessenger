@@ -1,4 +1,5 @@
 // Общие элементы: всплывающее меню, модальное окно, поиск пользователей.
+import { searchPeople } from "../people";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { Check, Search, X } from "lucide-react";
@@ -142,14 +143,9 @@ export function UserPicker({
     // небольшая задержка, чтобы не дёргать сервер на каждую букву
     const timer = setTimeout(async () => {
       try {
-        const res = await client.searchUserDirectory({ term: t, limit: 20 });
-        let list: PickedUser[] = res.results.map((r) => ({
-          userId: r.user_id,
-          name: r.display_name || r.user_id,
-          avatar: r.avatar_url,
-        }));
-        // полный MXID, которого нет в каталоге, тоже можно выбрать
-        if (/^@[^:]+:.+/.test(t) && !list.some((u) => u.userId === t)) list = [{ userId: t, name: t }, ...list];
+        // свои (участники наших чатов) + каталог сервера; понимает перепутанную раскладку
+        const people = await searchPeople(client, t, 20);
+        const list: PickedUser[] = people.map((p) => ({ userId: p.userId, name: p.name, avatar: p.avatar }));
         if (alive) setResults(list.filter((u) => !exclude.includes(u.userId) && u.userId !== client.getSafeUserId()));
       } catch {
         if (alive) setResults([]);

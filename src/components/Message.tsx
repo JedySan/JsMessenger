@@ -7,6 +7,7 @@ import { openExternal } from "../widgets";
 import { flashEvent, requestJump } from "../jump";
 import Avatar from "./Avatar";
 import type { SendStatus } from "../receipts";
+import { openDialog } from "./DialogHost";
 import { AudioMessage, FileMessage, ImageMessage, VideoMessage } from "./Media";
 
 export interface MessageActions {
@@ -108,13 +109,17 @@ export default function Message({
         {grouped ? (
           <span className="msg-hover-time">{time}</span>
         ) : (
-          <Avatar client={client} mxc={member?.getMxcAvatarUrl()} name={name} seed={sender} size={34} />
+          <button className="msg-avatar" onClick={() => openDialog({ kind: "user", userId: sender })} title={name} aria-label={name}>
+            <Avatar client={client} mxc={member?.getMxcAvatarUrl()} name={name} seed={sender} size={34} />
+          </button>
         )}
       </div>
       <div className="msg-main">
         {!grouped && (
           <div className="msg-head">
-            <span className="msg-author">{name}</span>
+            <button className="msg-author" onClick={() => openDialog({ kind: "user", userId: sender })}>
+              {name}
+            </button>
             <span className="msg-time">{time}</span>
           </div>
         )}

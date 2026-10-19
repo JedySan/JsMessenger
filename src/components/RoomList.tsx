@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { KnownMembership, NotificationCountType, type MatrixClient, type Room } from "matrix-js-sdk";
 import {
   Bell,
@@ -31,7 +31,9 @@ import {
   toggleMute,
   type Scope,
 } from "../rooms";
-import { RoomAvatar } from "./Avatar";
+import Avatar, { RoomAvatar } from "./Avatar";
+import { matchesText, searchKnown, searchPeople, type Person } from "../people";
+import { openDirectChat } from "../rooms";
 import { openDialog } from "./DialogHost";
 import { PopupMenu, type MenuItem } from "./ui";
 
@@ -66,7 +68,7 @@ export default function RoomList({
     if (inSpace) return inSpace.has(r.roomId);
     return true;
   };
-  const rooms = client.getVisibleRooms().filter((r) => inScope(r) && (!f || r.name.toLowerCase().includes(f)));
+  const rooms = client.getVisibleRooms().filter((r) => inScope(r) && (!f || matchesText(r.name, f)));
 
   const invites = rooms.filter((r) => r.getMyMembership() === KnownMembership.Invite);
   let joined = rooms
@@ -249,11 +251,19 @@ export default function RoomList({
         {(favs.length > 0 || invites.length > 0) && rest.length > 0 && <div className="list-heading">Чаты</div>}
         {rest.map(row)}
 
-        {joined.length === 0 && invites.length === 0 && (
+        {f && (
+          <PeopleResults
+            client={client}
+            term={search}
+            shownRoomIds={new Set(joined.map(({ r }) => r.roomId))}
+            chatsFound={joined.length + invites.length > 0}
+            onOpen={onSelect}
+          />
+        )}
+
+        {!f && joined.length === 0 && invites.length === 0 && (
           <div className="list-empty">
-            {f
-              ? "Ничего не найдено"
-              : filter === "unread"
+            {filter === "unread"
                 ? "Всё прочитано"
                 : filter === "fav"
                   ? "Добавьте чаты в избранное через правый клик"
@@ -277,4 +287,87 @@ function inviteText(r: Room, me: string): string {
   if (r.getDMInviter()) return "Хочет начать личный чат";
   if (r.isSpaceRoom()) return inviter ? `${inviter} приглашает в пространство` : "Приглашение в пространство";
   return inviter ? `Приглашает ${inviter}` : "Вас пригласили";
+}
+
+/** Люди по запросу: свои — сразу, каталог сервера — через мгновение. Щелчок — личный чат. */
+function PeopleResults({
+  client,
+  term,
+  shownRoomIds,
+  chatsFound,
+  onOpen,
+}: {
+  client: MatrixClient;
+  term: string;
+  shownRoomIds: Set<string>;
+  /** выше уже нашлись чаты — тогда «никого» не пишем */
+  chatsFound: boolean;
+  onOpen: (roomId: string) => void;
+}) {
+  const [people, setPeople] = useState<Person[]>(() => searchKnown(client, term));
+  const [loading, setLoading] = useState(true);
+  const [opening, setOpening] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setPeople(searchKnown(client, term));
+    setLoading(true);
+    const t = setTimeout(() => {
+      searchPeople(client, term, 15)
+        .then((list) => alive && setPeople(list))
+        .finally(() => alive && setLoading(false));
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [client, term]);
+
+  // чаты, которые уже видны выше, не дублируем
+  const list = people.filter((p) => !p.dmRoomId || !shownRoomIds.has(p.dmRoomId));
+
+  const open = async (p: Person) => {
+    setOpening(p.userId);
+    try {
+      onOpen(p.dmRoomId ?? (await openDirectChat(client, p.userId)));
+    } catch (e) {
+      alert(errText(e));
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  if (!loading && list.length === 0) {
+    return chatsFound ? null : <div className="list-empty">Ничего не нашлось. Человека с другого сервера можно найти по полному адресу: @логин:сервер</div>;
+  }
+
+  return (
+    <>
+      <div className="list-heading people-heading">
+        Люди
+        {loading && <span className="people-loading">ищу на сервере…</span>}
+      </div>
+      {list.map((p) => (
+        <div key={p.userId} className="room-item person" role="button" tabIndex={0} onClick={() => open(p)} onKeyDown={(e) => e.key === "Enter" && open(p)}>
+          <span
+            className="person-avatar"
+            onClick={(e) => {
+              e.stopPropagation();
+              openDialog({ kind: "user", userId: p.userId });
+            }}
+            title="Карточка"
+          >
+            <Avatar client={client} mxc={p.avatar} name={p.name} seed={p.userId} size={40} />
+          </span>
+          <div className="room-main">
+            <div className="room-top">
+              <span className="room-name">{p.name}</span>
+            </div>
+            <div className="room-preview">{opening === p.userId ? "Открываю чат…" : p.userId}</div>
+          </div>
+          <MessageSquarePlus size={16} className="person-go" />
+        </div>
+      ))}
+    </>
+  );
 }
