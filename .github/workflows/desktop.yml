@@ -76,7 +76,7 @@ jobs:
           retention-days: 7
 
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
       VITE_DEFAULT_SERVER: ${{ vars.VITE_DEFAULT_SERVER }}
@@ -92,14 +92,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      # Android SDK на серверах GitHub уже есть ($ANDROID_HOME) — доставляем NDK и build-tools
       - name: Android NDK и Rust
         run: |
-          sdkmanager --install "ndk;27.2.12479018" "build-tools;35.0.0" "platforms;android-35" > /dev/null
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "ndk;27.2.12479018" "build-tools;35.0.0" "platforms;android-35" > /dev/null
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
       - uses: Swatinem/rust-cache@v2
