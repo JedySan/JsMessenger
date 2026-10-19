@@ -109,10 +109,18 @@ jobs:
           workspaces: src-tauri
       - name: Сборка APK
         run: |
-          npm ci --no-audit --no-fund
-          npx tauri android init --ci
-          node scripts/android-patch.mjs
-          npx tauri android build --apk --target aarch64 armv7 x86_64
+          set -o pipefail
+          {
+            npm ci --no-audit --no-fund
+            npx tauri android init --ci
+            node scripts/android-patch.mjs
+            npx tauri android build --apk --target aarch64 armv7 x86_64
+          } 2>&1 | tee android-build.log
+      - name: Ошибка сборки — последние строки журнала
+        if: failure()
+        run: |
+          grep -v '^\s*$' android-build.log | tail -40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > tail.txt || true
+          echo "::error title=Журнал сборки Android::$(cat tail.txt)"
       - name: Подпись APK
         run: |
           VERSION=$(node -p 'require("./package.json").version')
