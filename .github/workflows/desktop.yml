@@ -47,6 +47,15 @@ jobs:
           cache: npm
       - name: Сборка
         run: ./scripts/build-electron.sh ${{ matrix.target }}
+      - name: Отчёт о сборке
+        run: |
+          cd release/electron
+          for f in JsMessenger-*.exe JsMessenger-*.deb JsMessenger-*.AppImage; do
+            [ -f "$f" ] && echo "::notice title=Файл::$f — $(( $(wc -c < "$f") / 1048576 )) МБ"
+          done
+          ASAR=$(ls */resources/app.asar 2>/dev/null | head -1)
+          [ -n "$ASAR" ] && echo "::notice title=app.asar::$(( $(wc -c < "$ASAR") / 1048576 )) МБ; $(npx --yes @electron/asar list "$ASAR" | cut -d/ -f2-3 | sort -u | grep -c node_modules/) пакетов"
+          true
       - name: Приложить к релизу
         if: env.TAG != ''
         env:
