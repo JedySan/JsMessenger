@@ -20,6 +20,7 @@ import AboutDialog from "./AboutDialog";
 import Toasts from "./Toasts";
 import UpdateBanner from "./UpdateBanner";
 import IncomingCall from "./IncomingCall";
+import CallMini from "./CallMini";
 import { attachIncomingCalls } from "../incoming";
 import {
   checkForUpdate,
@@ -213,6 +214,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
       <Lightbox />
       <Toasts onOpen={openRoom} />
       <IncomingCall client={client} onOpenRoom={openRoom} />
+      <CallMini client={client} visible={!!callState && callState.roomId !== roomId} onOpen={openRoom} />
       <DialogHost client={client} onOpenRoom={openRoom} />
       {showVerify && <VerifyDialog client={client} onClose={() => setShowVerify(false)} />}
       {showSessions && <SessionsDialog client={client} onClose={() => setShowSessions(false)} />}

@@ -981,3 +981,36 @@ textarea.text-input { resize: vertical; font: inherit; }
   background: color-mix(in srgb, #e5534b 22%, transparent); color: #ffd7d4; font-size: 13px;
 }
 .call-media-error span { flex: 1; }
+
+/* ---------- мини-окно звонка ---------- */
+.call-mini {
+  position: fixed; z-index: 70; border-radius: 14px; overflow: hidden; cursor: grab; user-select: none;
+  background: #101317; color: #e7eaee; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  touch-action: none;
+}
+.call-mini:active { cursor: grabbing; }
+.call-mini.hidden { visibility: hidden; pointer-events: none; }
+.call-mini-video { position: relative; display: flex; align-items: center; justify-content: center; background: #1d2228; }
+.call-mini-video video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.call-mini-video video.contain { object-fit: contain; background: #000; }
+.call-mini-video .avatar { --av-l: 26%; --av-s: 30%; --av-tl: 82%; }
+.call-mini-name {
+  position: absolute; left: 8px; bottom: 7px; max-width: calc(100% - 16px); display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 7px; background: rgba(0, 0, 0, 0.55);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.call-mini-pip {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 0 16px; font-size: 13px; color: #a2aab4; background: #14181d;
+}
+.call-mini-bar { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 10px; }
+.call-mini-room { flex: 1; min-width: 0; font-size: 12.5px; color: #a2aab4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-btn {
+  width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+  color: #e7eaee; background: rgba(255, 255, 255, 0.08); cursor: pointer;
+}
+.mini-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.mini-btn.off { background: rgba(229, 83, 75, 0.25); color: #ffb4ae; }
+.mini-btn.active { background: #0f766e; }
+.mini-btn.hangup { background: #c2362f; }
+.mini-btn.hangup:hover { background: #d8443c; }

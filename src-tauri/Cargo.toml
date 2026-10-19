@@ -1,6 +1,6 @@
 [package]
 name = "jsmessenger"
-version = "0.9.2"
+version = "0.9.3"
 description = "JsMessenger — Matrix-клиент со звонками через LiveKit"
 license = "AGPL-3.0-or-later"
 authors = ["JedySan"]
