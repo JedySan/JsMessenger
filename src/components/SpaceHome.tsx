@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { KnownMembership, type MatrixClient, type Room } from "matrix-js-sdk";
 import type { IHierarchyRoom } from "matrix-js-sdk/lib/@types/spaces";
-import { FolderPlus, Hash, LayoutGrid, LoaderCircle, Plus, Settings, UserPlus, Users, X } from "lucide-react";
+import { ChevronLeft, FolderPlus, Hash, LayoutGrid, LoaderCircle, Plus, Settings, UserPlus, Users, X } from "lucide-react";
 import { errText } from "../App";
 import { removeFromSpace } from "../rooms";
 import Avatar, { RoomAvatar } from "./Avatar";
@@ -14,11 +14,14 @@ export default function SpaceHome({
   space,
   onOpenRoom,
   onOpenSpace,
+  onBack,
 }: {
   client: MatrixClient;
   space: Room;
   onOpenRoom: (roomId: string) => void;
   onOpenSpace: (spaceId: string) => void;
+  /** телефон: назад к списку */
+  onBack?: () => void;
 }) {
   const me = client.getSafeUserId();
   const [rooms, setRooms] = useState<IHierarchyRoom[] | null>(null);
@@ -137,6 +140,11 @@ export default function SpaceHome({
   return (
     <div className="space-home">
       <div className="titlebar" data-tauri-drag-region />
+      {onBack && (
+        <button className="icon-btn back-btn space-back" onClick={onBack} title="К списку" aria-label="К списку">
+          <ChevronLeft size={22} />
+        </button>
+      )}
       <div className="space-home-inner">
         <header className="space-hero">
           <RoomAvatar client={client} room={space} size={64} />

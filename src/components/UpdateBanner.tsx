@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { Download, LoaderCircle, X } from "lucide-react";
 import { dismissUpdate, getUpdateState, installUpdate, subscribeUpdate } from "../desktop";
+import { isAndroidApp } from "../platform";
 
 /** Плашка в боковой панели: найдено обновление, скачивание, ошибка, «обновлений нет». */
 export default function UpdateBanner() {
@@ -13,7 +14,7 @@ export default function UpdateBanner() {
           <Download size={16} className="update-icon" />
           <span className="update-text">
             <b>Доступна версия {st.version}</b>
-            <span>{st.notes?.trim() || "Приложение перезапустится за пару секунд"}</span>
+            <span>{st.notes?.trim() || (isAndroidApp() ? "Скачается установочный файл — откройте его, чтобы обновить" : "Приложение перезапустится за пару секунд")}</span>
           </span>
           <span className="update-actions">
             <button className="ghost small-ghost" onClick={dismissUpdate}>

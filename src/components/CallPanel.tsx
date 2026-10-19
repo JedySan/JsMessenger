@@ -126,6 +126,8 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
   );
 
   const ready = st.status === "connected";
+  // показ экрана есть не везде (например, в Android WebView его нет)
+  const canShare = typeof navigator.mediaDevices?.getDisplayMedia === "function";
   const micOn = local.isMicrophoneEnabled;
   const camOn = local.isCameraEnabled;
   const shareOn = local.isScreenShareEnabled;
@@ -151,6 +153,7 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
           label={camOn ? "Выключить камеру" : "Включить камеру"}
           icon={camOn ? <Video_ size={20} /> : <VideoOff size={20} />}
         />
+        {canShare && (
         <CtrlButton
           on={!shareOn}
           active={shareOn}
@@ -159,6 +162,7 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
           label={shareOn ? "Остановить показ экрана" : "Показать экран"}
           icon={<MonitorUp size={20} />}
         />
+        )}
         <button className="ctrl hangup" onClick={() => call.leave()} title="Завершить звонок" aria-label="Завершить звонок">
           <PhoneOff size={20} />
         </button>

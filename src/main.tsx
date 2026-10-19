@@ -7,6 +7,7 @@ import "./styles.css";
 
 // На Linux у окна обычная системная рамка — отступы под «светофор» macOS не нужны
 if (window.jsmDesktop) document.documentElement.dataset.platform = window.jsmDesktop.platform;
+else if (/Android/i.test(navigator.userAgent)) document.documentElement.dataset.platform = "android";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

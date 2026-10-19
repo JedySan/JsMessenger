@@ -1043,3 +1043,35 @@ textarea.text-input { resize: vertical; font: inherit; }
 .msg-readers .reader { display: inline-flex; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--bg); }
 .msg-readers .reader + .reader { margin-left: -4px; }
 .reader-more { font-size: 11px; color: var(--text-3); margin-left: 4px; }
+
+/* ---------- телефон: одна колонка ---------- */
+.back-btn { display: none; }
+.msg:focus { outline: none; }
+@media (max-width: 720px) {
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; }
+  .layout.show-list .content { display: none; }
+  .layout.show-list .sidebar { flex: 1; width: auto; min-width: 0; border-right: 0; }
+  .layout.show-content .sidebar, .layout.show-content .space-bar { display: none; }
+  .back-btn { display: inline-flex; margin-left: -8px; }
+  .room-head { padding: 0 6px 0 12px; gap: 8px; }
+  .room-head .icon-btn { width: 36px; height: 36px; }
+  .space-back { position: absolute; top: 12px; left: 12px; z-index: 2; }
+  .space-home { position: relative; }
+  /* панели участников, тредов, поиска — на весь экран поверх чата */
+  .room-shell { position: relative; }
+  .room-shell > .room-info { position: absolute; inset: 0; width: auto; z-index: 5; border-left: 0; }
+  .msg { padding-left: 12px; padding-right: 12px; gap: 10px; }
+  .composer { padding-left: 10px; padding-right: 10px; }
+  .composer-hint { display: none; }
+  .call-panel { height: 48%; min-height: 260px; }
+  .call-controls { padding: 10px; gap: 8px; }
+  .call-info { display: none; }
+  .call-controls { grid-template-columns: 1fr; justify-items: center; }
+  .incoming { min-width: 0; width: calc(100vw - 24px); top: calc(env(safe-area-inset-top) + 10px); }
+  .modal { width: calc(100vw - 32px); max-width: 440px; }
+}
+/* касание вместо наведения: действия у сообщения — по нажатию на него */
+@media (hover: none) {
+  .msg:focus-within .msg-actions, .msg:focus .msg-actions { display: flex; opacity: 1; visibility: visible; }
+  .tile-expand { opacity: 0.85; }
+}

@@ -1,8 +1,8 @@
-# Windows- и Linux-версии (Electron). Собираются на серверах GitHub, когда выходит релиз
+# Windows и Linux (Electron), Android (Tauri). Собираются на серверах GitHub, когда выходит релиз
 # (его создаёт ./scripts/build-mac.sh --publish), и прикладываются к тому же релизу.
-# Ручной запуск: Actions → Windows и Linux → Run workflow. С тегом (v0.9.4) — файлы уйдут в релиз,
-# без тега — просто сборка текущего кода, файлы лежат в «Artifacts» на странице запуска.
-name: Windows и Linux
+# Ручной запуск: Actions → «Windows, Linux, Android» → Run workflow. С тегом (v0.9.4) — файлы уйдут
+# в релиз, без тега — просто сборка текущего кода, файлы лежат в «Artifacts» на странице запуска.
+name: Windows, Linux, Android
 
 on:
   release:
@@ -73,4 +73,74 @@ jobs:
             release/electron/*.AppImage
             release/electron/*.exe
             release/electron/*.yml
+          retention-days: 7
+
+  android:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      VITE_DEFAULT_SERVER: ${{ vars.VITE_DEFAULT_SERVER }}
+      VITE_LIVEKIT_SERVICE_URL: ${{ vars.VITE_LIVEKIT_SERVICE_URL }}
+      # ключ подписи APK: один и тот же навсегда, иначе обновление не встанет поверх
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Android NDK и Rust
+        run: |
+          sdkmanager --install "ndk;27.2.12479018" "build-tools;35.0.0" "platforms;android-35" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Сборка APK
+        run: |
+          npm ci --no-audit --no-fund
+          npx tauri android init --ci
+          node scripts/android-patch.mjs
+          npx tauri android build --apk --target aarch64 armv7 x86_64
+      - name: Подпись APK
+        run: |
+          VERSION=$(node -p 'require("./package.json").version')
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          UNSIGNED=$(ls src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk | head -1)
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > release.jks
+            PASS="$KEYSTORE_PASSWORD"
+          else
+            echo "::warning title=Подпись APK::Нет секретов ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD — подписано временным ключом, такой APK нельзя будет обновить"
+            PASS=temporary
+            keytool -genkeypair -keystore release.jks -storetype PKCS12 -alias jsmessenger -keyalg RSA -keysize 2048 \
+              -validity 365 -storepass $PASS -keypass $PASS -dname "CN=JsMessenger test" > /dev/null
+          fi
+          mkdir -p release/android
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" aligned.apk
+          "$BT/apksigner" sign --ks release.jks --ks-key-alias jsmessenger --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --out "release/android/JsMessenger-$VERSION.apk" aligned.apk
+          "$BT/apksigner" verify "release/android/JsMessenger-$VERSION.apk"
+          rm -f release.jks
+          echo "::notice title=Файл::JsMessenger-$VERSION.apk — $(( $(wc -c < release/android/JsMessenger-$VERSION.apk) / 1048576 )) МБ"
+      - name: Приложить к релизу
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" --clobber release/android/*.apk
+      - name: Сохранить сборку (проверочный запуск)
+        if: env.TAG == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: JsMessenger-android
+          path: release/android/*.apk
           retention-days: 7

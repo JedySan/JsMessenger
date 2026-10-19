@@ -98,7 +98,8 @@ export async function saveToDownloads(name: string, blob: Blob): Promise<void> {
   let candidate = safe;
   for (let i = 1; await exists(candidate, { baseDir: BaseDirectory.Download }); i++) candidate = `${base} (${i})${ext}`;
   await writeFile(candidate, new Uint8Array(await blob.arrayBuffer()), { baseDir: BaseDirectory.Download });
-  await revealItemInDir(await join(await downloadDir(), candidate));
+  // на телефоне «показать в папке» нет — файл просто лежит в «Загрузках»
+  await revealItemInDir(await join(await downloadDir(), candidate)).catch(() => {});
 }
 
 // ---------- отправка ----------

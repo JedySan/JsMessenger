@@ -1,4 +1,4 @@
-// На чём запущен интерфейс: Tauri (macOS), Electron (Linux) или обычный браузер (npm run dev).
+// На чём запущен интерфейс: Tauri (macOS, Android), Electron (Windows, Linux) или обычный браузер (npm run dev).
 // Electron-часть отдаёт свои возможности через window.jsmDesktop (см. electron/preload.cjs).
 
 export interface UpdateInfo {
@@ -41,5 +41,9 @@ declare global {
 
 export const isTauri = () => "__TAURI_INTERNALS__" in window;
 export const electron = (): ElectronBridge | undefined => window.jsmDesktop;
-/** Настольное приложение (любое), а не вкладка браузера. */
-export const isDesktop = () => isTauri() || !!electron();
+/** Телефон/планшет (Tauri для Android). */
+export const isMobile = () => /Android|iPhone|iPad/i.test(navigator.userAgent);
+/** Android-приложение (не мобильный браузер). */
+export const isAndroidApp = () => isTauri() && /Android/i.test(navigator.userAgent);
+/** Настольное приложение (любое), а не вкладка браузера и не телефон. */
+export const isDesktop = () => (isTauri() && !isMobile()) || !!electron();

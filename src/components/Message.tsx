@@ -102,6 +102,7 @@ export default function Message({
     <div
       id={`ev-${ev.getId()}`}
       className={"msg" + (grouped ? " grouped" : "") + (mine ? " mine" : "") + (picker ? " menu-open" : "")}
+      tabIndex={-1}
     >
       <div className="msg-gutter">
         {grouped ? (

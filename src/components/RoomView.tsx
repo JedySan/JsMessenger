@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { Direction, MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { LockKeyhole, MessagesSquare, PanelRight, Search, Upload } from "lucide-react";
+import { ChevronLeft, LockKeyhole, MessagesSquare, PanelRight, Search, Upload } from "lucide-react";
 import { dayLabel, isVisibleMessage, sameDay } from "../format";
 import { RoomAvatar } from "./Avatar";
 import CallPanel from "./CallPanel";
@@ -28,12 +28,15 @@ export default function RoomView({
   infoOpen,
   onToggleInfo,
   onOpenRoom,
+  onBack,
 }: {
   client: MatrixClient;
   room: Room;
   infoOpen: boolean;
   onToggleInfo: () => void;
   onOpenRoom: (roomId: string) => void;
+  /** телефон: назад к списку чатов */
+  onBack?: () => void;
 }) {
   const allEvents = room.getLiveTimeline().getEvents();
   const events = allEvents.filter(isVisibleMessage);
@@ -203,6 +206,11 @@ export default function RoomView({
       onDrop={onDrop}
     >
       <header className="room-head" data-tauri-drag-region>
+        {onBack && (
+          <button className="icon-btn back-btn" onClick={onBack} title="К списку чатов" aria-label="К списку чатов">
+            <ChevronLeft size={22} />
+          </button>
+        )}
         <RoomAvatar client={client} room={room} size={34} />
         <div className="room-head-text" data-tauri-drag-region>
           <div className="room-title">{room.name}</div>

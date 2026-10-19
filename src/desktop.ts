@@ -1,7 +1,7 @@
 // Возможности настольного приложения: автообновление, автозапуск, выход.
 // В браузере (npm run dev) всё это тихо выключено.
 
-import { electron, isDesktop, isTauri } from "./platform";
+import { electron, isAndroidApp, isDesktop, isTauri } from "./platform";
 
 // ---------- автообновление ----------
 export type UpdateState =
@@ -38,6 +38,7 @@ let pending: import("@tauri-apps/plugin-updater").Update | null = null;
 
 /** Включено ли автообновление в этой сборке (зависит от ключа подписи при сборке). */
 export async function updaterEnabled(): Promise<boolean> {
+  if (isAndroidApp()) return true;
   const el = electron();
   if (el) return el.updaterEnabled().catch(() => false);
   if (!isTauri()) return false;
@@ -54,6 +55,12 @@ export async function checkForUpdate(silent = false): Promise<void> {
   if (state.kind === "downloading" || state.kind === "ready") return;
   set({ kind: "checking" });
   try {
+    if (isAndroidApp()) {
+      const u = await checkAndroidRelease();
+      if (u) set({ kind: "available", version: u.version, notes: u.notes });
+      else set(silent ? { kind: "idle" } : { kind: "none" });
+      return;
+    }
     const el = electron();
     if (el) {
       const u = await el.updateCheck();
@@ -77,6 +84,15 @@ export async function checkForUpdate(silent = false): Promise<void> {
 
 /** Скачать и установить; после установки — перезапуск. */
 export async function installUpdate(): Promise<void> {
+  if (isAndroidApp()) {
+    // Android: скачивание APK в браузере; установка — по уведомлению о загрузке
+    if (apkUrl) {
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(apkUrl).catch((e) => set({ kind: "error", message: `Не удалось открыть загрузку: ${String(e)}` }));
+      dismissUpdate();
+    }
+    return;
+  }
   const el = electron();
   if (el) {
     if (state.kind !== "available") return;
@@ -118,10 +134,36 @@ export function dismissUpdate() {
   if (state.kind === "available" || state.kind === "error" || state.kind === "none") set({ kind: "idle" });
 }
 
+// ---------- Android: новые версии — APK в релизах GitHub ----------
+const RELEASES_API = "https://api.github.com/repos/JedySan/JsMessenger/releases/latest";
+let apkUrl: string | null = null;
+
+/** «1.2.10» > «1.2.9» */
+function newer(a: string, b: string): boolean {
+  const pa = a.replace(/^v/, "").split(".").map(Number);
+  const pb = b.replace(/^v/, "").split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d) return d > 0;
+  }
+  return false;
+}
+
+async function checkAndroidRelease(): Promise<{ version: string; notes?: string } | null> {
+  const res = await fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" } });
+  if (!res.ok) throw new Error(`GitHub ответил ${res.status}`);
+  const rel = await res.json();
+  const version = String(rel.tag_name ?? "").replace(/^v/, "");
+  const apk = (rel.assets ?? []).find((a: { name: string }) => a.name.endsWith(".apk"));
+  if (!version || !apk || !newer(version, __APP_VERSION__)) return null;
+  apkUrl = apk.browser_download_url;
+  return { version, notes: (rel.body ?? "").trim() || undefined };
+}
+
 let timer: number | undefined;
 /** Проверка при запуске и затем каждые 6 часов. */
 export function startUpdateChecks() {
-  if (!isDesktop() || timer) return;
+  if (!(isDesktop() || isAndroidApp()) || timer) return;
   setTimeout(() => checkForUpdate(true), 15_000);
   timer = window.setInterval(() => checkForUpdate(true), 6 * 60 * 60 * 1000);
 }

@@ -92,8 +92,16 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
     if (scope.kind === "space" && space && gone(space.getMyMembership())) setScope({ kind: "all" });
   });
 
+  // На телефоне видна одна колонка: список чатов или открытый чат/пространство
+  const [mobileView, setMobileView] = useState<"list" | "content">("list");
+  const backToList = () => {
+    setRoomId(null); // закрываем чат, чтобы не отмечать сообщения прочитанными «за кадром»
+    setMobileView("list");
+  };
+
   /** Открыть комнату; для пространства — его страницу. */
   const openRoom = (id: string) => {
+    setMobileView("content");
     const r = client.getRoom(id);
     if (r?.isSpaceRoom()) {
       setScope({ kind: "space", id });
@@ -109,12 +117,13 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
 
   const changeScope = (s: Scope) => {
     setScope(s);
+    setMobileView("list");
     // в пространстве сначала показываем его страницу
     if (s.kind === "space") setRoomId(null);
   };
 
   return (
-    <div className="layout">
+    <div className={"layout " + (mobileView === "content" && (room || space) ? "show-content" : "show-list")}>
       <SpaceBar client={client} scope={scope} onScope={changeScope} />
       <aside className="sidebar">
         <div className="titlebar" data-tauri-drag-region />
@@ -179,6 +188,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
               setRoomId(id);
               setInfoOpen(true);
             }
+            setMobileView("content");
           }}
         />
       </aside>
@@ -192,6 +202,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             infoOpen={infoOpen}
             onToggleInfo={() => setInfoOpen((v) => !v)}
             onOpenRoom={openRoom}
+            onBack={backToList}
           />
         ) : space ? (
           <SpaceHome
@@ -200,6 +211,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             space={space}
             onOpenRoom={openRoom}
             onOpenSpace={(id) => changeScope({ kind: "space", id })}
+            onBack={() => setMobileView("list")}
           />
         ) : (
           <div className="empty">
