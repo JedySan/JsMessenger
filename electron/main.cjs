@@ -23,8 +23,10 @@ const APP_ID = "jsmessenger";
 const HIDDEN_ARG = "--hidden";
 const SCHEME = "app";
 const ORIGIN = `${SCHEME}://jsm`;
-const WEB_DIR = path.join(__dirname, "web");
-const ICON = path.join(__dirname, "icons", "icon.png");
+// main.cjs собирается в electron/dist/ (scripts/bundle-electron.mjs); web/ и icons/ — уровнем выше
+const APP_DIR = path.join(__dirname, "..");
+const WEB_DIR = path.join(APP_DIR, "web");
+const ICON = path.join(APP_DIR, "icons", "icon.png");
 const DEV_URL = process.env.JSM_DEV_URL; // npm run electron:dev — интерфейс с dev-сервера Vite
 
 app.setName("JsMessenger");

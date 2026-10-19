@@ -10,9 +10,6 @@
     "name": "JedySan",
     "email": "61560967+JedySan@users.noreply.github.com"
   },
-  "main": "main.cjs",
-  "private": true,
-  "dependencies": {
-    "electron-updater": "6.8.9"
-  }
+  "main": "dist/main.cjs",
+  "private": true
 }

@@ -6,9 +6,16 @@ directories:
   app: electron          # main.cjs, preload.cjs, web/ (интерфейс), свой package.json
   output: release/electron
   buildResources: electron/icons
+# в пакет — только собранное: main/preload одним файлом (с electron-updater внутри) и интерфейс;
+# никаких node_modules (иначе сборщик на Windows подтягивает зависимости всего проекта)
 files:
-  - "**/*"
+  - "dist/**/*"
+  - "web/**/*"
+  - "icons/**/*"
+  - "package.json"
   - "!web/**/*.map"
+  - "!**/node_modules/**"
+npmRebuild: false
 electronLanguages: [ru, en-US]
 linux:
   target: [deb, AppImage]

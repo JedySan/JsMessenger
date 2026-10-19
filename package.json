@@ -15,8 +15,9 @@
     "tauri": "tauri",
     "licenses": "node scripts/gen-licenses.mjs",
     "linux": "bash scripts/build-electron.sh linux",
-    "electron:dev": "JSM_DEV_URL=http://localhost:1420 electron electron/main.cjs",
-    "windows": "bash scripts/build-electron.sh win"
+    "electron:dev": "npm run electron:bundle && JSM_DEV_URL=http://localhost:1420 electron electron/dist/main.cjs",
+    "windows": "bash scripts/build-electron.sh win",
+    "electron:bundle": "node scripts/bundle-electron.mjs"
   },
   "dependencies": {
     "@fontsource-variable/onest": "^5.3.1",
@@ -42,6 +43,8 @@
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "44.7.2",
     "electron-builder": "26.15.3",
+    "electron-updater": "6.8.9",
+    "esbuild": "0.28.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
   },

@@ -30,9 +30,8 @@ VERSION="$VERSION" node -e '
   p.version = process.env.VERSION;
   require("fs").writeFileSync(f, JSON.stringify(p, null, 2) + "\n");'
 
-# зависимости самой Electron-части (только electron-updater) — отдельно от интерфейса,
-# иначе в пакет попадут node_modules проекта, уже собранные Vite в web/
-npm install --prefix electron --omit=dev --no-audit --no-fund --no-package-lock
+# Electron-часть одним файлом (electron-updater — внутри), без node_modules в пакете
+npm run electron:bundle
 
 npx electron-builder $FLAGS --publish never "$@"
 echo "==> Готово: $(pwd)/release/electron/"

@@ -21,3 +21,4 @@ public/THIRD_PARTY_LICENSES.txt
 electron/web/
 electron/node_modules/
 electron/package-lock.json
+electron/dist/
