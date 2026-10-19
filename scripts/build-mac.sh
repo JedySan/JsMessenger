@@ -125,7 +125,7 @@ if [[ $UPDATER -eq 1 ]]; then
         "${UPD}/${FILE}" "${UPD}/latest.json" "${OUT}.zip" \
         --title "JsMessenger ${VERSION}" --notes "${JSM_RELEASE_NOTES:-JsMessenger ${VERSION}}"
     fi
-    echo "Linux-версию GitHub соберёт сам и приложит к этому релизу (вкладка Actions, ~10 минут)"
+    echo "Windows- и Linux-версии GitHub соберёт сам и приложит к этому релизу (вкладка Actions, ~15 минут)"
   fi
 fi
 

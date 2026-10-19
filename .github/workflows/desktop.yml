@@ -1,0 +1,67 @@
+# Windows- и Linux-версии (Electron). Собираются на серверах GitHub, когда выходит релиз
+# (его создаёт ./scripts/build-mac.sh --publish), и прикладываются к тому же релизу.
+# Ручной запуск: Actions → Windows и Linux → Run workflow. С тегом (v0.9.4) — файлы уйдут в релиз,
+# без тега — просто сборка текущего кода, файлы лежат в «Artifacts» на странице запуска.
+name: Windows и Linux
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Тег релиза (например v0.9.4); пусто — только проверочная сборка"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04 — чтобы .deb ставился и на старые, и на новые Ubuntu/Debian
+          - os: ubuntu-22.04
+            target: linux
+            files: "JsMessenger-*.deb JsMessenger-*.AppImage latest-linux.yml"
+          - os: windows-latest
+            target: win
+            files: "JsMessenger-*-Setup.exe JsMessenger-*-Setup.exe.blockmap latest.yml"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      VITE_DEFAULT_SERVER: ${{ vars.VITE_DEFAULT_SERVER }}
+      VITE_LIVEKIT_SERVICE_URL: ${{ vars.VITE_LIVEKIT_SERVICE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Сборка
+        run: ./scripts/build-electron.sh ${{ matrix.target }}
+      - name: Приложить к релизу
+        if: env.TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release/electron
+          gh release upload "$TAG" --clobber ${{ matrix.files }}
+      - name: Сохранить сборку (проверочный запуск)
+        if: env.TAG == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: JsMessenger-${{ matrix.target }}
+          path: |
+            release/electron/*.deb
+            release/electron/*.AppImage
+            release/electron/*.exe
+            release/electron/*.yml
+          retention-days: 7

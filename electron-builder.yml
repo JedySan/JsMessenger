@@ -1,10 +1,10 @@
-# Сборка Linux-версии (Electron): npm run linux  →  release/linux/
+# Сборка Linux- и Windows-версий (Electron): scripts/build-electron.sh linux|win → release/electron/
 appId: io.github.jedysan.jsmessenger
 productName: JsMessenger
 copyright: "© 2026 JedySan. AGPL-3.0-or-later"
 directories:
   app: electron          # main.cjs, preload.cjs, web/ (интерфейс), свой package.json
-  output: release/linux
+  output: release/electron
   buildResources: electron/icons
 files:
   - "**/*"
@@ -28,6 +28,25 @@ linux:
       Keywords: matrix;chat;messenger;
 deb:
   depends: [libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0]
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: electron/icons/icon.ico
+  executableName: JsMessenger
+  # сертификата нет — exe не подписан (SmartScreen предупредит при первом запуске);
+  # значок и сведения о версии в exe всё равно прописываются
+  signAndEditExecutable: true
+nsis:
+  # установка в профиль пользователя без прав администратора — и обновления без запросов
+  oneClick: true
+  perMachine: false
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: JsMessenger
+  deleteAppDataOnUninstall: false
+  artifactName: "JsMessenger-${version}-Setup.${ext}"
 artifactName: "JsMessenger-${version}-${arch}.${ext}"
 publish:
   provider: github

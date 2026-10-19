@@ -28,6 +28,9 @@ const ICON = path.join(__dirname, "icons", "icon.png");
 const DEV_URL = process.env.JSM_DEV_URL; // npm run electron:dev — интерфейс с dev-сервера Vite
 
 app.setName("JsMessenger");
+const IS_WIN = process.platform === "win32";
+// Windows показывает уведомления только приложениям с AppUserModelID (совпадает с appId установщика)
+if (IS_WIN) app.setAppUserModelId("io.github.jedysan.jsmessenger");
 
 // Один экземпляр: повторный запуск просто показывает окно
 if (!app.requestSingleInstanceLock()) {
@@ -164,21 +167,55 @@ function setupPermissions() {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(allowed.has(permission)));
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
 
-  // Демонстрация экрана. На Wayland выбор экрана/окна показывает сама система (портал PipeWire).
+  // Демонстрация экрана. На Wayland выбор экрана/окна показывает сама система (портал PipeWire) —
+  // тогда источник один. Иначе (Windows, X11) показываем свой выбор: экраны и окна с превью.
   session.defaultSession.setDisplayMediaRequestHandler(
-    (_request, cb) => {
-      desktopCapturer
-        .getSources({ types: ["screen", "window"] })
-        .then((sources) => cb(sources.length ? { video: sources[0] } : {}))
-        .catch(() => cb({}));
+    async (_request, cb) => {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ["screen", "window"],
+          thumbnailSize: { width: 320, height: 180 },
+          fetchWindowIcons: false,
+        });
+        if (sources.length <= 1) return cb(sources.length ? { video: sources[0] } : {});
+        const id = await pickSource(sources);
+        const chosen = sources.find((s) => s.id === id);
+        cb(chosen ? { video: chosen } : {});
+      } catch (e) {
+        console.warn("display media", e);
+        cb({});
+      }
     },
     { useSystemPicker: true },
   );
 }
 
+// ---------- выбор экрана для показа ----------
+let pickSeq = 0;
+const pickWaiters = new Map();
+function pickSource(sources) {
+  return new Promise((resolve) => {
+    if (!win) return resolve(null);
+    const id = ++pickSeq;
+    pickWaiters.set(id, resolve);
+    showMain();
+    win.webContents.send(
+      "pick-source",
+      id,
+      sources.map((s) => ({ id: s.id, name: s.name, screen: s.id.startsWith("screen:"), thumb: s.thumbnail.toDataURL() })),
+    );
+  });
+}
+ipcMain.on("pick-source-result", (_e, id, sourceId) => {
+  const done = pickWaiters.get(id);
+  pickWaiters.delete(id);
+  done?.(sourceId ?? null);
+});
+
 function setupTray() {
   try {
-    const img = nativeImage.createFromPath(ICON).resize({ width: 22, height: 22 });
+    const size = IS_WIN ? 16 : 22;
+    const img = nativeImage.createFromPath(ICON).resize({ width: size, height: size });
     tray = new Tray(img);
     tray.setToolTip("JsMessenger");
     tray.setContextMenu(
@@ -224,9 +261,14 @@ ipcMain.on("show-window", () => {
   if (!win.isFocused()) win.flashFrame(true);
 });
 
-ipcMain.on("badge", (_e, count) => {
+ipcMain.on("badge", (_e, count, image) => {
   const n = Number(count) || 0;
-  app.setBadgeCount(n); // счётчик на значке в доке Ubuntu (Unity/Dash to Dock)
+  if (IS_WIN) {
+    // Windows: кружок с числом поверх значка на панели задач (картинку рисует интерфейс)
+    win?.setOverlayIcon(n > 0 && image ? nativeImage.createFromDataURL(image) : null, n > 0 ? `Непрочитанных: ${n}` : "");
+  } else {
+    app.setBadgeCount(n); // счётчик на значке в доке Ubuntu (Unity/Dash to Dock)
+  }
   tray?.setToolTip(n > 0 ? `JsMessenger — непрочитанных: ${n}` : "JsMessenger");
 });
 
@@ -249,15 +291,22 @@ ipcMain.handle("open-external", (_e, url) => {
   if (/^(https?|mailto):/i.test(String(url))) return shell.openExternal(url);
 });
 
-// ---------- автозапуск: ~/.config/autostart/jsmessenger.desktop ----------
+// ---------- автозапуск: Linux — ~/.config/autostart/jsmessenger.desktop, Windows — реестр ----------
 const autostartFile = path.join(
   process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"),
   "autostart",
   `${APP_ID}.desktop`,
 );
 
-ipcMain.handle("autostart-get", () => fs.existsSync(autostartFile));
+// Windows — штатный автозапуск (раздел Run в реестре пользователя)
+ipcMain.handle("autostart-get", () =>
+  IS_WIN ? app.getLoginItemSettings({ args: [HIDDEN_ARG] }).openAtLogin : fs.existsSync(autostartFile),
+);
 ipcMain.handle("autostart-set", async (_e, on) => {
+  if (IS_WIN) {
+    app.setLoginItemSettings({ openAtLogin: !!on, args: [HIDDEN_ARG] });
+    return;
+  }
   if (!on) {
     await fs.promises.rm(autostartFile, { force: true });
     return;
@@ -322,8 +371,8 @@ ipcMain.on("update-install", () => {
   const u = getUpdater();
   if (!u) return;
   quitting = true;
-  // AppImage заменяется молча; для .deb система спросит пароль администратора
-  setImmediate(() => u.quitAndInstall(false, true));
+  // Windows и AppImage обновляются молча; для .deb система спросит пароль администратора
+  setImmediate(() => u.quitAndInstall(IS_WIN, true));
 });
 
 ipcMain.on("quit", quitApp);

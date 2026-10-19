@@ -1,14 +1,23 @@
 #!/bin/bash
-# Linux-версия JsMessenger (Electron): .deb (Ubuntu/Debian) и .AppImage → release/linux/
-# Собирается на Linux — локально или в GitHub Actions (.github/workflows/linux.yml).
+# Версии JsMessenger на Electron → release/electron/
+#   ./scripts/build-electron.sh linux   — .deb (Ubuntu/Debian) и .AppImage (собирается на Linux)
+#   ./scripts/build-electron.sh win     — установщик .exe (собирается на Windows, в Git Bash)
+# Обычно собирает GitHub Actions (.github/workflows/desktop.yml) при выходе релиза.
 #
 # Переменные — те же, что для macOS: VITE_DEFAULT_SERVER, VITE_LIVEKIT_SERVICE_URL.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-[[ "$(uname)" == "Linux" ]] || { echo "Linux-пакеты собираются на Linux (или в GitHub Actions)"; exit 1; }
+TARGET="${1:-}"
+case "$TARGET" in
+  linux) FLAGS="--linux --x64" ;;
+  win)   FLAGS="--win --x64" ;;
+  *) echo "Укажите платформу: $0 linux | win"; exit 1 ;;
+esac
+shift
+
 VERSION=$(node -p 'require("./package.json").version')
-echo "==> JsMessenger ${VERSION} для Linux"
+echo "==> JsMessenger ${VERSION} для ${TARGET}"
 
 npm ci --no-audit --no-fund
 npm run build
@@ -25,6 +34,6 @@ VERSION="$VERSION" node -e '
 # иначе в пакет попадут node_modules проекта, уже собранные Vite в web/
 npm install --prefix electron --omit=dev --no-audit --no-fund --no-package-lock
 
-npx electron-builder --linux --x64 --publish never "$@"
-echo "==> Готово: $(pwd)/release/linux/"
-ls -1 release/linux/ | grep -E '\.(deb|AppImage|yml)$'
+npx electron-builder $FLAGS --publish never "$@"
+echo "==> Готово: $(pwd)/release/electron/"
+ls -1 release/electron/ | grep -E '\.(deb|AppImage|exe|yml)$'

@@ -12,7 +12,12 @@ contextBridge.exposeInMainWorld("jsmDesktop", {
   },
   attention: () => ipcRenderer.send("attention"),
   showWindow: () => ipcRenderer.send("show-window"),
-  setBadge: (count) => ipcRenderer.send("badge", count),
+  setBadge: (count, image) => ipcRenderer.send("badge", count, image),
+  onPickSource: (cb) => {
+    const h = async (_e, id, sources) => ipcRenderer.send("pick-source-result", id, await cb(sources));
+    ipcRenderer.on("pick-source", h);
+    return () => ipcRenderer.off("pick-source", h);
+  },
 
   saveDownload: (name, data) => ipcRenderer.invoke("save-download", { name, data }),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),

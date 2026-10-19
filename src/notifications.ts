@@ -202,6 +202,23 @@ export function attachNotifications(client: MatrixClient, currentRoom: () => str
   };
 }
 
+/** Кружок с числом для значка на панели задач Windows. */
+function badgeImage(n: number): string {
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#d9480f";
+  g.beginPath();
+  g.arc(16, 16, 16, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#fff";
+  g.font = `600 ${n > 99 ? 13 : n > 9 ? 17 : 20}px system-ui, sans-serif`;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(n > 99 ? "99+" : String(n), 16, 17);
+  return c.toDataURL();
+}
+
 let lastBadge = -1;
 /** Число на иконке в Dock: непрочитанные во всех комнатах, кроме отключённых. */
 export function updateBadge(client: MatrixClient) {
@@ -218,7 +235,7 @@ export function updateBadge(client: MatrixClient) {
   lastBadge = total;
   const el = electron();
   if (el) {
-    el.setBadge(total);
+    el.setBadge(total, el.platform === "win32" && total > 0 ? badgeImage(total) : undefined);
     document.title = total > 0 ? `(${total}) JsMessenger` : "JsMessenger";
   } else if (isTauri()) {
     import("@tauri-apps/api/window")
