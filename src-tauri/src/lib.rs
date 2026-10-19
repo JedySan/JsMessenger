@@ -44,6 +44,7 @@ fn updater_enabled(app: tauri::AppHandle) -> bool {
 
 fn show_main(app: &tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
+        #[cfg(desktop)]
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();
@@ -67,8 +68,10 @@ pub fn run() {
     let context = tauri::generate_context!();
     // Плагин обновлений требует ключ в конфигурации; его добавляет scripts/build-mac.sh,
     // если на машине сборки есть ключ подписи. Без ключа обновления просто выключены.
+    #[cfg(desktop)]
     let with_updater = context.config().plugins.0.contains_key("updater");
 
+    #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
