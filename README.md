@@ -150,6 +150,12 @@ VITE_DEFAULT_SERVER=matrix.example.com ./scripts/build-mac.sh
 появятся в «Artifacts». Локально: `npm run windows` (на Windows, Git Bash) или `npm run linux` (на Linux)
 → `release/electron/`. Интерфейс в Electron при разработке: `npm run dev` и `npm run electron:dev`.
 
+## Сайт
+
+`site/` — сайт jsmassenger.ru: страница в виде переписки с JsMessenger, установщики приходят «файлами»,
+ссылки и размеры берутся из последнего релиза GitHub (после выпуска версии сайт обновлять не нужно).
+Русский и английский. Выложить: `./scripts/deploy-site.sh user@server`, конфиг nginx — `site/nginx.conf.example`.
+
 ## Устройство
 
 | | |

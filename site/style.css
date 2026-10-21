@@ -1,0 +1,198 @@
+/* JsMessenger — сайт в виде переписки. Цвета, шрифт и детали — как в самом приложении. */
+:root {
+  --side: #eef3f1;
+  --bg: #ffffff;
+  --text: #17202b;
+  --text-2: #5d6773;
+  --text-3: #8a929c;
+  --line: #e3e6ea;
+  --hover: rgba(23, 32, 43, 0.05);
+  --accent: #0f766e;
+  --accent-hover: #0b625b;
+  --accent-soft: #e1f2ef;
+  --accent-fg: #ffffff;
+  --mine: #0f766e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --side: #121a19;
+    --bg: #171f1e;
+    --text: #e6ecea;
+    --text-2: #a5b1ae;
+    --text-3: #76837f;
+    --line: #26312f;
+    --hover: rgba(255, 255, 255, 0.05);
+    --accent: #2db3a3;
+    --accent-hover: #4cc7b8;
+    --accent-soft: #173430;
+    --accent-fg: #062420;
+    --mine: #4cc7b8;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--side);
+  color: var(--text);
+  font: 400 16px/1.5 "Onest", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+/* окно чата: колонка по центру во всю высоту, как открытая комната */
+.room {
+  width: min(780px, 100%);
+  min-height: 100%;
+  margin: 0 auto;
+  background: var(--bg);
+  border-inline: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- шапка комнаты ---------- */
+.room-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; gap: 12px;
+  padding: max(14px, env(safe-area-inset-top)) 20px 14px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.room-ava { border-radius: 11px; }
+.room-title { flex: 1; min-width: 0; }
+.room-title h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.2; }
+.room-title p { margin: 0; font-size: 13px; color: var(--text-3); }
+.room-tools { display: flex; align-items: center; gap: 6px; }
+.tool {
+  font: 500 14px "Onest", sans-serif; color: var(--text-2); text-decoration: none; background: none;
+  border: 0; padding: 7px 10px; border-radius: 9px; cursor: pointer;
+}
+.tool:hover { background: var(--hover); color: var(--text); }
+.lang { font-weight: 600; font-size: 13px; box-shadow: inset 0 0 0 1px var(--line); }
+
+/* ---------- лента ---------- */
+.timeline { flex: 1; padding: 8px 0 24px; }
+.day { display: flex; justify-content: center; margin: 18px 0 10px; }
+.day span {
+  font-size: 12.5px; font-weight: 550; color: var(--text-2);
+  padding: 3px 12px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg);
+}
+
+.msg { display: flex; gap: 12px; padding: 4px 24px 4px 20px; margin-top: 12px; scroll-margin: 90px 0 150px; }
+.msg.grouped { margin-top: 2px; padding-left: 68px; }
+.ava { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+.ava.you {
+  display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+  font-size: 13px; font-weight: 650; background: hsl(200 42% 88%); color: hsl(200 45% 30%);
+}
+@media (prefers-color-scheme: dark) { .ava.you { background: hsl(200 30% 26%); color: hsl(200 45% 82%); } }
+.msg-main { min-width: 0; flex: 1; }
+.msg-main > p, .msg-main > ul { margin: 0 0 6px; max-width: 60ch; }
+.msg-main ul { padding-left: 20px; }
+.msg-main li { margin: 3px 0; }
+.who { display: flex; align-items: baseline; gap: 8px; font-weight: 650; margin-bottom: 1px !important; }
+.msg.mine .who { color: var(--mine); }
+.time { font-weight: 400; font-size: 12px; color: var(--text-3); }
+.note { color: var(--text-2); font-size: 15px; }
+
+/* галочки «прочитано» у своих сообщений — как в приложении */
+.ticks { display: inline-block; width: 17px; height: 11px; margin-left: 6px; vertical-align: -1px; position: relative; }
+.ticks::before, .ticks::after {
+  content: ""; position: absolute; top: 0; width: 5px; height: 9px;
+  border: solid var(--accent); border-width: 0 1.8px 1.8px 0; transform: rotate(40deg);
+}
+.ticks::before { left: 2px; }
+.ticks::after { left: 8px; }
+
+/* «печатает…» */
+.typing { color: var(--text-3); font-size: 14px; display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.dots { display: inline-flex; gap: 3px; }
+.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--text-3); animation: blink 1s infinite; }
+.dots i:nth-child(2) { animation-delay: 0.15s; }
+.dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+
+/* ---------- установщики: вложения в сообщениях ---------- */
+.files { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 10px; max-width: 460px; }
+.file {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 10px;
+  border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); background: var(--bg);
+  color: inherit; text-decoration: none; transition: background 0.15s, box-shadow 0.15s;
+}
+.file:hover { background: var(--hover); }
+.file.main { box-shadow: inset 0 0 0 1.5px var(--accent); padding: 12px 14px 12px 12px; }
+.file-ext {
+  width: 44px; height: 52px; flex-shrink: 0; border-radius: 6px 13px 6px 6px; position: relative;
+  background: var(--accent-soft); color: var(--accent); font-size: 11.5px; font-weight: 700;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; letter-spacing: 0.02em;
+}
+.file-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.file-os { font-weight: 600; }
+.file-name { font-size: 13px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-size { font-size: 13px; color: var(--text-3); display: none; }
+.file-get {
+  flex-shrink: 0; font-weight: 600; font-size: 14px; padding: 7px 13px; border-radius: 9px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.file.main .file-get { background: var(--accent); color: var(--accent-fg); }
+.file:hover .file-get { background: var(--accent); color: var(--accent-fg); }
+.file.loading .file-name::after { content: "…"; }
+
+/* шаги установки в ответе */
+.steps h3 { font-size: 15px; margin: 10px 0 4px; }
+.steps ol { margin: 0 0 6px; padding-left: 22px; max-width: 60ch; }
+.steps li { margin: 3px 0; }
+.steps li::marker { color: var(--accent); font-weight: 650; }
+.steps code { font-size: 13.5px; background: var(--hover); padding: 1px 5px; border-radius: 5px; }
+.steps details { margin-top: 6px; }
+.steps summary { cursor: pointer; color: var(--text-2); }
+
+/* ---------- «поле ввода»: вопросы вместо клавиатуры ---------- */
+.composer {
+  position: sticky; bottom: 0; z-index: 2;
+  padding: 10px 20px max(16px, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+.ask-hint { margin: 0 0 8px; font-size: 13px; color: var(--text-3); }
+.asks { display: flex; flex-wrap: wrap; gap: 8px; }
+.ask {
+  font: 500 15px "Onest", sans-serif; color: var(--text); background: var(--bg); cursor: pointer;
+  border: 0; box-shadow: inset 0 0 0 1px var(--line); border-radius: 999px; padding: 8px 15px;
+  transition: background 0.15s, box-shadow 0.15s, color 0.15s;
+}
+.ask:hover { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
+.ask[disabled] { opacity: 0.45; cursor: default; box-shadow: inset 0 0 0 1px var(--line); color: var(--text-2); }
+.ask-all { margin: 10px 0 0; font-size: 13px; color: var(--text-3); }
+
+/* ответы живут в <template>; без JavaScript страница показывает ссылку на релизы */
+.answers { display: none; }
+.noscript { text-align: center; padding: 16px; }
+
+/* ---------- появление переписки: единственная анимация ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .js .msg.pending { display: none; }
+  .js .msg.arrive { animation: arrive 0.35s ease-out; }
+}
+@keyframes arrive { from { opacity: 0; transform: translateY(6px); } }
+
+/* ---------- узкие экраны ---------- */
+@media (max-width: 560px) {
+  .room { border: 0; }
+  .room-head { padding-inline: 14px; }
+  .tool[href] { display: none; }
+  .msg { padding: 4px 14px 4px 12px; gap: 10px; }
+  .msg.grouped { padding-left: 58px; }
+  .composer { padding-inline: 14px; }
+  .ask { font-size: 14.5px; padding: 8px 13px; }
+  /* на телефоне вместо длинного имени файла — размер */
+  .file-name { display: none; }
+  .file-size { display: block; }
+}

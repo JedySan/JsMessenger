@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>JsMessenger — мессенджер на Matrix со звонками</title>
+    <meta
+      name="description"
+      content="Свободный мессенджер на протоколе Matrix: сквозное шифрование, звонки и показ экрана через LiveKit. macOS, Windows, Linux и Android."
+    />
+    <meta property="og:title" content="JsMessenger" />
+    <meta property="og:description" content="Мессенджер на Matrix со звонками. macOS, Windows, Linux и Android." />
+    <meta property="og:image" content="icon.png" />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Страница — это переписка в JsMessenger: приложение рассказывает о себе и присылает установщики файлами -->
+    <div class="room">
+      <header class="room-head">
+        <img class="room-ava" src="icon.png" alt="" width="40" height="40" />
+        <div class="room-title">
+          <h1>JsMessenger</h1>
+          <p data-i18n="head.sub">Мессенджер на Matrix со звонками</p>
+        </div>
+        <nav class="room-tools">
+          <a class="tool" href="https://github.com/JedySan/JsMessenger" data-i18n="head.source">Исходный код</a>
+          <button class="tool lang" type="button" id="lang" aria-label="Switch language">EN</button>
+        </nav>
+      </header>
+
+      <main class="timeline" id="timeline" aria-live="polite">
+        <div class="day"><span data-i18n="day">Сегодня</span></div>
+
+        <article class="msg" data-step="1">
+          <img class="ava" src="icon.png" alt="" width="36" height="36" />
+          <div class="msg-main">
+            <p class="who">JsMessenger <time class="time"></time></p>
+            <p data-i18n="m.hello">
+              Привет! Я JsMessenger — свободный клиент Matrix. Переписка шифруется прямо на устройстве, звонки и
+              показ экрана идут через ваш LiveKit, а с Element и Element X я дружу.
+            </p>
+          </div>
+        </article>
+
+        <article class="msg grouped" data-step="2">
+          <div class="msg-main">
+            <p data-i18n="m.yours" id="yours-text">Вот установщик для вашей системы:</p>
+            <div class="files" id="file-main"></div>
+          </div>
+        </article>
+
+        <article class="msg grouped" data-step="3">
+          <div class="msg-main">
+            <p data-i18n="m.others">А это для остальных:</p>
+            <div class="files" id="file-others"></div>
+            <p class="note" data-i18n="m.ios">Для iPhone версии пока нет — подойдёт Element X, он работает с тем же сервером.</p>
+          </div>
+        </article>
+
+        <!-- сюда добавляются вопросы посетителя и ответы -->
+      </main>
+
+      <footer class="composer">
+        <p class="ask-hint" data-i18n="ask.hint">Спросите меня:</p>
+        <div class="asks" id="asks">
+          <button type="button" class="ask" data-q="features" data-i18n="q.features">Что ты умеешь?</button>
+          <button type="button" class="ask" data-q="install" data-i18n="q.install">Как установить?</button>
+          <button type="button" class="ask" data-q="free" data-i18n="q.free">Это бесплатно?</button>
+          <button type="button" class="ask" data-q="server" data-i18n="q.server">Какой нужен сервер?</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Ответы. Без JavaScript показываются как обычный текст ниже -->
+    <section class="answers" id="answers">
+      <template data-a="features">
+        <p data-i18n="a.features.1">Коротко:</p>
+        <ul>
+          <li data-i18n="a.features.2">личные чаты, группы и пространства, треды, закреплённые сообщения;</li>
+          <li data-i18n="a.features.3">аудио- и видеозвонки, показ экрана на весь экран и мини-окно звонка поверх других программ;</li>
+          <li data-i18n="a.features.4">файлы и скриншоты, реакции, ответы, поиск по сообщениям и людям;</li>
+          <li data-i18n="a.features.5">отметки о прочтении, уведомления и работа в фоне;</li>
+          <li data-i18n="a.features.6">сам обновляюсь и говорю по-русски и по-английски.</li>
+        </ul>
+      </template>
+      <template data-a="install">
+        <div class="steps" id="steps"></div>
+      </template>
+      <template data-a="free">
+        <p data-i18n="a.free">
+          Да. Я свободная программа под лицензией AGPL-3.0: исходный код открыт, его можно читать, собирать самому и
+          дорабатывать.
+        </p>
+        <p><a href="https://github.com/JedySan/JsMessenger" data-i18n="a.free.link">github.com/JedySan/JsMessenger</a></p>
+      </template>
+      <template data-a="server">
+        <p data-i18n="a.server.1">Любой сервер Matrix — например, Synapse. Для звонков к нему нужен LiveKit и lk-jwt-service.</p>
+        <p data-i18n="a.server.2">
+          Если сервер у вас уже работает с Element Call или Element X, мне ничего настраивать не нужно: адрес LiveKit
+          я найду сам.
+        </p>
+      </template>
+    </section>
+
+    <noscript>
+      <style>.answers template { display: none; }</style>
+      <p class="noscript">
+        Все версии: <a href="https://github.com/JedySan/JsMessenger/releases/latest">github.com/JedySan/JsMessenger/releases</a>
+      </p>
+    </noscript>
+
+    <script src="app.js"></script>
+  </body>
+</html>
