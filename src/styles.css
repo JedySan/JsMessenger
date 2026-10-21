@@ -622,7 +622,7 @@ button.media-box { cursor: zoom-in; }
   background: color-mix(in srgb, var(--side) 70%, var(--line)); border-right: 1px solid var(--line);
   padding-bottom: 10px;
 }
-.space-bar .titlebar { align-self: stretch; height: 44px; }
+.space-bar .titlebar { align-self: stretch; height: 48px; }
 .space-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 2px 0 8px; width: 100%; scrollbar-width: none; }
 .space-sep { width: 28px; height: 2px; border-radius: 1px; background: var(--line); margin: 8px 0; flex-shrink: 0; }
 .space-btn { position: relative; width: 68px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
