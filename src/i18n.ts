@@ -6,7 +6,7 @@ import en from "./locales/en";
 
 export type Lang = "ru" | "en";
 export const LANGS: Array<{ id: Lang; name: string }> = [
-  { id: "ru", name: "Русский" },
+  { id: "ru", name: "Русский" }, // i18n-ignore: название языка всегда на нём самом
   { id: "en", name: "English" },
 ];
 

@@ -14,7 +14,7 @@ const IGNORE_MARK = "i18n-ignore"; // комментарий в строке к�
 
 function files(dir) {
   return readdirSync(dir).flatMap((f) => {
-    const p = path.join(dir, f);
+    const p = path.join(dir, f).split(path.sep).join("/"); // одинаково на Windows и Unix
     if (statSync(p).isDirectory()) return f === "locales" ? [] : files(p);
     return /\.(ts|tsx)$/.test(f) && !f.endsWith(".d.ts") ? [p] : [];
   });
