@@ -13,6 +13,8 @@ import RoomInfo from "./RoomInfo";
 import { isDirect } from "../rooms";
 import { flashEvent, loadUntil, onJump, takeJump } from "../jump";
 import { PinnedBar, PinsPanel, SearchPanel, ThreadPanel, ThreadsPanel } from "./Panels";
+import { plural } from "../i18n";
+import { tr } from "../i18n";
 
 type Panel =
   | { kind: "info" }
@@ -76,7 +78,7 @@ export default function RoomView({
     if (!flashEvent(eventId)) {
       const ok = await loadUntil(client, room, eventId);
       requestAnimationFrame(() => {
-        if (!flashEvent(eventId) && !ok) alert("Сообщение не найдено в истории этого чата");
+        if (!flashEvent(eventId) && !ok) alert(tr("Сообщение не найдено в истории этого чата"));
       });
     }
   };
@@ -207,7 +209,7 @@ export default function RoomView({
     >
       <header className="room-head" data-tauri-drag-region>
         {onBack && (
-          <button className="icon-btn back-btn" onClick={onBack} title="К списку чатов" aria-label="К списку чатов">
+          <button className="icon-btn back-btn" onClick={onBack} title={tr("К списку чатов")} aria-label={tr("К списку чатов")}>
             <ChevronLeft size={22} />
           </button>
         )}
@@ -216,23 +218,23 @@ export default function RoomView({
           <div className="room-title">{room.name}</div>
           <div className="room-sub">
             {room.hasEncryptionStateEvent() && <LockKeyhole size={11} />}
-            {isDm ? "Личный чат" : `${members} ${plural(members, "участник", "участника", "участников")}`}
+            {isDm ? tr("Личный чат") : `${members} ${plural(members, "участник", "участника", "участников")}`}
           </div>
         </div>
         <CallButtons client={client} room={room} />
         <button
           className={"icon-btn" + (panel?.kind === "search" ? " on" : "")}
           onClick={() => togglePanel("search")}
-          title="Поиск по сообщениям"
-          aria-label="Поиск по сообщениям"
+          title={tr("Поиск по сообщениям")}
+          aria-label={tr("Поиск по сообщениям")}
         >
           <Search size={18} />
         </button>
         <button
           className={"icon-btn" + (panel?.kind === "threads" || panel?.kind === "thread" ? " on" : "")}
           onClick={() => togglePanel("threads")}
-          title="Треды"
-          aria-label="Треды"
+          title={tr("Треды")}
+          aria-label={tr("Треды")}
         >
           <MessagesSquare size={18} />
         </button>
@@ -242,8 +244,8 @@ export default function RoomView({
             if (panel && panel.kind !== "info") setPanel(null);
             onToggleInfo();
           }}
-          title="Участники и настройки"
-          aria-label="Участники и настройки"
+          title={tr("Участники и настройки")}
+          aria-label={tr("Участники и настройки")}
         >
           <PanelRight size={18} />
         </button>
@@ -253,8 +255,8 @@ export default function RoomView({
       <PinnedBar client={client} room={room} onOpen={() => setPanel({ kind: "pins" })} />
 
       <div className="timeline" ref={scroller} onScroll={onScroll}>
-        {loadingMore && <div className="timeline-loading">Загружаю историю…</div>}
-        {!canLoadMore && <div className="timeline-start">Начало переписки</div>}
+        {loadingMore && <div className="timeline-loading">{tr("Загружаю историю…")}</div>}
+        {!canLoadMore && <div className="timeline-start">{tr("Начало переписки")}</div>}
         {events.map((ev, i) => {
           const prev = events[i - 1];
           const newDay = !prev || !sameDay(prev.getTs(), ev.getTs());
@@ -295,7 +297,7 @@ export default function RoomView({
         <div className="drop-overlay">
           <div className="drop-box">
             <Upload size={28} />
-            <div>Отпустите, чтобы отправить в «{room.name}»</div>
+            <div>{tr("Отпустите, чтобы отправить в «{0}»", room.name)}</div>
           </div>
         </div>
       )}
@@ -346,15 +348,8 @@ export default function RoomView({
 }
 
 function typingText(names: string[]): string {
-  if (names.length === 1) return `${names[0]} печатает…`;
-  if (names.length === 2) return `${names[0]} и ${names[1]} печатают…`;
-  return `${names[0]} и ещё ${names.length - 1} печатают…`;
+  if (names.length === 1) return tr("{0} печатает…", names[0]);
+  if (names.length === 2) return tr("{0} и {1} печатают…", names[0], names[1]);
+  return tr("{0} и ещё {1} печатают…", names[0], names.length - 1);
 }
 
-function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}

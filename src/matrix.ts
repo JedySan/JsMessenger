@@ -6,6 +6,7 @@ import {
   type MatrixClient,
 } from "matrix-js-sdk";
 import { decodeRecoveryKey } from "matrix-js-sdk/lib/crypto-api/recovery-key";
+import { tr } from "./i18n";
 
 /** Сервер по умолчанию задаётся при сборке: VITE_DEFAULT_SERVER=matrix.example.com npm run tauri build */
 export const DEFAULT_SERVER: string = (import.meta.env.VITE_DEFAULT_SERVER ?? "").trim();
@@ -174,35 +175,35 @@ export async function verifyWithRecoveryKey(
   onProgress?: (text: string) => void,
 ): Promise<{ imported: number; total: number }> {
   const crypto = client.getCrypto();
-  if (!crypto) throw new Error("Шифрование не инициализировано");
+  if (!crypto) throw new Error(tr("Шифрование не инициализировано"));
 
   let key: Uint8Array<ArrayBuffer>;
   try {
     key = decodeRecoveryKey(recoveryKey.trim());
   } catch {
-    throw new Error("Неверный формат ключа восстановления");
+    throw new Error(tr("Неверный формат ключа восстановления"));
   }
 
   const keyId = await client.secretStorage.getDefaultKeyId();
-  if (!keyId) throw new Error("На аккаунте не настроено секретное хранилище (настройте резервную копию в Element)");
+  if (!keyId) throw new Error(tr("На аккаунте не настроено секретное хранилище (настройте резервную копию в Element)"));
   const keyInfo = await client.secretStorage.getKey(keyId);
   if (keyInfo && !(await client.secretStorage.checkKey(key, keyInfo[1]))) {
-    throw new Error("Ключ не подходит к этому аккаунту");
+    throw new Error(tr("Ключ не подходит к этому аккаунту"));
   }
 
   pendingRecoveryKey = key;
   try {
-    onProgress?.("Подтверждаю сеанс…");
+    onProgress?.(tr("Подтверждаю сеанс…"));
     await crypto.bootstrapCrossSigning({});
 
-    onProgress?.("Загружаю ключ резервной копии…");
+    onProgress?.(tr("Загружаю ключ резервной копии…"));
     await crypto.loadSessionBackupPrivateKeyFromSecretStorage();
     await crypto.checkKeyBackupAndEnable();
 
-    onProgress?.("Восстанавливаю историю…");
+    onProgress?.(tr("Восстанавливаю историю…"));
     const res = await crypto.restoreKeyBackup({
       progressCallback: (p) => {
-        if (p.stage === "load_keys") onProgress?.(`Восстанавливаю ключи: ${p.successes} из ${p.total}`);
+        if (p.stage === "load_keys") onProgress?.(tr("Восстанавливаю ключи: {0} из {1}", p.successes, p.total));
       },
     });
     return { imported: res.imported, total: res.total };

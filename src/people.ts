@@ -1,6 +1,7 @@
 // Поиск людей: участники наших чатов (мгновенно) + каталог пользователей сервера.
 // Понимает перепутанную раскладку («lfybbk» → «даниил», «вфтшшд» → «daniil»).
 import { EventType, KnownMembership, type MatrixClient } from "matrix-js-sdk";
+import { locale } from "./i18n";
 
 export interface Person {
   userId: string;
@@ -13,7 +14,7 @@ export interface Person {
 }
 
 const EN = "qwertyuiop[]asdfghjkl;'zxcvbnm,.`";
-const RU = "йцукенгшщзхъфывапролджэячсмитьбюё";
+const RU = "йцукенгшщзхъфывапролджэячсмитьбюё"; // i18n-ignore: раскладка, не текст
 const enToRu = new Map([...EN].map((c, i) => [c, RU[i]]));
 const ruToEn = new Map([...RU].map((c, i) => [c, EN[i]]));
 
@@ -33,7 +34,7 @@ export function switchLayout(s: string): string | null {
   return changed ? out : null;
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е");
+const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е"); // i18n-ignore
 
 /** Все слова запроса — начала слов в имени или логине. 0 — не подходит, больше — лучше. */
 function score(query: string, name: string, userId: string): number {
@@ -87,7 +88,7 @@ export function searchKnown(client: MatrixClient, term: string, limit = 8): Pers
     if (s > 0) scored.push([s + (dms.has(userId) ? 0.5 : 0), { userId, name: p.name, avatar: p.avatar, dmRoomId: dms.get(userId), known: true }]);
   }
   return scored
-    .sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name, "ru"))
+    .sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name, locale))
     .slice(0, limit)
     .map(([, p]) => p);
 }
@@ -125,7 +126,7 @@ export async function searchPeople(client: MatrixClient, term: string, limit = 2
     Math.max(score(t, p.name, p.userId), queries[1] ? score(queries[1], p.name, p.userId) : 0) +
     (p.dmRoomId ? 1 : 0) +
     (p.known ? 0.5 : 0);
-  return list.sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name, "ru")).slice(0, limit);
+  return list.sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name, locale)).slice(0, limit);
 }
 
 /** Строка поиска чатов тоже понимает другую раскладку. */

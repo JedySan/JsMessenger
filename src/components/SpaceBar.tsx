@@ -3,6 +3,7 @@ import { MessagesSquare, Plus, User } from "lucide-react";
 import { directRoomIds, roomIdsInSpace, topLevelSpaces, type Scope } from "../rooms";
 import { RoomAvatar } from "./Avatar";
 import { openDialog } from "./DialogHost";
+import { tr } from "../i18n";
 
 /** Узкая колонка слева: все чаты, личные, пространства. */
 export default function SpaceBar({ client, scope, onScope }: { client: MatrixClient; scope: Scope; onScope: (s: Scope) => void }) {
@@ -21,16 +22,16 @@ export default function SpaceBar({ client, scope, onScope }: { client: MatrixCli
   const dms = unreadIn(directRoomIds(client));
 
   return (
-    <nav className="space-bar" aria-label="Пространства">
+    <nav className="space-bar" aria-label={tr("Пространства")}>
       <div className="titlebar" data-tauri-drag-region />
-      <SpaceButton active={scope.kind === "all"} title="Все чаты" onClick={() => onScope({ kind: "all" })}>
+      <SpaceButton active={scope.kind === "all"} title={tr("Все чаты")} onClick={() => onScope({ kind: "all" })}>
         <span className="space-icon">
           <MessagesSquare size={20} />
         </span>
       </SpaceButton>
       <SpaceButton
         active={scope.kind === "dm"}
-        title="Личные сообщения"
+        title={tr("Личные сообщения")}
         onClick={() => onScope({ kind: "dm" })}
         unread={dms.total}
         mention={dms.mention}
@@ -59,7 +60,7 @@ export default function SpaceBar({ client, scope, onScope }: { client: MatrixCli
           );
         })}
       </div>
-      <SpaceButton active={false} title="Создать пространство" onClick={() => openDialog({ kind: "createSpace" })}>
+      <SpaceButton active={false} title={tr("Создать пространство")} onClick={() => openDialog({ kind: "createSpace" })}>
         <span className="space-icon add">
           <Plus size={20} />
         </span>

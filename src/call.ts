@@ -15,6 +15,7 @@ import {
   RoomEvent as LkEvent,
 } from "livekit-client";
 import E2EEWorker from "livekit-client/e2ee-worker?worker";
+import { tr } from "./i18n";
 
 // Запасной адрес lk-jwt-service, если сервер не отдал транспорт ни через API, ни через .well-known.
 // Задаётся при сборке: VITE_LIVEKIT_SERVICE_URL=https://livekit.example.com/livekit/jwt
@@ -69,11 +70,11 @@ class CallController {
       await this.leave();
     }
     if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error("WebView не даёт доступ к микрофону и камере (navigator.mediaDevices недоступен)");
+      throw new Error(tr("WebView не даёт доступ к микрофону и камере (navigator.mediaDevices недоступен)"));
     }
     const encrypted = room.hasEncryptionStateEvent();
     if (encrypted && !isE2EESupported()) {
-      throw new Error("Эта система не поддерживает шифрование звонков (нужен macOS 13+ / свежий WebKit)");
+      throw new Error(tr("Эта система не поддерживает шифрование звонков (нужен macOS 13+ / свежий WebKit)"));
     }
 
     const keyProvider = encrypted ? new MatrixKeyProvider() : null;
@@ -167,7 +168,7 @@ class CallController {
     };
     const onTimeline = (ev: MatrixEvent) => {
       if (ev.getType() !== EventType.RTCDecline || ev.getSender() === client.getSafeUserId()) return;
-      if (notificationId && ev.getContent()["m.relates_to"]?.event_id === notificationId) this.end(lk, "Собеседник отклонил звонок");
+      if (notificationId && ev.getContent()["m.relates_to"]?.event_id === notificationId) this.end(lk, tr("Собеседник отклонил звонок"));
     };
     const answered = () => {
       if (lk.remoteParticipants.size === 0) return;
@@ -178,7 +179,7 @@ class CallController {
       stop();
     };
     const timeout = window.setTimeout(() => {
-      if (lk.remoteParticipants.size === 0) this.end(lk, "Собеседник не ответил");
+      if (lk.remoteParticipants.size === 0) this.end(lk, tr("Собеседник не ответил"));
     }, 60_000);
     const stop = () => {
       stopRingtone();
@@ -205,18 +206,22 @@ class CallController {
     console.warn("media", kind, e);
     if (this.state?.lk !== lk) return;
     const name = e instanceof Error ? e.name : "";
-    const dev = kind === "mic" ? "микрофон" : "камеру";
-    const settings = window.jsmDesktop
-      ? "в настройках конфиденциальности системы"
-      : `в «Системных настройках → Конфиденциальность и безопасность → ${kind === "mic" ? "Микрофон" : "Камера"}»: включите JsMessenger и перезапустите его`;
+    const dev = kind === "mic" ? tr("микрофон") : tr("камеру");
+    const denied = window.jsmDesktop
+      ? kind === "mic"
+        ? tr("Нет доступа к микрофону. Разрешите его в настройках конфиденциальности системы.")
+        : tr("Нет доступа к камере. Разрешите его в настройках конфиденциальности системы.")
+      : kind === "mic"
+        ? tr("Нет доступа к микрофону. Разрешите его в «Системных настройках → Конфиденциальность и безопасность → Микрофон»: включите JsMessenger и перезапустите его.")
+        : tr("Нет доступа к камере. Разрешите его в «Системных настройках → Конфиденциальность и безопасность → Камера»: включите JsMessenger и перезапустите его.");
     this.state.mediaError =
       name === "NotAllowedError" || name === "SecurityError"
-        ? `Нет доступа к ${kind === "mic" ? "микрофону" : "камере"}. Разрешите его ${settings}.`
+        ? denied
         : name === "NotFoundError" || name === "OverconstrainedError"
-          ? `Не найдено устройство: подключите ${dev}.`
+          ? tr("Не найдено устройство: подключите {0}.", dev)
           : name === "NotReadableError"
-            ? `Не удалось включить ${dev}: устройство занято другой программой.`
-            : `Не удалось включить ${dev}: ${e instanceof Error ? e.message : String(e)}`;
+            ? tr("Не удалось включить {0}: устройство занято другой программой.", dev)
+            : tr("Не удалось включить {0}: {1}", dev, e instanceof Error ? e.message : String(e));
     this.emit();
   }
 
@@ -291,7 +296,7 @@ async function getTransport(client: MatrixClient, roomId: string): Promise<Livek
   }
   if (FALLBACK_SERVICE_URL) return withAlias(FALLBACK_SERVICE_URL);
   throw new Error(
-    "Сервер не сообщил адрес LiveKit для звонков. Администратору: добавьте org.matrix.msc4143.rtc_foci в .well-known/matrix/client или matrix_rtc.transports в Synapse",
+    tr("Сервер не сообщил адрес LiveKit для звонков. Администратору: добавьте org.matrix.msc4143.rtc_foci в .well-known/matrix/client или matrix_rtc.transports в Synapse"),
   );
 
   function withAlias(url: string): LivekitTransport {
@@ -310,10 +315,10 @@ async function fetchJwt(client: MatrixClient, serviceUrl: string, roomId: string
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`lk-jwt-service ответил ${res.status}${text ? ": " + text.slice(0, 200) : ""}`);
+    throw new Error(tr("lk-jwt-service ответил {0}{1}", res.status, text ? ": " + text.slice(0, 200) : ""));
   }
   const data = (await res.json()) as { url?: string; jwt?: string };
-  if (!data.url || !data.jwt) throw new Error("lk-jwt-service вернул неполный ответ");
+  if (!data.url || !data.jwt) throw new Error(tr("lk-jwt-service вернул неполный ответ"));
   return { url: data.url, jwt: data.jwt };
 }
 

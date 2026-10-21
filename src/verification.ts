@@ -2,6 +2,7 @@
 import type { MatrixClient } from "matrix-js-sdk";
 import { CryptoEvent } from "matrix-js-sdk/lib/crypto-api";
 import type { VerificationRequest } from "matrix-js-sdk/lib/crypto-api";
+import { tr } from "./i18n";
 
 type Listener = () => void;
 
@@ -48,14 +49,14 @@ export const verification = new VerificationStore();
 /** Начать подтверждение этого сеанса с другого своего устройства. */
 export async function verifyWithOtherDevice(client: MatrixClient) {
   const crypto = client.getCrypto();
-  if (!crypto) throw new Error("Шифрование не инициализировано");
+  if (!crypto) throw new Error(tr("Шифрование не инициализировано"));
   verification.open(await crypto.requestOwnUserVerification());
 }
 
 /** Подтвердить другое своё устройство отсюда. */
 export async function verifyOtherDevice(client: MatrixClient, deviceId: string) {
   const crypto = client.getCrypto();
-  if (!crypto) throw new Error("Шифрование не инициализировано");
+  if (!crypto) throw new Error(tr("Шифрование не инициализировано"));
   verification.open(await crypto.requestDeviceVerification(client.getSafeUserId(), deviceId));
 }
 
@@ -83,19 +84,19 @@ export async function restoreAfterVerification(client: MatrixClient): Promise<vo
 
 // Названия эмодзи сверки на русском (спецификация Matrix, 64 символа)
 const SAS_RU: Record<string, string> = {
-  Dog: "Собака", Cat: "Кошка", Lion: "Лев", Horse: "Лошадь", Unicorn: "Единорог", Pig: "Свинья",
-  Elephant: "Слон", Rabbit: "Кролик", Panda: "Панда", Rooster: "Петух", Penguin: "Пингвин",
-  Turtle: "Черепаха", Fish: "Рыба", Octopus: "Осьминог", Butterfly: "Бабочка", Flower: "Цветок",
-  Tree: "Дерево", Cactus: "Кактус", Mushroom: "Гриб", Globe: "Глобус", Moon: "Луна", Cloud: "Облако",
-  Fire: "Огонь", Banana: "Банан", Apple: "Яблоко", Strawberry: "Клубника", Corn: "Кукуруза",
-  Pizza: "Пицца", Cake: "Торт", Heart: "Сердце", Smiley: "Улыбка", Robot: "Робот", Hat: "Шляпа",
-  Glasses: "Очки", Spanner: "Гаечный ключ", Wrench: "Гаечный ключ", Santa: "Санта",
-  "Thumbs Up": "Палец вверх", Umbrella: "Зонт", Hourglass: "Песочные часы", Clock: "Часы",
-  Gift: "Подарок", "Light Bulb": "Лампочка", Book: "Книга", Pencil: "Карандаш", Paperclip: "Скрепка",
-  Scissors: "Ножницы", Lock: "Замок", Key: "Ключ", Hammer: "Молоток", Telephone: "Телефон",
-  Flag: "Флаг", Train: "Поезд", Bicycle: "Велосипед", Aeroplane: "Самолёт", Rocket: "Ракета",
-  Trophy: "Кубок", Ball: "Мяч", Guitar: "Гитара", Trumpet: "Труба", Bell: "Колокольчик",
-  Anchor: "Якорь", Headphones: "Наушники", Folder: "Папка", Pin: "Булавка",
+  Dog: tr("Собака"), Cat: tr("Кошка"), Lion: tr("Лев"), Horse: tr("Лошадь"), Unicorn: tr("Единорог"), Pig: tr("Свинья"),
+  Elephant: tr("Слон"), Rabbit: tr("Кролик"), Panda: tr("Панда"), Rooster: tr("Петух"), Penguin: tr("Пингвин"),
+  Turtle: tr("Черепаха"), Fish: tr("Рыба"), Octopus: tr("Осьминог"), Butterfly: tr("Бабочка"), Flower: tr("Цветок"),
+  Tree: tr("Дерево"), Cactus: tr("Кактус"), Mushroom: tr("Гриб"), Globe: tr("Глобус"), Moon: tr("Луна"), Cloud: tr("Облако"),
+  Fire: tr("Огонь"), Banana: tr("Банан"), Apple: tr("Яблоко"), Strawberry: tr("Клубника"), Corn: tr("Кукуруза"),
+  Pizza: tr("Пицца"), Cake: tr("Торт"), Heart: tr("Сердце"), Smiley: tr("Улыбка"), Robot: tr("Робот"), Hat: tr("Шляпа"),
+  Glasses: tr("Очки"), Spanner: tr("Гаечный ключ"), Wrench: tr("Гаечный ключ"), Santa: tr("Санта"),
+  "Thumbs Up": tr("Палец вверх"), Umbrella: tr("Зонт"), Hourglass: tr("Песочные часы"), Clock: tr("Часы"),
+  Gift: tr("Подарок"), "Light Bulb": tr("Лампочка"), Book: tr("Книга"), Pencil: tr("Карандаш"), Paperclip: tr("Скрепка"),
+  Scissors: tr("Ножницы"), Lock: tr("Замок"), Key: tr("Ключ"), Hammer: tr("Молоток"), Telephone: tr("Телефон"),
+  Flag: tr("Флаг"), Train: tr("Поезд"), Bicycle: tr("Велосипед"), Aeroplane: tr("Самолёт"), Rocket: tr("Ракета"),
+  Trophy: tr("Кубок"), Ball: tr("Мяч"), Guitar: tr("Гитара"), Trumpet: tr("Труба"), Bell: tr("Колокольчик"),
+  Anchor: tr("Якорь"), Headphones: tr("Наушники"), Folder: tr("Папка"), Pin: tr("Булавка"),
 };
 export function sasNameRu(name: string): string {
   return SAS_RU[name] ?? name;

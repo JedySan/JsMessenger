@@ -2,6 +2,7 @@
 // В браузере (npm run dev) всё это тихо выключено.
 
 import { electron, isAndroidApp, isDesktop, isTauri } from "./platform";
+import { tr } from "./i18n";
 
 // ---------- автообновление ----------
 export type UpdateState =
@@ -49,7 +50,7 @@ export async function updaterEnabled(): Promise<boolean> {
 /** Проверить наличие обновления. silent — не показывать «обновлений нет» и ошибки сети. */
 export async function checkForUpdate(silent = false): Promise<void> {
   if (!(await updaterEnabled())) {
-    if (!silent) set({ kind: "error", message: "В этой сборке автообновление выключено" });
+    if (!silent) set({ kind: "error", message: tr("В этой сборке автообновление выключено") });
     return;
   }
   if (state.kind === "downloading" || state.kind === "ready") return;
@@ -78,7 +79,7 @@ export async function checkForUpdate(silent = false): Promise<void> {
     }
   } catch (e) {
     console.warn("update check", e);
-    set(silent ? { kind: "idle" } : { kind: "error", message: `Не удалось проверить обновления: ${String(e)}` });
+    set(silent ? { kind: "idle" } : { kind: "error", message: tr("Не удалось проверить обновления: {0}", String(e)) });
   }
 }
 
@@ -88,7 +89,7 @@ export async function installUpdate(): Promise<void> {
     // Android: скачивание APK в браузере; установка — по уведомлению о загрузке
     if (apkUrl) {
       const { openUrl } = await import("@tauri-apps/plugin-opener");
-      await openUrl(apkUrl).catch((e) => set({ kind: "error", message: `Не удалось открыть загрузку: ${String(e)}` }));
+      await openUrl(apkUrl).catch((e) => set({ kind: "error", message: tr("Не удалось открыть загрузку: {0}", String(e)) }));
       dismissUpdate();
     }
     return;
@@ -104,7 +105,7 @@ export async function installUpdate(): Promise<void> {
       el.updateInstall();
     } catch (e) {
       console.error("update install", e);
-      set({ kind: "error", message: `Не удалось установить обновление: ${String(e)}` });
+      set({ kind: "error", message: tr("Не удалось установить обновление: {0}", String(e)) });
     }
     return;
   }
@@ -126,7 +127,7 @@ export async function installUpdate(): Promise<void> {
     await relaunch();
   } catch (e) {
     console.error("update install", e);
-    set({ kind: "error", message: `Не удалось установить обновление: ${String(e)}` });
+    set({ kind: "error", message: tr("Не удалось установить обновление: {0}", String(e)) });
   }
 }
 
@@ -151,7 +152,7 @@ function newer(a: string, b: string): boolean {
 
 async function checkAndroidRelease(): Promise<{ version: string; notes?: string } | null> {
   const res = await fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" } });
-  if (!res.ok) throw new Error(`GitHub ответил ${res.status}`);
+  if (!res.ok) throw new Error(tr("GitHub ответил {0}", res.status));
   const rel = await res.json();
   const version = String(rel.tag_name ?? "").replace(/^v/, "");
   const apk = (rel.assets ?? []).find((a: { name: string }) => a.name.endsWith(".apk"));

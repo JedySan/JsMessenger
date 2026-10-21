@@ -14,6 +14,7 @@ import { call } from "./call";
 import { isDirect, isMuted } from "./rooms";
 import { startRingtone, stopRingtone } from "./ringtone";
 import { notifySystem, presentWindow } from "./notifications";
+import { tr } from "./i18n";
 
 export interface IncomingCall {
   roomId: string;
@@ -117,13 +118,13 @@ function present(client: MatrixClient, room: Room, c: IncomingCall) {
   set(c);
 
   const who = room.getMember(c.sender)?.name ?? c.sender;
-  const kind = c.video ? "Видеозвонок" : "Аудиозвонок";
+  const kind = c.video ? tr("Видеозвонок") : tr("Аудиозвонок");
   if (c.ring) {
     startRingtone("ring");
     presentWindow();
-    notifySystem(`${kind}: ${who}`, isDirect(client, room) ? "Входящий звонок" : `Звонок в «${room.name}»`, room.roomId);
+    notifySystem(`${kind}: ${who}`, isDirect(client, room) ? tr("Входящий звонок") : tr("Звонок в «{0}»", room.name), room.roomId);
   } else if (!document.hasFocus()) {
-    notifySystem(`${who} начал звонок`, `«${room.name}» — откройте чат, чтобы присоединиться`, room.roomId);
+    notifySystem(tr("{0} начал звонок", who), tr("«{0}» — откройте чат, чтобы присоединиться", room.name), room.roomId);
   }
 }
 

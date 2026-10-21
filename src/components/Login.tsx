@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { DEFAULT_SERVER, login, type Session } from "../matrix";
 import { errText } from "../App";
 import Logo from "./Logo";
+import { tr } from "../i18n";
 
 export default function Login({ onLoggedIn }: { onLoggedIn: (s: Session) => void }) {
   const [server, setServer] = useState(DEFAULT_SERVER);
@@ -30,39 +31,39 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (s: Session) => void
       <div className="titlebar" data-tauri-drag-region />
       <form className="login" onSubmit={submit}>
         <Logo size={56} />
-        <h1>Вход в JsMessenger</h1>
+        <h1>{tr("Вход в JsMessenger")}</h1>
         <p className="login-server">
           {editServer ? (
             <input
               value={server}
               onChange={(e) => setServer(e.target.value)}
-              aria-label="Сервер"
-              placeholder="Сервер Matrix, например matrix.org"
+              aria-label={tr("Сервер")}
+              placeholder={tr("Сервер Matrix, например matrix.org")}
               required
               autoFocus
             />
           ) : (
             <>
-              Сервер {server}{" "}
+              {tr("Сервер")} {server}{" "}
               <button type="button" className="text-btn" onClick={() => setEditServer(true)}>
-                Изменить
+                {tr("Изменить")}
               </button>
             </>
           )}
         </p>
         <label className="field">
-          <span>Логин</span>
+          <span>{tr("Логин")}</span>
           <input
             value={user}
             onChange={(e) => setUser(e.target.value)}
-            placeholder="ivanov или @ivanov:example.com"
+            placeholder={tr("ivanov или @ivanov:example.com")}
             autoFocus={!editServer}
             autoComplete="username"
             required
           />
         </label>
         <label className="field">
-          <span>Пароль</span>
+          <span>{tr("Пароль")}</span>
           <input
             type="password"
             value={password}
@@ -73,7 +74,7 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (s: Session) => void
         </label>
         {error && <p className="form-error">{error}</p>}
         <button type="submit" className="primary wide" disabled={busy}>
-          {busy ? "Вхожу…" : "Войти"}
+          {busy ? tr("Вхожу…") : tr("Войти")}
         </button>
       </form>
     </div>

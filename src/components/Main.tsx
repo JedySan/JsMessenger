@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, type MatrixClient } from "matrix-js-sdk";
-import { Bell, Check, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert } from "lucide-react";
+import { Bell, Check, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages } from "lucide-react";
 import { useClientUpdates } from "../hooks";
 import { isThisDeviceVerified } from "../matrix";
 import { call } from "../call";
@@ -35,6 +35,7 @@ import {
 import { PopupMenu } from "./ui";
 import { isDesktop } from "../platform";
 import { attachNotifications, onNotificationClick, testNotification, updateBadge } from "../notifications";
+import { LANGS, lang, setLang, tr } from "../i18n";
 
 export default function Main({ client, onLogout }: { client: MatrixClient; onLogout: () => void }) {
   useClientUpdates(client);
@@ -133,14 +134,14 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             <div className="me-name">{myName}</div>
             <div className="me-id">{client.getSafeUserId()}</div>
           </div>
-          <button className="icon-btn" onClick={() => setShowSessions(true)} title="Сеансы и устройства" aria-label="Сеансы и устройства">
+          <button className="icon-btn" onClick={() => setShowSessions(true)} title={tr("Сеансы и устройства")} aria-label={tr("Сеансы и устройства")}>
             <MonitorSmartphone size={17} />
           </button>
           <button
             className="icon-btn"
             onClick={(e) => setMeMenu({ x: e.clientX - 20, y: e.clientY + 12 })}
-            title="Ещё"
-            aria-label="Ещё"
+            title={tr("Ещё")}
+            aria-label={tr("Ещё")}
           >
             <MoreHorizontal size={17} />
           </button>
@@ -150,9 +151,9 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           <button className="notice" onClick={() => setShowVerify(true)}>
             <ShieldAlert size={18} className="notice-icon" />
             <span>
-              <strong>Сеанс не подтверждён</strong>
+              <strong>{tr("Сеанс не подтверждён")}</strong>
               <br />
-              Подтвердите его, чтобы видеть историю зашифрованных чатов
+              {tr("Подтвердите его, чтобы видеть историю зашифрованных чатов")}
             </span>
           </button>
         )}
@@ -162,13 +163,13 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             <button className="call-bar-room" onClick={() => openRoom(callState.roomId)}>
               <PhoneCall size={15} />
               <span>
-                Идёт звонок
+                {tr("Идёт звонок")}
                 <br />
                 <b>{callRoom.name}</b>
               </span>
             </button>
             <button className="pill danger" onClick={() => call.leave()}>
-              Завершить
+              {tr("Завершить")}
             </button>
           </div>
         )}
@@ -217,8 +218,8 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           <div className="empty">
             <div className="titlebar" data-tauri-drag-region />
             <div className="empty-body">
-              <div className="empty-title">Выберите чат слева</div>
-              <div className="empty-text">Или нажмите «+» над списком, чтобы начать личный чат или создать комнату</div>
+              <div className="empty-title">{tr("Выберите чат слева")}</div>
+              <div className="empty-text">{tr("Или нажмите «+» над списком, чтобы начать личный чат или создать комнату")}</div>
             </div>
           </div>
         )}
@@ -240,39 +241,45 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           y={meMenu.y}
           onClose={() => setMeMenu(null)}
           items={[
-            { label: "Сеансы и устройства", icon: <MonitorSmartphone size={15} />, onClick: () => setShowSessions(true) },
+            { label: tr("Сеансы и устройства"), icon: <MonitorSmartphone size={15} />, onClick: () => setShowSessions(true) },
             {
-              label: "Проверить уведомления",
+              label: tr("Проверить уведомления"),
               icon: <Bell size={15} />,
               onClick: () => testNotification().then((msg) => alert(msg)),
             },
             {
-              label: "Запускать при входе в систему",
+              label: tr("Запускать при входе в систему"),
               icon: autostart ? <Check size={15} /> : <Power size={15} />,
               hidden: !isDesktop(),
               onClick: () =>
                 setAutostart(!autostart)
                   .then(() => setAutostartState(!autostart))
-                  .catch((e) => alert(`Не удалось изменить автозапуск: ${e}`)),
+                  .catch((e) => alert(tr("Не удалось изменить автозапуск: {0}", e))),
             },
             {
-              label: "Проверить обновления",
+              label: tr("Проверить обновления"),
               icon: <Download size={15} />,
               hidden: !canUpdate,
               onClick: () => checkForUpdate(false),
             },
-            { label: "О программе", icon: <Info size={15} />, onClick: () => setShowAbout(true) },
             {
-              label: "Закрыть JsMessenger полностью",
+              // переключаем по кругу; язык меняется после перезапуска интерфейса
+              label: tr("Язык: {0}", LANGS.find((l) => l.id === lang)?.name ?? lang),
+              icon: <Languages size={15} />,
+              onClick: () => setLang(LANGS[(LANGS.findIndex((l) => l.id === lang) + 1) % LANGS.length].id),
+            },
+            { label: tr("О программе"), icon: <Info size={15} />, onClick: () => setShowAbout(true) },
+            {
+              label: tr("Закрыть JsMessenger полностью"),
               icon: <Power size={15} />,
               hidden: !isDesktop(),
               onClick: () => quitApp(),
             },
             {
-              label: "Выйти из аккаунта",
+              label: tr("Выйти из аккаунта"),
               icon: <LogOut size={15} />,
               danger: true,
-              onClick: () => confirm("Выйти из аккаунта на этом устройстве?") && onLogout(),
+              onClick: () => confirm(tr("Выйти из аккаунта на этом устройстве?")) && onLogout(),
             },
           ]}
         />

@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { Download, LoaderCircle, X } from "lucide-react";
 import { dismissUpdate, getUpdateState, installUpdate, subscribeUpdate } from "../desktop";
 import { isAndroidApp } from "../platform";
+import { tr } from "../i18n";
 
 /** Плашка в боковой панели: найдено обновление, скачивание, ошибка, «обновлений нет». */
 export default function UpdateBanner() {
@@ -13,15 +14,15 @@ export default function UpdateBanner() {
         <div className="update-bar stack">
           <Download size={16} className="update-icon" />
           <span className="update-text">
-            <b>Доступна версия {st.version}</b>
-            <span>{st.notes?.trim() || (isAndroidApp() ? "Скачается установочный файл — откройте его, чтобы обновить" : "Приложение перезапустится за пару секунд")}</span>
+            <b>{tr("Доступна версия {0}", st.version)}</b>
+            <span>{st.notes?.trim() || (isAndroidApp() ? tr("Скачается установочный файл — откройте его, чтобы обновить") : tr("Приложение перезапустится за пару секунд"))}</span>
           </span>
           <span className="update-actions">
             <button className="ghost small-ghost" onClick={dismissUpdate}>
-              Позже
+              {tr("Позже")}
             </button>
             <button className="pill join" onClick={() => installUpdate()}>
-              Обновить
+              {tr("Обновить")}
             </button>
           </span>
         </div>
@@ -32,7 +33,7 @@ export default function UpdateBanner() {
         <div className="update-bar">
           <LoaderCircle size={16} className="update-icon spin" />
           <span className="update-text">
-            <b>{st.kind === "ready" ? "Перезапускаю…" : `Загружаю версию ${st.version}`}</b>
+            <b>{st.kind === "ready" ? tr("Перезапускаю…") : tr("Загружаю версию {0}", st.version)}</b>
             {st.kind === "downloading" && (
               <span className="progress">
                 <div style={{ width: `${st.percent ?? 30}%` }} className={st.percent === null ? "indeterminate" : ""} />
@@ -45,15 +46,15 @@ export default function UpdateBanner() {
       return (
         <div className="update-bar quiet">
           <LoaderCircle size={14} className="spin" />
-          <span className="update-text">Проверяю обновления…</span>
+          <span className="update-text">{tr("Проверяю обновления…")}</span>
         </div>
       );
     case "none":
     case "error":
       return (
         <div className={"update-bar quiet" + (st.kind === "error" ? " err" : "")}>
-          <span className="update-text">{st.kind === "none" ? "У вас последняя версия" : st.message}</span>
-          <button className="icon-btn small" onClick={dismissUpdate} aria-label="Закрыть">
+          <span className="update-text">{st.kind === "none" ? tr("У вас последняя версия") : st.message}</span>
+          <button className="icon-btn small" onClick={dismissUpdate} aria-label={tr("Закрыть")}>
             <X size={14} />
           </button>
         </div>

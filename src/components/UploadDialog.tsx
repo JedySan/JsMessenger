@@ -3,6 +3,7 @@ import type { MatrixClient, MatrixEvent, Room } from "matrix-js-sdk";
 import { FileText, LockKeyhole, X } from "lucide-react";
 import { formatSize, sendFile } from "../attachments";
 import { errText } from "../App";
+import { tr } from "../i18n";
 
 /** Предпросмотр и отправка выбранных, вставленных или перетащенных файлов. */
 export default function UploadDialog({
@@ -59,7 +60,7 @@ export default function UploadDialog({
       }
       onClose(true);
     } catch (e) {
-      setError(`Не удалось отправить «${files[progress?.index ?? 0]?.name}»: ${errText(e)}`);
+      setError(tr("Не удалось отправить «{0}»: {1}", files[progress?.index ?? 0]?.name, errText(e)));
       setBusy(false);
     }
   };
@@ -68,7 +69,7 @@ export default function UploadDialog({
     <div className="modal-bg" onClick={busy ? undefined : () => onClose(false)}>
       <div className="card modal upload" onClick={(e) => e.stopPropagation()}>
         <h2>
-          {files.length === 1 ? "Отправить файл" : `Отправить файлы: ${files.length}`}
+          {files.length === 1 ? tr("Отправить файл") : tr("Отправить файлы: {0}", files.length)}
           <span className="upload-total">{formatSize(total)}</span>
         </h2>
         <div className="upload-list">
@@ -85,9 +86,9 @@ export default function UploadDialog({
                 <div className="upload-name">{f.name}</div>
                 <div className="upload-size">
                   {progress && progress.index === i
-                    ? `Загружаю… ${progress.pct}%`
+                    ? tr("Загружаю… {0}%", progress.pct)
                     : progress && progress.index > i
-                      ? "Отправлено"
+                      ? tr("Отправлено")
                       : formatSize(f.size)}
                 </div>
                 {progress?.index === i && (
@@ -97,7 +98,7 @@ export default function UploadDialog({
                 )}
               </div>
               {!busy && (
-                <button className="icon-btn small" onClick={() => onRemove(i)} title="Убрать" aria-label="Убрать">
+                <button className="icon-btn small" onClick={() => onRemove(i)} title={tr("Убрать")} aria-label={tr("Убрать")}>
                   <X size={16} />
                 </button>
               )}
@@ -106,16 +107,16 @@ export default function UploadDialog({
         </div>
         {room.hasEncryptionStateEvent() && (
           <p className="modal-text small-note">
-            <LockKeyhole size={12} /> Файлы будут зашифрованы перед отправкой
+            <LockKeyhole size={12} /> {tr("Файлы будут зашифрованы перед отправкой")}
           </p>
         )}
         {error && <p className="form-error">{error}</p>}
         <div className="modal-actions">
           <button className="ghost" onClick={() => onClose(false)} disabled={busy}>
-            Отмена
+            {tr("Отмена")}
           </button>
           <button className="primary" onClick={send} disabled={busy || files.length === 0}>
-            {busy ? "Отправляю…" : "Отправить"}
+            {busy ? tr("Отправляю…") : tr("Отправить")}
           </button>
         </div>
       </div>

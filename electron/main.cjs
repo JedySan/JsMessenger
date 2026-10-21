@@ -81,6 +81,14 @@ function serveApp(request) {
   }
 }
 
+// Язык надписей оболочки (меню в трее и т. п.) — тот же, что выбран в интерфейсе
+const TEXT = {
+  ru: { open: "Открыть JsMessenger", quit: "Выйти", unread: (n) => `Непрочитанных: ${n}` },
+  en: { open: "Open JsMessenger", quit: "Quit", unread: (n) => `Unread: ${n}` },
+};
+let lang = /^(ru|be|uk|kk)/i.test(app.getLocale?.() ?? "") ? "ru" : "en";
+const T = () => TEXT[lang] ?? TEXT.en;
+
 let win = null;
 let tray = null;
 let quitting = false;
@@ -214,19 +222,30 @@ ipcMain.on("pick-source-result", (_e, id, sourceId) => {
   done?.(sourceId ?? null);
 });
 
+function buildTrayMenu() {
+  tray?.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: T().open, click: showMain },
+      { type: "separator" },
+      { label: T().quit, click: quitApp },
+    ]),
+  );
+}
+
+// интерфейс сообщает выбранный язык
+ipcMain.on("lang", (_e, l) => {
+  if (!TEXT[l] || l === lang) return;
+  lang = l;
+  buildTrayMenu();
+});
+
 function setupTray() {
   try {
     const size = IS_WIN ? 16 : 22;
     const img = nativeImage.createFromPath(ICON).resize({ width: size, height: size });
     tray = new Tray(img);
     tray.setToolTip("JsMessenger");
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: "Открыть JsMessenger", click: showMain },
-        { type: "separator" },
-        { label: "Выйти", click: quitApp },
-      ]),
-    );
+    buildTrayMenu();
     tray.on("click", showMain);
   } catch (e) {
     // нет области уведомлений (например, GNOME без расширения) — окно вернёт повторный запуск
@@ -267,11 +286,11 @@ ipcMain.on("badge", (_e, count, image) => {
   const n = Number(count) || 0;
   if (IS_WIN) {
     // Windows: кружок с числом поверх значка на панели задач (картинку рисует интерфейс)
-    win?.setOverlayIcon(n > 0 && image ? nativeImage.createFromDataURL(image) : null, n > 0 ? `Непрочитанных: ${n}` : "");
+    win?.setOverlayIcon(n > 0 && image ? nativeImage.createFromDataURL(image) : null, n > 0 ? T().unread(n) : "");
   } else {
     app.setBadgeCount(n); // счётчик на значке в доке Ubuntu (Unity/Dash to Dock)
   }
-  tray?.setToolTip(n > 0 ? `JsMessenger — непрочитанных: ${n}` : "JsMessenger");
+  tray?.setToolTip(n > 0 ? `JsMessenger — ${T().unread(n)}` : "JsMessenger");
 });
 
 // ---------- файлы и ссылки ----------

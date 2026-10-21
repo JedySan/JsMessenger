@@ -5,6 +5,7 @@ import { Maximize2, Mic, MicOff, MonitorUp, PhoneOff, PictureInPicture2, Shrink,
 import { call, userIdFromIdentity } from "../call";
 import { useCallState } from "./CallPanel";
 import Avatar from "./Avatar";
+import { tr } from "../i18n";
 
 // Мини-окно звонка: появляется, когда вы ушли из чата со звонком.
 // Перетаскивается мышью в любое место окна; «Поверх всех окон» — системная «картинка в картинке».
@@ -164,7 +165,7 @@ export default function CallMini({
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
-      title="Перетащите в удобное место; щелчок — вернуться в звонок"
+      title={tr("Перетащите в удобное место; щелчок — вернуться в звонок")}
     >
       <div className="call-mini-video" style={{ height: h }}>
         {view.pub ? (
@@ -175,10 +176,10 @@ export default function CallMini({
             <Avatar client={client} mxc={member?.getMxcAvatarUrl()} name={name} seed={userIdFromIdentity(view.p.identity)} size={size === "s" ? 56 : 80} />
           </>
         )}
-        {pip && <div className="call-mini-pip">Звонок открыт в отдельном окне</div>}
+        {pip && <div className="call-mini-pip">{tr("Звонок открыт в отдельном окне")}</div>}
         <div className="call-mini-name">
           {view.screen && <MonitorUp size={12} />}
-          {view.screen ? `Экран: ${name}` : name}
+          {view.screen ? tr("Экран: {0}", name) : name}
         </div>
       </div>
       <div className="call-mini-bar">
@@ -186,23 +187,23 @@ export default function CallMini({
         <button
           className={"mini-btn" + (micOn ? "" : " off")}
           onClick={() => lk.localParticipant.setMicrophoneEnabled(!micOn).catch((e) => call.mediaFailed(lk, "mic", e))}
-          title={micOn ? "Выключить микрофон" : "Включить микрофон"}
-          aria-label={micOn ? "Выключить микрофон" : "Включить микрофон"}
+          title={micOn ? tr("Выключить микрофон") : tr("Включить микрофон")}
+          aria-label={micOn ? tr("Выключить микрофон") : tr("Включить микрофон")}
         >
           {micOn ? <Mic size={15} /> : <MicOff size={15} />}
         </button>
         {canPip && (
-          <button className={"mini-btn" + (pip ? " active" : "")} onClick={togglePip} title="Поверх всех окон" aria-label="Поверх всех окон">
+          <button className={"mini-btn" + (pip ? " active" : "")} onClick={togglePip} title={tr("Поверх всех окон")} aria-label={tr("Поверх всех окон")}>
             <PictureInPicture2 size={15} />
           </button>
         )}
-        <button className="mini-btn" onClick={toggleSize} title={size === "s" ? "Крупнее" : "Мельче"} aria-label={size === "s" ? "Крупнее" : "Мельче"}>
+        <button className="mini-btn" onClick={toggleSize} title={size === "s" ? tr("Крупнее") : tr("Мельче")} aria-label={size === "s" ? tr("Крупнее") : tr("Мельче")}>
           {size === "s" ? <Expand size={15} /> : <Shrink size={15} />}
         </button>
-        <button className="mini-btn" onClick={() => onOpen(room.roomId)} title="Вернуться в звонок" aria-label="Вернуться в звонок">
+        <button className="mini-btn" onClick={() => onOpen(room.roomId)} title={tr("Вернуться в звонок")} aria-label={tr("Вернуться в звонок")}>
           <Maximize2 size={15} />
         </button>
-        <button className="mini-btn hangup" onClick={() => call.leave()} title="Завершить звонок" aria-label="Завершить звонок">
+        <button className="mini-btn hangup" onClick={() => call.leave()} title={tr("Завершить звонок")} aria-label={tr("Завершить звонок")}>
           <PhoneOff size={15} />
         </button>
       </div>

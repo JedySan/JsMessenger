@@ -17,6 +17,7 @@ import Avatar from "./Avatar";
 import { Track, type Participant, type TrackPublication } from "livekit-client";
 import { call, userIdFromIdentity } from "../call";
 import { setWindowFullscreen } from "../desktop";
+import { plural, tr } from "../i18n";
 
 export function useCallState() {
   return useSyncExternalStore(
@@ -63,7 +64,7 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
         <PhoneOff size={16} />
         <span className="call-error-text">{st.error}</span>
         <button className="pill" onClick={() => call.dismiss()}>
-          Закрыть
+          {tr("Закрыть")}
         </button>
       </div>
     );
@@ -73,9 +74,9 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
     return (
       <div className="call-error">
         <TriangleAlert size={16} />
-        <span className="call-error-text">Не удалось подключиться к звонку. {st.error}</span>
+        <span className="call-error-text">{tr("Не удалось подключиться к звонку.")} {st.error}</span>
         <button className="pill" onClick={() => call.dismiss()}>
-          Закрыть
+          {tr("Закрыть")}
         </button>
       </div>
     );
@@ -95,14 +96,14 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
 
   // Все «картинки» звонка: экраны и камеры — их можно развернуть
   const views: View[] = [
-    ...screens.map(({ p, pub }) => ({ key: `${p.identity}|screen`, p, pub, label: `Экран: ${nameOf(p)}`, screen: true })),
+    ...screens.map(({ p, pub }) => ({ key: `${p.identity}|screen`, p, pub, label: tr("Экран: {0}", nameOf(p)), screen: true })),
     ...participants.map((p) => {
       const cam = p.getTrackPublication(Track.Source.Camera);
       return {
         key: `${p.identity}|cam`,
         p,
         pub: cam?.track && !cam.isMuted ? cam : undefined,
-        label: nameOf(p) + (p === local ? " (вы)" : ""),
+        label: nameOf(p) + (p === local ? tr(" (вы)") : ""),
         screen: false,
       };
     }),
@@ -118,8 +119,8 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
         e.stopPropagation();
         open(key);
       }}
-      title="На весь экран"
-      aria-label="На весь экран"
+      title={tr("На весь экран")}
+      aria-label={tr("На весь экран")}
     >
       <Maximize2 size={15} />
     </button>
@@ -136,21 +137,21 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
       <div className="call-controls">
       <div className="call-info">
         {st.encrypted ? <LockKeyhole size={13} /> : null}
-        {st.encrypted ? "Звонок зашифрован" : "Звонок без шифрования"}
+        {st.encrypted ? tr("Звонок зашифрован") : tr("Звонок без шифрования")}
       </div>
       <div className="call-buttons-row">
         <CtrlButton
           on={micOn}
           disabled={!ready}
           onClick={() => local.setMicrophoneEnabled(!micOn).then(() => call.clearMediaError(), (e) => call.mediaFailed(lk, "mic", e))}
-          label={micOn ? "Выключить микрофон" : "Включить микрофон"}
+          label={micOn ? tr("Выключить микрофон") : tr("Включить микрофон")}
           icon={micOn ? <Mic size={20} /> : <MicOff size={20} />}
         />
         <CtrlButton
           on={camOn}
           disabled={!ready}
           onClick={() => local.setCameraEnabled(!camOn).then(() => call.clearMediaError(), (e) => call.mediaFailed(lk, "cam", e))}
-          label={camOn ? "Выключить камеру" : "Включить камеру"}
+          label={camOn ? tr("Выключить камеру") : tr("Включить камеру")}
           icon={camOn ? <Video_ size={20} /> : <VideoOff size={20} />}
         />
         {canShare && (
@@ -159,16 +160,16 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
           active={shareOn}
           disabled={!ready}
           onClick={() => local.setScreenShareEnabled(!shareOn, { audio: false }).catch(alertErr)}
-          label={shareOn ? "Остановить показ экрана" : "Показать экран"}
+          label={shareOn ? tr("Остановить показ экрана") : tr("Показать экран")}
           icon={<MonitorUp size={20} />}
         />
         )}
-        <button className="ctrl hangup" onClick={() => call.leave()} title="Завершить звонок" aria-label="Завершить звонок">
+        <button className="ctrl hangup" onClick={() => call.leave()} title={tr("Завершить звонок")} aria-label={tr("Завершить звонок")}>
           <PhoneOff size={20} />
         </button>
       </div>
       <div className="call-info right">
-        {participants.length} {participants.length === 1 ? "участник" : participants.length < 5 ? "участника" : "участников"}
+        {participants.length} {plural(participants.length, "участник", "участника", "участников")}
       </div>
     </div>
   );
@@ -177,7 +178,7 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
     <div className="call-media-error">
       <MicOff size={15} />
       <span>{st.mediaError}</span>
-      <button className="call-full-btn" onClick={() => call.clearMediaError()} aria-label="Скрыть">
+      <button className="call-full-btn" onClick={() => call.clearMediaError()} aria-label={tr("Скрыть")}>
         <X size={15} />
       </button>
     </div>
@@ -187,12 +188,12 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
     <div className="call-panel">
       {mediaBanner}
       {!ready ? (
-        <div className="call-connecting">Подключаюсь к звонку…</div>
+        <div className="call-connecting">{tr("Подключаюсь к звонку…")}</div>
       ) : st.calling ? (
         <div className="call-connecting calling">
           <Avatar client={client} mxc={otherOf(client, room)?.getMxcAvatarUrl()} name={otherOf(client, room)?.name ?? room.name} seed={otherOf(client, room)?.userId ?? room.roomId} size={72} />
           <span className="calling-name">{otherOf(client, room)?.name ?? room.name}</span>
-          <span className="calling-hint">Вызов…</span>
+          <span className="calling-hint">{tr("Вызов…")}</span>
         </div>
       ) : (
         <div className={"call-grid" + (screens.length ? " with-screen" : "") + ` n${Math.min(participants.length, 4)}`}>
@@ -201,7 +202,7 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
               <Video pub={pub} />
               {expandBtn(`${p.identity}|screen`)}
               <div className="tile-name">
-                <MonitorUp size={13} /> Экран: {nameOf(p)}
+                <MonitorUp size={13} /> {tr("Экран:")} {nameOf(p)}
               </div>
             </div>
           ))}
@@ -238,7 +239,7 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
                 {fullView.screen && <MonitorUp size={15} />}
                 {fullView.label}
               </span>
-              <button className="call-full-btn" onClick={close} title="Свернуть (Esc)" aria-label="Свернуть">
+              <button className="call-full-btn" onClick={close} title={tr("Свернуть (Esc)")} aria-label={tr("Свернуть")}>
                 <Minimize2 size={18} />
               </button>
             </div>
@@ -344,8 +345,8 @@ function ParticipantTile({
             e.stopPropagation();
             onExpand();
           }}
-          title="На весь экран"
-          aria-label="На весь экран"
+          title={tr("На весь экран")}
+          aria-label={tr("На весь экран")}
         >
           <Maximize2 size={15} />
         </button>
@@ -358,7 +359,7 @@ function ParticipantTile({
       <div className="tile-name">
         {micMuted && <MicOff size={12} />}
         {name}
-        {isLocal ? " (вы)" : ""}
+        {isLocal ? tr(" (вы)") : ""}
       </div>
     </div>
   );

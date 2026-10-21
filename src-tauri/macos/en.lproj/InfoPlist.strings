@@ -1,0 +1,3 @@
+/* Permission prompts */
+"NSMicrophoneUsageDescription" = "JsMessenger uses the microphone for calls.";
+"NSCameraUsageDescription" = "JsMessenger uses the camera for video calls.";

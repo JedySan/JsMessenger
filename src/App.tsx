@@ -4,6 +4,7 @@ import { loadSession, logout, startClient, waitForSync, type Session } from "./m
 import Login from "./components/Login";
 import Main from "./components/Main";
 import Logo from "./components/Logo";
+import { tr } from "./i18n";
 
 type State =
   | { kind: "login" }
@@ -46,7 +47,7 @@ export default function App() {
         <div className="splash">
           <div className="titlebar" data-tauri-drag-region />
           <Logo size={56} />
-          <div className="splash-text">Загружаю чаты…</div>
+          <div className="splash-text">{tr("Загружаю чаты…")}</div>
         </div>
       );
     case "error":
@@ -54,14 +55,14 @@ export default function App() {
         <div className="splash">
           <div className="titlebar" data-tauri-drag-region />
           <Logo size={56} />
-          <h2>Нет связи с сервером</h2>
+          <h2>{tr("Нет связи с сервером")}</h2>
           <p className="form-error">{state.message}</p>
           <div className="modal-actions">
             <button className="ghost" onClick={doLogout}>
-              Выйти из аккаунта
+              {tr("Выйти из аккаунта")}
             </button>
             <button className="primary" onClick={() => location.reload()}>
-              Повторить
+              {tr("Повторить")}
             </button>
           </div>
         </div>

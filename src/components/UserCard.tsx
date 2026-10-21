@@ -6,6 +6,7 @@ import { call } from "../call";
 import { errText } from "../App";
 import Avatar from "./Avatar";
 import { Modal } from "./ui";
+import { tr } from "../i18n";
 
 /** Карточка человека: имя, адрес и быстрые действия — написать, позвонить. */
 export default function UserCard({
@@ -70,7 +71,7 @@ export default function UserCard({
       <div className="user-card">
         <Avatar client={client} mxc={profile.avatar} name={profile.name} seed={userId} size={84} />
         <div className="user-card-name">{profile.name}</div>
-        <button className="user-card-id" onClick={copy} title="Скопировать адрес">
+        <button className="user-card-id" onClick={copy} title={tr("Скопировать адрес")}>
           {userId}
           {copied ? <Check size={13} /> : <Copy size={13} />}
         </button>
@@ -78,15 +79,15 @@ export default function UserCard({
           <div className="user-card-actions">
             <button className="user-action" onClick={() => go("chat")} disabled={!!busy}>
               <MessageSquare size={20} />
-              <span>{busy === "chat" ? "Открываю…" : "Написать"}</span>
+              <span>{busy === "chat" ? tr("Открываю…") : tr("Написать")}</span>
             </button>
             <button className="user-action" onClick={() => go("audio")} disabled={!!busy}>
               <Phone size={20} />
-              <span>Позвонить</span>
+              <span>{tr("Позвонить")}</span>
             </button>
             <button className="user-action" onClick={() => go("video")} disabled={!!busy}>
               <Video size={20} />
-              <span>Видеозвонок</span>
+              <span>{tr("Видеозвонок")}</span>
             </button>
           </div>
         )}

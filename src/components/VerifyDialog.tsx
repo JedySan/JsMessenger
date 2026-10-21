@@ -4,6 +4,7 @@ import { KeyRound, MonitorSmartphone } from "lucide-react";
 import { verifyWithOtherDevice } from "../verification";
 import { verifyWithRecoveryKey } from "../matrix";
 import { errText } from "../App";
+import { tr } from "../i18n";
 
 export default function VerifyDialog({ client, onClose }: { client: MatrixClient; onClose: () => void }) {
   const [key, setKey] = useState("");
@@ -19,7 +20,7 @@ export default function VerifyDialog({ client, onClose }: { client: MatrixClient
     setError(null);
     try {
       const r = await verifyWithRecoveryKey(client, key, setProgress);
-      setDone(`Сеанс подтверждён. Восстановлено ключей: ${r.imported} из ${r.total}.`);
+      setDone(tr("Сеанс подтверждён. Восстановлено ключей: {0} из {1}.", r.imported, r.total));
       setKey("");
     } catch (err) {
       setError(errText(err));
@@ -35,11 +36,11 @@ export default function VerifyDialog({ client, onClose }: { client: MatrixClient
         <div className="modal-icon">
           <KeyRound size={22} />
         </div>
-        <h2>Подтвердите этот сеанс</h2>
+        <h2>{tr("Подтвердите этот сеанс")}</h2>
         {!done && method === "choose" ? (
           <>
             <p className="modal-text">
-              Подтверждённый сеанс видит историю зашифрованных чатов, а другие участники доверяют ему.
+              {tr("Подтверждённый сеанс видит историю зашифрованных чатов, а другие участники доверяют ему.")}
             </p>
             <button
               className="choice"
@@ -50,15 +51,15 @@ export default function VerifyDialog({ client, onClose }: { client: MatrixClient
             >
               <MonitorSmartphone size={20} />
               <span>
-                <b>С другого устройства</b>
-                <span>Element на телефоне или компьютере, где вы уже вошли. Сверите эмодзи.</span>
+                <b>{tr("С другого устройства")}</b>
+                <span>{tr("Element на телефоне или компьютере, где вы уже вошли. Сверите эмодзи.")}</span>
               </span>
             </button>
             <button className="choice" onClick={() => setMethod("key")}>
               <KeyRound size={20} />
               <span>
-                <b>Ключом восстановления</b>
-                <span>Если другого устройства под рукой нет.</span>
+                <b>{tr("Ключом восстановления")}</b>
+                <span>{tr("Если другого устройства под рукой нет.")}</span>
               </span>
             </button>
           </>
@@ -66,14 +67,13 @@ export default function VerifyDialog({ client, onClose }: { client: MatrixClient
           <>
             <p>{done}</p>
             <button type="button" className="primary" onClick={onClose}>
-              Готово
+              {tr("Готово")}
             </button>
           </>
         ) : (
           <>
             <p className="modal-text">
-              Вставьте ключ восстановления, который Element показал при настройке резервной копии. Он начинается
-              с <code>EsT</code> и состоит из групп по четыре символа. Ключ нигде не сохраняется.
+              {tr("Вставьте ключ восстановления, который Element показал при настройке резервной копии. Он начинается с")} <code>EsT</code> {tr("и состоит из групп по четыре символа. Ключ нигде не сохраняется.")}
             </p>
             <textarea
               rows={2}
@@ -87,10 +87,10 @@ export default function VerifyDialog({ client, onClose }: { client: MatrixClient
             {error && <p className="form-error">{error}</p>}
             <div className="modal-actions">
               <button type="button" className="ghost" onClick={() => setMethod("choose")} disabled={busy}>
-                Назад
+                {tr("Назад")}
               </button>
               <button type="submit" className="primary" disabled={busy || !key.trim()}>
-                {busy ? "Подтверждаю…" : "Подтвердить"}
+                {busy ? tr("Подтверждаю…") : tr("Подтвердить")}
               </button>
             </div>
           </>

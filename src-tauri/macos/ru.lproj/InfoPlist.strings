@@ -1,0 +1,3 @@
+/* Запросы доступа (macOS показывает на языке системы) */
+"NSMicrophoneUsageDescription" = "JsMessenger использует микрофон для звонков.";
+"NSCameraUsageDescription" = "JsMessenger использует камеру для видеозвонков.";

@@ -8,19 +8,21 @@ import Avatar from "./Avatar";
 import Composer, { type ComposerMode } from "./Composer";
 import Message, { pinnedIds, plainText, PINNED, togglePin, type MessageActions } from "./Message";
 import UploadDialog from "./UploadDialog";
+import { plural } from "../i18n";
+import { tr } from "../i18n";
 
 function PanelHead({ title, onClose, onBack }: { title: string; onClose: () => void; onBack?: () => void }) {
   return (
     <div className="info-head">
       <div className="panel-title">
         {onBack && (
-          <button className="icon-btn small" onClick={onBack} aria-label="Назад">
+          <button className="icon-btn small" onClick={onBack} aria-label={tr("Назад")}>
             <ArrowLeft size={16} />
           </button>
         )}
         {title}
       </div>
-      <button className="icon-btn" onClick={onClose} aria-label="Закрыть панель">
+      <button className="icon-btn" onClick={onClose} aria-label={tr("Закрыть панель")}>
         <X size={18} />
       </button>
     </div>
@@ -103,21 +105,21 @@ export function ThreadPanel({
 
   return (
     <div className="room-info thread-panel">
-      <PanelHead title="Тред" onClose={onClose} onBack={onBack} />
+      <PanelHead title={tr("Тред")} onClose={onClose} onBack={onBack} />
       <div className="thread-body" ref={scroller}>
         {root ? (
           <div className="thread-root">
             <Message client={client} room={room} ev={root} actions={actions} />
           </div>
         ) : (
-          <div className="panel-empty">Загружаю сообщение…</div>
+          <div className="panel-empty">{tr("Загружаю сообщение…")}</div>
         )}
         <div className="thread-sep">
-          {replies.length ? `${replies.length} ${plural(replies.length, "ответ", "ответа", "ответов")}` : "Ответов пока нет"}
+          {replies.length ? `${replies.length} ${plural(replies.length, "ответ", "ответа", "ответов")}` : tr("Ответов пока нет")}
         </div>
         {canLoadMore && (
           <button className="load-more" onClick={loadMore} disabled={loading}>
-            {loading ? "Загружаю…" : "Показать ранние ответы"}
+            {loading ? tr("Загружаю…") : tr("Показать ранние ответы")}
           </button>
         )}
         {replies.map((ev, i) => (
@@ -130,7 +132,7 @@ export function ThreadPanel({
         mode={mode}
         setMode={setMode}
         threadId={rootId}
-        placeholder="Ответить в треде"
+        placeholder={tr("Ответить в треде")}
         onFiles={(f) => setPending((p) => [...p, ...f])}
         onSent={() => {}}
         onEditLast={() => {
@@ -195,7 +197,7 @@ export function ThreadsPanel({
 
   return (
     <div className="room-info">
-      <PanelHead title="Треды" onClose={onClose} />
+      <PanelHead title={tr("Треды")} onClose={onClose} />
       <div className="info-body">
         {loading && threads.length === 0 && (
           <div className="panel-empty">
@@ -204,7 +206,7 @@ export function ThreadsPanel({
         )}
         {!loading && threads.length === 0 && (
           <div className="panel-empty">
-            В этой комнате нет тредов. Наведите на сообщение и нажмите «Ответить в треде», чтобы начать обсуждение
+            {tr("В этой комнате нет тредов. Наведите на сообщение и нажмите «Ответить в треде», чтобы начать обсуждение")}
           </div>
         )}
         {threads.map((t) => {
@@ -219,7 +221,7 @@ export function ThreadsPanel({
                   <b>{member?.name ?? sender}</b>
                   <span>{t.lastReply() ? listTime(t.lastReply()!.getTs()) : ""}</span>
                 </span>
-                <span className="thread-item-text">{root ? plainText(root) : "Сообщение"}</span>
+                <span className="thread-item-text">{root ? plainText(root) : tr("Сообщение")}</span>
                 <span className="thread-item-count">
                   <MessagesSquare size={12} />
                   {t.length} {plural(t.length, "ответ", "ответа", "ответов")}
@@ -340,7 +342,7 @@ export function SearchPanel({
 
   return (
     <div className="room-info">
-      <PanelHead title="Поиск" onClose={onClose} />
+      <PanelHead title={tr("Поиск")} onClose={onClose} />
       <div className="info-body">
         <form
           className="search-form"
@@ -351,21 +353,21 @@ export function SearchPanel({
         >
           <label className="search">
             <Search size={15} />
-            <input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Слово или фраза" autoFocus />
+            <input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={tr("Слово или фраза")} autoFocus />
           </label>
           <div className="segmented">
             <button type="button" className={scope === "room" ? "on" : ""} onClick={() => setScope("room")}>
-              В этом чате
+              {tr("В этом чате")}
             </button>
             <button type="button" className={scope === "all" ? "on" : ""} onClick={() => setScope("all")}>
-              Во всех чатах
+              {tr("Во всех чатах")}
             </button>
           </div>
         </form>
 
         {encrypted && scope === "room" && (
           <p className="panel-note">
-            Чат зашифрован: сервер не видит текст, поэтому ищу только среди загруженных сообщений.
+            {tr("Чат зашифрован: сервер не видит текст, поэтому ищу только среди загруженных сообщений.")}
           </p>
         )}
         {error && <p className="form-error left">{error}</p>}
@@ -374,7 +376,7 @@ export function SearchPanel({
             <LoaderCircle size={18} className="spin" />
           </div>
         )}
-        {!busy && hits && hits.length === 0 && <div className="panel-empty">Ничего не найдено</div>}
+        {!busy && hits && hits.length === 0 && <div className="panel-empty">{tr("Ничего не найдено")}</div>}
         {!busy &&
           hits?.map((h, i) => {
             const prev = hits[i - 1];
@@ -396,7 +398,7 @@ export function SearchPanel({
           })}
         {hits && encrypted && scope === "room" && room.getLiveTimeline().getPaginationToken(Direction.Backward) && (
           <button className="load-more" onClick={deeper} disabled={deepening}>
-            {deepening ? "Загружаю историю…" : "Искать глубже в истории"}
+            {deepening ? tr("Загружаю историю…") : tr("Искать глубже в истории")}
           </button>
         )}
       </div>
@@ -462,10 +464,10 @@ export function PinsPanel({
 
   return (
     <div className="room-info">
-      <PanelHead title="Закреплённые" onClose={onClose} />
+      <PanelHead title={tr("Закреплённые")} onClose={onClose} />
       <div className="info-body">
         {ids.length === 0 && (
-          <div className="panel-empty">Закреплённых сообщений нет. Наведите на сообщение и нажмите на значок булавки</div>
+          <div className="panel-empty">{tr("Закреплённых сообщений нет. Наведите на сообщение и нажмите на значок булавки")}</div>
         )}
         {ids.map((id) => {
           const ev = events[id];
@@ -475,7 +477,7 @@ export function PinsPanel({
               <button className="hit" onClick={() => onJump(id)} disabled={!ev || ev === "missing"}>
                 <span className="hit-head">
                   <Pin size={12} />
-                  <b>{ev === "missing" ? "Сообщение недоступно" : ev ? sender : "Загружаю…"}</b>
+                  <b>{ev === "missing" ? tr("Сообщение недоступно") : ev ? sender : tr("Загружаю…")}</b>
                   {ev && ev !== "missing" && <span className="hit-time">{listTime(ev.getTs())}</span>}
                 </span>
                 {ev && ev !== "missing" && <span className="hit-text">{plainText(ev)}</span>}
@@ -484,8 +486,8 @@ export function PinsPanel({
                 <button
                   className="icon-btn small"
                   onClick={() => togglePin(client, room, id).catch((e) => alert(errText(e)))}
-                  title="Открепить"
-                  aria-label="Открепить"
+                  title={tr("Открепить")}
+                  aria-label={tr("Открепить")}
                 >
                   <PinOff size={15} />
                 </button>
@@ -525,16 +527,9 @@ export function PinnedBar({ client, room, onOpen }: { client: MatrixClient; room
   return (
     <button className="pinned-bar" onClick={onOpen}>
       <Pin size={14} />
-      <span className="pinned-label">{ids.length > 1 ? `Закреплено: ${ids.length}` : "Закреплено"}</span>
+      <span className="pinned-label">{ids.length > 1 ? tr("Закреплено: {0}", ids.length) : tr("Закреплено")}</span>
       <span className="pinned-text">{ev ? plainText(ev) : "…"}</span>
     </button>
   );
 }
 
-function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}

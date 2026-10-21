@@ -49,7 +49,7 @@ export async function decryptAttachment(data: ArrayBuffer, file: EncryptedFile):
   const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", data));
   const expected = b64ToBytes(file.hashes.sha256);
   if (hash.length !== expected.length || hash.some((b, i) => b !== expected[i])) {
-    throw new Error("Файл повреждён: контрольная сумма не совпадает");
+    throw new Error(tr("Файл повреждён: контрольная сумма не совпадает"));
   }
   const key = await crypto.subtle.importKey("jwk", file.key, { name: "AES-CTR" }, false, ["decrypt"]);
   return crypto.subtle.decrypt({ name: "AES-CTR", counter: b64ToBytes(file.iv), length: 64 }, key, data);
@@ -60,17 +60,18 @@ export async function decryptAttachment(data: ArrayBuffer, file: EncryptedFile):
 export async function downloadMedia(client: MatrixClient, content: Record<string, any>): Promise<Blob> {
   const encrypted = content.file as EncryptedFile | undefined;
   const mxc: string | undefined = encrypted?.url ?? content.url;
-  if (!mxc) throw new Error("В сообщении нет файла");
+  if (!mxc) throw new Error(tr("В сообщении нет файла"));
   const http = client.mxcUrlToHttp(mxc, undefined, undefined, undefined, false, true, true);
-  if (!http) throw new Error("Некорректная ссылка на файл");
+  if (!http) throw new Error(tr("Некорректная ссылка на файл"));
   const res = await fetch(http, { headers: { Authorization: `Bearer ${client.getAccessToken()}` } });
-  if (!res.ok) throw new Error(`Сервер вернул ${res.status}`);
+  if (!res.ok) throw new Error(tr("Сервер вернул {0}", res.status));
   let data = await res.arrayBuffer();
   if (encrypted) data = await decryptAttachment(data, encrypted);
   return new Blob([data], { type: content.info?.mimetype ?? "application/octet-stream" });
 }
 
 import { electron, isTauri } from "./platform";
+import { tr } from "./i18n";
 
 /** Сохраняет файл в «Загрузки» и показывает его в Finder (в браузере — обычное скачивание). */
 export async function saveToDownloads(name: string, blob: Blob): Promise<void> {
@@ -141,7 +142,7 @@ export function nameForPasted(file: File): File {
   if (file.name && file.name !== "image.png") return file;
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
-  const name = `Снимок ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}.${p(d.getSeconds())}.png`;
+  const name = tr("Снимок {0}-{1}-{2} {3}.{4}.{5}.png", d.getFullYear(), p(d.getMonth() + 1), p(d.getDate()), p(d.getHours()), p(d.getMinutes()), p(d.getSeconds()));
   return new File([file], name, { type: file.type || "image/png" });
 }
 
@@ -189,8 +190,8 @@ export async function sendFile(
 
 export function formatSize(bytes?: number): string {
   if (!bytes && bytes !== 0) return "";
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} МБ`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2).replace(".", ",")} ГБ`;
+  if (bytes < 1024) return tr("{0} Б", bytes);
+  if (bytes < 1024 * 1024) return tr("{0} КБ", (bytes / 1024).toFixed(0));
+  if (bytes < 1024 * 1024 * 1024) return tr("{0} МБ", (bytes / 1024 / 1024).toFixed(1).replace(".", ","));
+  return tr("{0} ГБ", (bytes / 1024 / 1024 / 1024).toFixed(2).replace(".", ","));
 }

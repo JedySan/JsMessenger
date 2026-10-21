@@ -6,6 +6,7 @@ import { nameForPasted } from "../attachments";
 import { textToContent } from "../richtext";
 import { effectiveContent, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
+import { tr } from "../i18n";
 
 const PASTE_KEY = window.jsmDesktop && window.jsmDesktop.platform !== "darwin" ? "Ctrl+V" : "⌘V";
 
@@ -107,7 +108,7 @@ export default function Composer({
         await client.sendMessage(room.roomId, content as any);
       }
     } catch (e) {
-      alert("Сообщение не отправлено: " + errText(e));
+      alert(tr("Сообщение не отправлено: ") + errText(e));
       setText(body);
       setMode(current);
     }
@@ -146,10 +147,10 @@ export default function Composer({
         <div className="composer-context">
           {mode.kind === "reply" ? <Reply size={15} /> : <Pencil size={14} />}
           <div className="ctx-text">
-            <div className="ctx-title">{mode.kind === "reply" ? `В ответ: ${targetName}` : "Редактирование сообщения"}</div>
+            <div className="ctx-title">{mode.kind === "reply" ? tr("В ответ: {0}", targetName) : tr("Редактирование сообщения")}</div>
             <div className="ctx-body">{plainText(target)}</div>
           </div>
-          <button className="icon-btn small" onClick={cancelMode} title="Отменить (Esc)" aria-label="Отменить">
+          <button className="icon-btn small" onClick={cancelMode} title={tr("Отменить (Esc)")} aria-label={tr("Отменить")}>
             <X size={16} />
           </button>
         </div>
@@ -158,8 +159,8 @@ export default function Composer({
         <button
           className="attach-btn"
           onClick={() => fileInput.current?.click()}
-          title="Прикрепить файл"
-          aria-label="Прикрепить файл"
+          title={tr("Прикрепить файл")}
+          aria-label={tr("Прикрепить файл")}
           disabled={mode.kind === "edit"}
         >
           <Paperclip size={18} />
@@ -179,18 +180,18 @@ export default function Composer({
           ref={ref}
           rows={1}
           value={text}
-          placeholder={mode.kind === "edit" ? "Новый текст сообщения" : (placeholder ?? `Сообщение для «${room.name}»`)}
+          placeholder={mode.kind === "edit" ? tr("Новый текст сообщения") : (placeholder ?? tr("Сообщение для «{0}»", room.name))}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKey}
           onPaste={onPaste}
           onBlur={stopTyping}
         />
-        <button className="send-btn" onClick={send} disabled={!text.trim()} title="Отправить (Enter)" aria-label="Отправить">
+        <button className="send-btn" onClick={send} disabled={!text.trim()} title={tr("Отправить (Enter)")} aria-label={tr("Отправить")}>
           <SendHorizontal size={18} />
         </button>
       </div>
       <div className="composer-hint">
-        **жирный**, _курсив_, `код`, Shift+Enter — новая строка, {PASTE_KEY} — вставить скриншот
+        {tr("**жирный**, _курсив_, `код`, Shift+Enter — новая строка,")} {PASTE_KEY} {tr("— вставить скриншот")}
       </div>
     </div>
   );

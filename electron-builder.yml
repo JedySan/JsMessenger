@@ -23,13 +23,14 @@ linux:
   icon: electron/icons/icon.png
   executableName: jsmessenger
   syncDesktopName: true
-  synopsis: Matrix-мессенджер со звонками
-  description: Matrix-мессенджер со звонками через LiveKit (MatrixRTC) и сквозным шифрованием.
+  synopsis: Matrix messenger with calls
+  description: Matrix messenger with LiveKit (MatrixRTC) calls and end-to-end encryption.
   maintainer: "JedySan <61560967+JedySan@users.noreply.github.com>"
   desktop:
     entry:
       Name: JsMessenger
-      Comment: Matrix-мессенджер со звонками
+      Comment: Matrix messenger with calls
+      Comment[ru]: Matrix-мессенджер со звонками
       Categories: Network;InstantMessaging;Chat;
       StartupWMClass: jsmessenger
       Keywords: matrix;chat;messenger;

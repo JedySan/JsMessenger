@@ -4,6 +4,7 @@ import { Check, LoaderCircle, LogOut, Monitor, Pencil, ShieldCheck, ShieldAlert,
 import { errText } from "../App";
 import { listTime } from "../format";
 import { verifyOtherDevice } from "../verification";
+import { tr } from "../i18n";
 
 interface Device {
   id: string;
@@ -73,13 +74,13 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
     <div className="modal-bg" onClick={signingOut ? undefined : onClose}>
       <div className="card modal sessions" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>Сеансы</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Закрыть">
+          <h2>{tr("Сеансы")}</h2>
+          <button className="icon-btn" onClick={onClose} aria-label={tr("Закрыть")}>
             <X size={18} />
           </button>
         </div>
         <p className="modal-text">
-          Все устройства, где выполнен вход в ваш аккаунт. Подтверждённые сеансы видят историю зашифрованных чатов.
+          {tr("Все устройства, где выполнен вход в ваш аккаунт. Подтверждённые сеансы видят историю зашифрованных чатов.")}
         </p>
 
         {error && <p className="form-error">{error}</p>}
@@ -111,24 +112,24 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
                         }}
                         autoFocus
                       />
-                      <button className="icon-btn small" onClick={() => rename(d.id)} aria-label="Сохранить">
+                      <button className="icon-btn small" onClick={() => rename(d.id)} aria-label={tr("Сохранить")}>
                         <Check size={16} />
                       </button>
                     </div>
                   ) : (
                     <div className="session-name">
                       {d.name}
-                      {d.id === myDevice && <span className="session-tag">этот сеанс</span>}
+                      {d.id === myDevice && <span className="session-tag">{tr("этот сеанс")}</span>}
                     </div>
                   )}
                   <div className="session-meta">
                     <span className={d.verified ? "ok" : "warn"}>
                       {d.verified ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
-                      {d.verified ? "Подтверждён" : "Не подтверждён"}
+                      {d.verified ? tr("Подтверждён") : tr("Не подтверждён")}
                     </span>
                     <span>{d.id}</span>
                     {d.ip && <span>{d.ip}</span>}
-                    {d.lastSeen && d.id !== myDevice && <span>активность: {listTime(d.lastSeen)}</span>}
+                    {d.lastSeen && d.id !== myDevice && <span>{tr("активность:")} {listTime(d.lastSeen)}</span>}
                   </div>
                 </div>
                 <div className="session-actions">
@@ -140,7 +141,7 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
                         onClose();
                       }}
                     >
-                      Подтвердить
+                      {tr("Подтвердить")}
                     </button>
                   )}
                   <button
@@ -149,8 +150,8 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
                       setRenaming(d.id);
                       setNewName(d.name);
                     }}
-                    title="Переименовать"
-                    aria-label="Переименовать"
+                    title={tr("Переименовать")}
+                    aria-label={tr("Переименовать")}
                   >
                     <Pencil size={14} />
                   </button>
@@ -158,8 +159,8 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
                     <button
                       className="icon-btn small danger-text"
                       onClick={() => setSigningOut([d.id])}
-                      title="Выйти из этого сеанса"
-                      aria-label="Выйти из этого сеанса"
+                      title={tr("Выйти из этого сеанса")}
+                      aria-label={tr("Выйти из этого сеанса")}
                     >
                       <LogOut size={15} />
                     </button>
@@ -173,7 +174,7 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
         {others.length > 1 && (
           <div className="modal-actions">
             <button className="ghost danger-text" onClick={() => setSigningOut(others.map((d) => d.id))}>
-              Выйти из всех остальных сеансов
+              {tr("Выйти из всех остальных сеансов")}
             </button>
           </div>
         )}
@@ -229,7 +230,7 @@ function SignOutConfirm({
       } as any);
       onDone(true);
     } catch (e: any) {
-      setError(e?.httpStatus === 401 ? "Неверный пароль" : errText(e));
+      setError(e?.httpStatus === 401 ? tr("Неверный пароль") : errText(e));
       setBusy(false);
     }
   };
@@ -238,8 +239,8 @@ function SignOutConfirm({
     <div className="signout-confirm">
       <p className="modal-text">
         {deviceIds.length === 1
-          ? "Чтобы выйти из этого сеанса, введите пароль от аккаунта."
-          : `Чтобы выйти из ${deviceIds.length} сеансов, введите пароль от аккаунта.`}
+          ? tr("Чтобы выйти из этого сеанса, введите пароль от аккаунта.")
+          : tr("Чтобы выйти из {0} сеансов, введите пароль от аккаунта.", deviceIds.length)}
       </p>
       <input
         type="password"
@@ -247,16 +248,16 @@ function SignOutConfirm({
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && password && submit()}
-        placeholder="Пароль"
+        placeholder={tr("Пароль")}
         autoFocus
       />
       {error && <p className="form-error">{error}</p>}
       <div className="modal-actions">
         <button className="ghost" onClick={() => onDone(false)} disabled={busy}>
-          Отмена
+          {tr("Отмена")}
         </button>
         <button className="primary danger-bg" onClick={submit} disabled={busy || !password}>
-          {busy ? "Выхожу…" : "Выйти"}
+          {busy ? tr("Выхожу…") : tr("Выйти")}
         </button>
       </div>
     </div>

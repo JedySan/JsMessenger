@@ -9,6 +9,8 @@ import Avatar from "./Avatar";
 import type { SendStatus } from "../receipts";
 import { openDialog } from "./DialogHost";
 import { AudioMessage, FileMessage, ImageMessage, VideoMessage } from "./Media";
+import { plural } from "../i18n";
+import { tr } from "../i18n";
 
 export interface MessageActions {
   onReply: (ev: MatrixEvent) => void;
@@ -42,17 +44,17 @@ export function effectiveContent(ev: MatrixEvent): Record<string, any> {
 
 /** Короткий текст сообщения — для цитат и копирования. */
 export function plainText(ev: MatrixEvent): string {
-  if (ev.isRedacted()) return "Сообщение удалено";
+  if (ev.isRedacted()) return tr("Сообщение удалено");
   const c = effectiveContent(ev);
   switch (c.msgtype) {
     case MsgType.Image:
-      return "Фото";
+      return tr("Фото");
     case MsgType.Video:
-      return "Видео";
+      return tr("Видео");
     case MsgType.Audio:
-      return "Аудио";
+      return tr("Аудио");
     case MsgType.File:
-      return `Файл: ${c.body ?? ""}`;
+      return tr("Файл: {0}", c.body ?? "");
   }
   if (c.format === "org.matrix.custom.html" && c.formatted_body) return htmlToText(c.formatted_body);
   return stripReplyFallback(String(c.body ?? ""));
@@ -127,17 +129,17 @@ export default function Message({
         <div className="msg-body">
           {redacted ? (
             <span className="msg-locked">
-              <Ban size={13} /> Сообщение удалено
+              <Ban size={13} /> {tr("Сообщение удалено")}
             </span>
           ) : (
             <Body client={client} ev={ev} content={content} />
           )}
-          {!redacted && ev.replacingEvent() && <span className="msg-meta"> (изменено)</span>}
+          {!redacted && ev.replacingEvent() && <span className="msg-meta"> {tr("(изменено)")}</span>}
           {status ? (
             <SendMark status={status} onRetry={() => client.resendEvent(ev, room).catch(() => {})} />
           ) : (
             ev.isSending() && (
-              <span className="msg-status sending" title="Отправляется">
+              <span className="msg-status sending" title={tr("Отправляется")}>
                 <Circle size={10} strokeWidth={2.5} />
               </span>
             )
@@ -153,7 +155,7 @@ export default function Message({
             </b>
             {thread.lastReply() && (
               <span>
-                последний {room.getMember(thread.lastReply()!.getSender() ?? "")?.name ?? ""}, {listTime(thread.lastReply()!.getTs())}
+                {tr("последний {0}, {1}", room.getMember(thread.lastReply()!.getSender() ?? "")?.name ?? "", listTime(thread.lastReply()!.getTs()))}
               </span>
             )}
           </button>
@@ -165,21 +167,21 @@ export default function Message({
           {!encryptedUnreadable && (
             <>
               {QUICK_REACTIONS.slice(0, 3).map((k) => (
-                <button key={k} className="act emoji" onClick={() => react(k)} title={`Реакция ${k}`}>
+                <button key={k} className="act emoji" onClick={() => react(k)} title={tr("Реакция {0}", k)}>
                   {k}
                 </button>
               ))}
-              <button className="act" onClick={() => setPicker((v) => !v)} title="Другая реакция" aria-label="Другая реакция">
+              <button className="act" onClick={() => setPicker((v) => !v)} title={tr("Другая реакция")} aria-label={tr("Другая реакция")}>
                 <SmilePlus size={16} />
               </button>
               <span className="act-sep" />
             </>
           )}
-          <button className="act" onClick={() => actions.onReply(ev)} title="Ответить" aria-label="Ответить">
+          <button className="act" onClick={() => actions.onReply(ev)} title={tr("Ответить")} aria-label={tr("Ответить")}>
             <Reply size={16} />
           </button>
           {actions.onThread && !ev.threadRootId && (
-            <button className="act" onClick={() => actions.onThread!(ev)} title="Ответить в треде" aria-label="Ответить в треде">
+            <button className="act" onClick={() => actions.onThread!(ev)} title={tr("Ответить в треде")} aria-label={tr("Ответить в треде")}>
               <MessagesSquare size={15} />
             </button>
           )}
@@ -187,14 +189,14 @@ export default function Message({
             <button
               className="act"
               onClick={() => togglePin(client, room, ev.getId()!).catch((e) => alert(e?.message ?? String(e)))}
-              title={pinned ? "Открепить" : "Закрепить"}
-              aria-label={pinned ? "Открепить" : "Закрепить"}
+              title={pinned ? tr("Открепить") : tr("Закрепить")}
+              aria-label={pinned ? tr("Открепить") : tr("Закрепить")}
             >
               {pinned ? <PinOff size={15} /> : <Pin size={15} />}
             </button>
           )}
           {canEdit && (
-            <button className="act" onClick={() => actions.onEdit(ev)} title="Изменить" aria-label="Изменить">
+            <button className="act" onClick={() => actions.onEdit(ev)} title={tr("Изменить")} aria-label={tr("Изменить")}>
               <Pencil size={15} />
             </button>
           )}
@@ -202,8 +204,8 @@ export default function Message({
             <button
               className="act"
               onClick={() => navigator.clipboard.writeText(plainText(ev)).catch(() => {})}
-              title="Скопировать текст"
-              aria-label="Скопировать текст"
+              title={tr("Скопировать текст")}
+              aria-label={tr("Скопировать текст")}
             >
               <Copy size={15} />
             </button>
@@ -212,12 +214,12 @@ export default function Message({
             <button
               className="act danger"
               onClick={() => {
-                if (confirm(mine ? "Удалить сообщение у всех?" : "Удалить чужое сообщение у всех?")) {
+                if (confirm(mine ? tr("Удалить сообщение у всех?") : tr("Удалить чужое сообщение у всех?"))) {
                   client.redactEvent(room.roomId, ev.getId()!).catch((e) => alert(e?.message ?? String(e)));
                 }
               }}
-              title="Удалить"
-              aria-label="Удалить"
+              title={tr("Удалить")}
+              aria-label={tr("Удалить")}
             >
               <Trash2 size={15} />
             </button>
@@ -335,9 +337,9 @@ function ReplyQuote({ client, room, eventId }: { client: MatrixClient; room: Roo
 
   const sender = ev?.getSender() ?? "";
   return (
-    <button className="reply-quote" onClick={jump} title="Перейти к сообщению">
-      <span className="reply-author">{ev ? (room.getMember(sender)?.name ?? sender) : "Сообщение"}</span>
-      <span className="reply-text">{ev ? plainText(ev) : "Загрузка…"}</span>
+    <button className="reply-quote" onClick={jump} title={tr("Перейти к сообщению")}>
+      <span className="reply-author">{ev ? (room.getMember(sender)?.name ?? sender) : tr("Сообщение")}</span>
+      <span className="reply-text">{ev ? plainText(ev) : tr("Загрузка…")}</span>
     </button>
   );
 }
@@ -355,14 +357,14 @@ function Body({ client, ev, content }: { client: MatrixClient; ev: MatrixEvent; 
   if (ev.isDecryptionFailure()) {
     return (
       <span className="msg-locked">
-        <Lock size={13} /> Не удалось расшифровать. Подтвердите этот сеанс
+        <Lock size={13} /> {tr("Не удалось расшифровать. Подтвердите этот сеанс")}
       </span>
     );
   }
   if (ev.getType() === EventType.RoomMessageEncrypted) {
     return (
       <span className="msg-locked">
-        <Lock size={13} /> Расшифровка…
+        <Lock size={13} /> {tr("Расшифровка…")}
       </span>
     );
   }
@@ -406,23 +408,16 @@ function Body({ client, ev, content }: { client: MatrixClient; ev: MatrixEvent; 
   );
 }
 
-function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}
 
 /** У своих сообщений: кружок — отправляется, одна галочка — доставлено, две — прочитано. */
 function SendMark({ status, onRetry }: { status: SendStatus; onRetry: () => void }) {
   if (status === "failed")
     return (
-      <button className="msg-status failed" onClick={onRetry} title="Не отправлено — нажмите, чтобы повторить">
-        <CircleAlert size={13} /> Не отправлено
+      <button className="msg-status failed" onClick={onRetry} title={tr("Не отправлено — нажмите, чтобы повторить")}>
+        <CircleAlert size={13} /> {tr("Не отправлено")}
       </button>
     );
-  const label = status === "sending" ? "Отправляется" : status === "sent" ? "Доставлено" : "Прочитано";
+  const label = status === "sending" ? tr("Отправляется") : status === "sent" ? tr("Доставлено") : tr("Прочитано");
   return (
     <span className={"msg-status " + status} title={label} aria-label={label}>
       {status === "sending" ? <Circle size={10} strokeWidth={2.5} /> : status === "sent" ? <Check size={14} /> : <CheckCheck size={14} />}
@@ -435,7 +430,7 @@ function Readers({ client, room, userIds }: { client: MatrixClient; room: Room; 
   const names = userIds.map((u) => room.getMember(u)?.name ?? u);
   const shown = userIds.slice(0, 5);
   return (
-    <div className="msg-readers" title={`Прочитали: ${names.join(", ")}`}>
+    <div className="msg-readers" title={tr("Прочитали: {0}", names.join(", "))}>
       {shown.map((u, i) => (
         <span key={u} className="reader">
           <Avatar client={client} mxc={room.getMember(u)?.getMxcAvatarUrl()} name={names[i]} seed={u} size={16} />

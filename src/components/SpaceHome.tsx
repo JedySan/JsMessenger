@@ -7,6 +7,8 @@ import { removeFromSpace } from "../rooms";
 import Avatar, { RoomAvatar } from "./Avatar";
 import { openDialog } from "./DialogHost";
 import { PopupMenu } from "./ui";
+import { plural } from "../i18n";
+import { tr } from "../i18n";
 
 /** Главная страница пространства: описание, действия и каталог комнат. */
 export default function SpaceHome({
@@ -86,7 +88,7 @@ export default function SpaceHome({
     const joined = local?.getMyMembership() === KnownMembership.Join;
     const invited = local?.getMyMembership() === KnownMembership.Invite;
     const isSpace = r.room_type === "m.space";
-    const name = r.name || r.canonical_alias || (local?.name ?? "Без названия");
+    const name = r.name || r.canonical_alias || (local?.name ?? tr("Без названия"));
     return (
       <div key={r.room_id} className="dir-item">
         {local ? (
@@ -108,21 +110,21 @@ export default function SpaceHome({
         </div>
         {joined ? (
           <button className="pill" onClick={() => (isSpace ? onOpenSpace(r.room_id) : onOpenRoom(r.room_id))}>
-            Открыть
+            {tr("Открыть")}
           </button>
         ) : (
           <button className="pill join" onClick={() => join(r, parentId)} disabled={joining === r.room_id}>
             {joining === r.room_id ? <LoaderCircle size={14} className="spin" /> : null}
-            {invited ? "Принять" : "Вступить"}
+            {invited ? tr("Принять") : tr("Вступить")}
           </button>
         )}
         {canManage && parentId === space.roomId && (
           <button
             className="icon-btn small"
-            title="Убрать из пространства"
-            aria-label="Убрать из пространства"
+            title={tr("Убрать из пространства")}
+            aria-label={tr("Убрать из пространства")}
             onClick={() =>
-              confirm(`Убрать «${name}» из пространства? Сама комната останется.`) &&
+              confirm(tr("Убрать «{0}» из пространства? Сама комната останется.", name)) &&
               removeFromSpace(client, space.roomId, r.room_id).catch((e) => alert(errText(e)))
             }
           >
@@ -141,7 +143,7 @@ export default function SpaceHome({
     <div className="space-home">
       <div className="titlebar" data-tauri-drag-region />
       {onBack && (
-        <button className="icon-btn back-btn space-back" onClick={onBack} title="К списку" aria-label="К списку">
+        <button className="icon-btn back-btn space-back" onClick={onBack} title={tr("К списку")} aria-label={tr("К списку")}>
           <ChevronLeft size={22} />
         </button>
       )}
@@ -162,39 +164,39 @@ export default function SpaceHome({
           {canInvite && (
             <button className="pill" onClick={() => openDialog({ kind: "invite", roomId: space.roomId })}>
               <UserPlus size={15} />
-              Пригласить
+              {tr("Пригласить")}
             </button>
           )}
           {canManage && (
             <button className="pill" onClick={(e) => setAddMenu({ x: e.clientX, y: e.clientY + 10 })}>
               <Plus size={15} />
-              Добавить
+              {tr("Добавить")}
             </button>
           )}
           <button className="pill" onClick={() => openDialog({ kind: "spaceSettings", spaceId: space.roomId, tab: "members" })}>
             <Users size={15} />
-            Участники
+            {tr("Участники")}
           </button>
           <button className="pill" onClick={() => openDialog({ kind: "spaceSettings", spaceId: space.roomId, tab: "settings" })}>
             <Settings size={15} />
-            Настройки
+            {tr("Настройки")}
           </button>
         </div>
 
-        {error && <p className="form-error left">Не удалось загрузить список комнат: {error}</p>}
+        {error && <p className="form-error left">{tr("Не удалось загрузить список комнат:")} {error}</p>}
         {!rooms && !error && (
           <div className="verify-wait">
-            <LoaderCircle size={20} className="spin" /> Загружаю комнаты…
+            <LoaderCircle size={20} className="spin" /> {tr("Загружаю комнаты…")}
           </div>
         )}
 
         {rooms && (
           <>
-            <h2 className="dir-heading">Комнаты</h2>
+            <h2 className="dir-heading">{tr("Комнаты")}</h2>
             {topRooms.length === 0 && (
               <p className="dir-empty">
-                В пространстве пока нет комнат.
-                {canManage && " Нажмите «Добавить», чтобы создать новую или добавить существующую."}
+                {tr("В пространстве пока нет комнат.")}
+                {canManage && tr(" Нажмите «Добавить», чтобы создать новую или добавить существующую.")}
               </p>
             )}
             <div className="dir-list">{topRooms.map((id) => renderItem(byId.get(id)!, space.roomId))}</div>
@@ -219,14 +221,14 @@ export default function SpaceHome({
           y={addMenu.y}
           onClose={() => setAddMenu(null)}
           items={[
-            { label: "Новая комната", icon: <Hash size={15} />, onClick: () => openDialog({ kind: "createRoom", spaceId: space.roomId }) },
+            { label: tr("Новая комната"), icon: <Hash size={15} />, onClick: () => openDialog({ kind: "createRoom", spaceId: space.roomId }) },
             {
-              label: "Существующие комнаты",
+              label: tr("Существующие комнаты"),
               icon: <FolderPlus size={15} />,
               onClick: () => openDialog({ kind: "addExisting", spaceId: space.roomId }),
             },
             {
-              label: "Вложенное пространство",
+              label: tr("Вложенное пространство"),
               icon: <LayoutGrid size={15} />,
               onClick: () => openDialog({ kind: "createSpace", parentId: space.roomId }),
             },
@@ -237,10 +239,3 @@ export default function SpaceHome({
   );
 }
 
-function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}

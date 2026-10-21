@@ -5,6 +5,7 @@ import { Phone, PhoneIncoming, Video, Presentation } from "lucide-react";
 import { call } from "../call";
 import { getJitsiWidgets, openExternal } from "../widgets";
 import { useCallState } from "./CallPanel";
+import { tr } from "../i18n";
 
 /** Кнопки звонка в шапке комнаты: MatrixRTC/LiveKit и закреплённые Jitsi-конференции. */
 export default function CallButtons({ client, room }: { client: MatrixClient; room: Room }) {
@@ -39,7 +40,7 @@ export default function CallButtons({ client, room }: { client: MatrixClient; ro
   return (
     <div className="head-actions">
       {jitsi.map((w) => (
-        <button key={w.id} className="pill" title={`Открыть в браузере: ${w.url}`} onClick={() => openExternal(w.url)}>
+        <button key={w.id} className="pill" title={tr("Открыть в браузере: {0}", w.url)} onClick={() => openExternal(w.url)}>
           <Presentation size={15} />
           {w.name}
         </button>
@@ -48,15 +49,15 @@ export default function CallButtons({ client, room }: { client: MatrixClient; ro
         (others.length > 0 ? (
           <button className="pill join" disabled={busy} onClick={() => start(true)}>
             <PhoneIncoming size={15} />
-            Присоединиться
+            {tr("Присоединиться")}
             <span className="pill-count">{others.length}</span>
           </button>
         ) : (
           <>
-            <button className="icon-btn" disabled={busy} onClick={() => start(false)} title="Аудиозвонок" aria-label="Аудиозвонок">
+            <button className="icon-btn" disabled={busy} onClick={() => start(false)} title={tr("Аудиозвонок")} aria-label={tr("Аудиозвонок")}>
               <Phone size={18} />
             </button>
-            <button className="icon-btn" disabled={busy} onClick={() => start(true)} title="Видеозвонок" aria-label="Видеозвонок">
+            <button className="icon-btn" disabled={busy} onClick={() => start(true)} title={tr("Видеозвонок")} aria-label={tr("Видеозвонок")}>
               <Video size={19} />
             </button>
           </>

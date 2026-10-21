@@ -13,6 +13,7 @@ import { isMuted, isDirect } from "./rooms";
 import { plainText } from "./components/Message";
 
 import { electron, isTauri } from "./platform";
+import { tr } from "./i18n";
 
 // ---------- всплывающие карточки внутри приложения ----------
 // macOS не показывает баннеры активного приложения, поэтому, пока окно в фокусе,
@@ -141,20 +142,20 @@ export async function testNotification(): Promise<string> {
     native = await invoke<[boolean, boolean | null]>("native_notify_status").catch(() => [false, null] as [boolean, null]);
   }
   setTimeout(() => {
-    show("JsMessenger", "Проверка уведомлений: если вы это видите, всё работает");
+    show("JsMessenger", tr("Проверка уведомлений: если вы это видите, всё работает"));
     bounceDock();
   }, 5000);
   if (native[0] && native[1] === false) {
-    return "macOS запретила уведомления для JsMessenger. Откройте «Системные настройки → Уведомления → JsMessenger» и включите «Разрешить уведомления» (стиль «Баннеры»).";
+    return tr("macOS запретила уведомления для JsMessenger. Откройте «Системные настройки → Уведомления → JsMessenger» и включите «Разрешить уведомления» (стиль «Баннеры»).");
   }
   if (native[0]) {
-    return "Через 5 секунд придёт тестовое уведомление (можно не переключаться — баннер покажется и поверх окна). Если его нет: «Системные настройки → Уведомления → JsMessenger» — включите уведомления; проверьте режим «Не беспокоить».";
+    return tr("Через 5 секунд придёт тестовое уведомление (можно не переключаться — баннер покажется и поверх окна). Если его нет: «Системные настройки → Уведомления → JsMessenger» — включите уведомления; проверьте режим «Не беспокоить».");
   }
   return import.meta.env.DEV
-    ? "Через 5 секунд придёт тестовое уведомление. В режиме разработки оно приходит от имени «Терминала» и только когда окно неактивно — переключитесь в другое приложение."
+    ? tr("Через 5 секунд придёт тестовое уведомление. В режиме разработки оно приходит от имени «Терминала» и только когда окно неактивно — переключитесь в другое приложение.")
     : electron()
-      ? "Через 5 секунд придёт тестовое уведомление. Если его нет — проверьте настройки уведомлений системы и режим «Не беспокоить»."
-      : "Через 5 секунд придёт тестовое уведомление — переключитесь в другое окно. Если баннера не будет, проверьте «Системные настройки → Уведомления».";
+      ? tr("Через 5 секунд придёт тестовое уведомление. Если его нет — проверьте настройки уведомлений системы и режим «Не беспокоить».")
+      : tr("Через 5 секунд придёт тестовое уведомление — переключитесь в другое окно. Если баннера не будет, проверьте «Системные настройки → Уведомления».");
 }
 
 const NOTIFY_TYPES = new Set<string>([EventType.RoomMessage, EventType.Sticker]);
@@ -186,8 +187,8 @@ export function attachNotifications(client: MatrixClient, currentRoom: () => str
     if (document.hasFocus() && currentRoom() === room.roomId) return;
 
     const sender = room.getMember(ev.getSender() ?? "")?.name ?? ev.getSender() ?? "";
-    const title = isDirect(client, room) ? sender : `${sender} в «${room.name}»`;
-    const body = ev.isDecryptionFailure() ? "Новое зашифрованное сообщение" : plainText(ev).slice(0, 200);
+    const title = isDirect(client, room) ? sender : tr("{0} в «{1}»", sender, room.name);
+    const body = ev.isDecryptionFailure() ? tr("Новое зашифрованное сообщение") : plainText(ev).slice(0, 200);
     if (document.hasFocus()) pushToast(room.roomId, title, body);
     else {
       show(title, body, room.roomId);

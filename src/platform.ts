@@ -19,6 +19,8 @@ export interface ElectronBridge {
   onNotificationClick(cb: (roomId: string) => void): () => void;
   attention(): void;
   showWindow(): void;
+  /** язык надписей оболочки (меню в трее) */
+  setLang?(lang: string): void;
   setBadge(count: number, image?: string): void;
   /** Выбор экрана/окна для показа: вернуть id источника или null (отмена). */
   onPickSource(cb: (sources: ScreenSource[]) => Promise<string | null>): () => void;

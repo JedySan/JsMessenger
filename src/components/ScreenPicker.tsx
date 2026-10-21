@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AppWindow, Monitor, X } from "lucide-react";
 import { electron, type ScreenSource } from "../platform";
+import { tr } from "../i18n";
 
 /** Выбор экрана или окна для показа в звонке (Electron: Windows и Linux на X11). */
 export default function ScreenPicker() {
@@ -37,26 +38,26 @@ export default function ScreenPicker() {
 
   return (
     <div className="modal-bg" onClick={() => finish(null)}>
-      <div className="card modal picker" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Что показать">
+      <div className="card modal picker" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={tr("Что показать")}>
         <div className="picker-head">
-          <h2>Что показать?</h2>
-          <button className="icon-btn" onClick={() => finish(null)} aria-label="Отмена">
+          <h2>{tr("Что показать?")}</h2>
+          <button className="icon-btn" onClick={() => finish(null)} aria-label={tr("Отмена")}>
             <X size={18} />
           </button>
         </div>
         <div className="picker-tabs">
           <button className={"chip" + (tab === "screen" ? " on" : "")} onClick={() => setTab("screen")} disabled={!screens}>
-            <Monitor size={14} /> Экран{screens > 1 ? `ы (${screens})` : ""}
+            <Monitor size={14} /> {screens > 1 ? tr("Экраны ({0})", screens) : tr("Экран")}
           </button>
           <button className={"chip" + (tab === "window" ? " on" : "")} onClick={() => setTab("window")} disabled={!windows}>
-            <AppWindow size={14} /> Окна ({windows})
+            <AppWindow size={14} /> {tr("Окна ({0})", windows)}
           </button>
         </div>
         <div className="picker-grid">
           {list.map((s, i) => (
             <button key={s.id} className="picker-item" onClick={() => finish(s.id)} title={s.name}>
               <img src={s.thumb} alt="" />
-              <span>{s.screen ? (screens > 1 ? `Экран ${i + 1}` : "Весь экран") : s.name}</span>
+              <span>{s.screen ? (screens > 1 ? tr("Экран {0}", i + 1) : tr("Весь экран")) : s.name}</span>
             </button>
           ))}
         </div>

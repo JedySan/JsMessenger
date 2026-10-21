@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { MessageSquare, X } from "lucide-react";
 import { dismissToast, getToasts, subscribeToasts } from "../notifications";
+import { tr } from "../i18n";
 
 /** Карточки о новых сообщениях внутри приложения (когда окно в фокусе). */
 export default function Toasts({ onOpen }: { onOpen: (roomId: string) => void }) {
@@ -23,7 +24,7 @@ export default function Toasts({ onOpen }: { onOpen: (roomId: string) => void })
               <span>{t.body}</span>
             </span>
           </button>
-          <button className="icon-btn small" onClick={() => dismissToast(t.id)} aria-label="Закрыть">
+          <button className="icon-btn small" onClick={() => dismissToast(t.id)} aria-label={tr("Закрыть")}>
             <X size={14} />
           </button>
         </div>

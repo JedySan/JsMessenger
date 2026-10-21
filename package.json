@@ -1,6 +1,6 @@
 {
   "name": "jsmessenger",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Matrix-мессенджер для macOS, Windows и Linux со звонками через LiveKit (MatrixRTC)",
   "license": "AGPL-3.0-or-later",
   "author": "JedySan",
@@ -10,14 +10,15 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/gen-licenses.mjs && tsc --noEmit && vite build",
+    "build": "node scripts/gen-licenses.mjs && node scripts/i18n-check.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "licenses": "node scripts/gen-licenses.mjs",
     "linux": "bash scripts/build-electron.sh linux",
     "electron:dev": "npm run electron:bundle && JSM_DEV_URL=http://localhost:1420 electron electron/dist/main.cjs",
     "windows": "bash scripts/build-electron.sh win",
-    "electron:bundle": "node scripts/bundle-electron.mjs"
+    "electron:bundle": "node scripts/bundle-electron.mjs",
+    "i18n": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/onest": "^5.3.1",
@@ -37,6 +38,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@babel/parser": "7.28.4",
     "@tauri-apps/cli": "^2.12.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

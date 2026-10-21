@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { Check, Search, X } from "lucide-react";
 import Avatar from "./Avatar";
+import { tr } from "../i18n";
 
 // ---------- всплывающее меню ----------
 export interface MenuItem {
@@ -96,7 +97,7 @@ export function Modal({
             {icon && <span className="modal-icon small">{icon}</span>}
             <h2>{title}</h2>
           </div>
-          <button className="icon-btn" onClick={onClose} disabled={busy} aria-label="Закрыть">
+          <button className="icon-btn" onClick={onClose} disabled={busy} aria-label={tr("Закрыть")}>
             <X size={18} />
           </button>
         </div>
@@ -174,7 +175,7 @@ export function UserPicker({
           {selected.map((u) => (
             <span key={u.userId} className="picked-chip">
               {u.name}
-              <button onClick={() => toggle(u)} aria-label={`Убрать ${u.name}`}>
+              <button onClick={() => toggle(u)} aria-label={tr("Убрать {0}", u.name)}>
                 <X size={12} />
               </button>
             </span>
@@ -184,16 +185,16 @@ export function UserPicker({
       <label className="search modal-search">
         <Search size={15} />
         <input
-          placeholder="Имя, логин или @user:сервер"
+          placeholder={tr("Имя, логин или @user:сервер")}
           value={term}
           onChange={(e) => setTerm(e.target.value)}
           autoFocus={autoFocus}
         />
       </label>
       <div className="picker-results">
-        {loading && results.length === 0 && <div className="picker-empty">Ищу…</div>}
-        {!loading && term.trim() && results.length === 0 && <div className="picker-empty">Никого не нашлось</div>}
-        {!term.trim() && <div className="picker-empty">Начните вводить имя или логин</div>}
+        {loading && results.length === 0 && <div className="picker-empty">{tr("Ищу…")}</div>}
+        {!loading && term.trim() && results.length === 0 && <div className="picker-empty">{tr("Никого не нашлось")}</div>}
+        {!term.trim() && <div className="picker-empty">{tr("Начните вводить имя или логин")}</div>}
         {results.map((u) => {
           const on = selected.some((s) => s.userId === u.userId);
           return (

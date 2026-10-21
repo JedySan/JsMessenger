@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { Download, FileText, ImageOff, LoaderCircle, Play, X } from "lucide-react";
 import { downloadMedia, formatSize, saveToDownloads } from "../attachments";
+import { tr } from "../i18n";
 
 // ---------- общая загрузка с кэшем ----------
 const blobCache = new Map<string, Promise<string>>();
@@ -84,10 +85,10 @@ export function Lightbox() {
     <div className="lightbox" onClick={() => setViewing(null)}>
       <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
         <span className="lightbox-name">{v.content.body}</span>
-        <button className="icon-btn light" onClick={save} disabled={saving} title="Сохранить в «Загрузки»" aria-label="Сохранить">
+        <button className="icon-btn light" onClick={save} disabled={saving} title={tr("Сохранить в «Загрузки»")} aria-label={tr("Сохранить")}>
           {saving ? <LoaderCircle size={18} className="spin" /> : <Download size={18} />}
         </button>
-        <button className="icon-btn light" onClick={() => setViewing(null)} title="Закрыть (Esc)" aria-label="Закрыть">
+        <button className="icon-btn light" onClick={() => setViewing(null)} title={tr("Закрыть (Esc)")} aria-label={tr("Закрыть")}>
           <X size={20} />
         </button>
       </div>
@@ -111,12 +112,12 @@ export function ImageMessage({ client, content }: { client: MatrixClient; conten
   if (error)
     return (
       <span className="msg-locked">
-        <ImageOff size={14} /> Не удалось загрузить изображение
+        <ImageOff size={14} /> {tr("Не удалось загрузить изображение")}
       </span>
     );
   if (!url) return <span className="media-box loading" style={box} />;
   return (
-    <button className="media-box" style={box} onClick={() => setViewing({ client, content, url })} title="Открыть">
+    <button className="media-box" style={box} onClick={() => setViewing({ client, content, url })} title={tr("Открыть")}>
       <img src={url} alt={content.body ?? ""} />
     </button>
   );
@@ -151,7 +152,7 @@ export function AudioMessage({ client, content }: { client: MatrixClient; conten
         <span className="file-icon">{start ? <LoaderCircle size={18} className="spin" /> : <Play size={18} />}</span>
         <span className="file-text">
           <span className="file-name">{content.body}</span>
-          <span className="file-size">Аудио{content.info?.size ? `, ${formatSize(content.info.size)}` : ""}</span>
+          <span className="file-size">{tr("Аудио")}{content.info?.size ? `, ${formatSize(content.info.size)}` : ""}</span>
         </span>
       </button>
     );
@@ -170,17 +171,17 @@ export function FileMessage({ client, content }: { client: MatrixClient; content
       setState("error");
     }
   };
-  const name = content.filename ?? content.body ?? "Файл";
+  const name = content.filename ?? content.body ?? tr("Файл");
   const note =
     state === "saving"
-      ? "Скачиваю…"
+      ? tr("Скачиваю…")
       : state === "done"
-        ? "Сохранено в «Загрузки»"
+        ? tr("Сохранено в «Загрузки»")
         : state === "error"
-          ? "Не удалось скачать, попробуйте ещё раз"
+          ? tr("Не удалось скачать, попробуйте ещё раз")
           : formatSize(content.info?.size);
   return (
-    <button className="file-card" onClick={save} disabled={state === "saving"} title="Сохранить в «Загрузки»">
+    <button className="file-card" onClick={save} disabled={state === "saving"} title={tr("Сохранить в «Загрузки»")}>
       <span className="file-icon">
         <FileText size={18} />
       </span>

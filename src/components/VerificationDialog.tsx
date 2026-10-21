@@ -9,6 +9,7 @@ import {
 } from "matrix-js-sdk/lib/crypto-api";
 import { CircleCheck, CircleX, LoaderCircle, MonitorSmartphone } from "lucide-react";
 import { restoreAfterVerification, sasNameRu, verification } from "../verification";
+import { tr } from "../i18n";
 
 /** Окно подтверждения сеанса: сверка эмодзи между двумя устройствами. */
 export default function VerificationDialog({ client, onVerified }: { client: MatrixClient; onVerified: () => void }) {
@@ -72,7 +73,7 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
   if (!req) return null;
 
   const otherDevice = req.otherDeviceId;
-  const deviceLabel = otherDevice ? (names[otherDevice] ?? otherDevice) : "другом устройстве";
+  const deviceLabel = otherDevice ? (names[otherDevice] ?? otherDevice) : tr("Другое устройство");
   const who = req.isSelfVerification ? deviceLabel : (client.getUser(req.otherUserId)?.displayName ?? req.otherUserId);
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -93,17 +94,17 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
     body = (
       <p className="modal-text">
         {req.isSelfVerification
-          ? `Сеанс «${deviceLabel}» просит подтверждения. Примите запрос, если это ваше устройство.`
-          : `${who} хочет подтвердить вас.`}
+          ? tr("Сеанс «{0}» просит подтверждения. Примите запрос, если это ваше устройство.", deviceLabel)
+          : tr("{0} хочет подтвердить вас.", who)}
       </p>
     );
     actions = (
       <>
         <button className="ghost" onClick={() => verification.close()} disabled={busy}>
-          Отклонить
+          {tr("Отклонить")}
         </button>
         <button className="primary" onClick={() => run(() => req.accept())} disabled={busy}>
-          Принять
+          {tr("Принять")}
         </button>
       </>
     );
@@ -112,28 +113,28 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
       <div className="verify-wait">
         <LoaderCircle size={22} className="spin" />
         <p className="modal-text">
-          Откройте Element или JsMessenger на другом своём устройстве — там появится запрос. Примите его.
+          {tr("Откройте Element или JsMessenger на другом своём устройстве — там появится запрос. Примите его.")}
         </p>
       </div>
     );
     actions = (
       <button className="ghost" onClick={() => verification.close()}>
-        Отмена
+        {tr("Отмена")}
       </button>
     );
   } else if (phase === VerificationPhase.Ready) {
     body = (
       <p className="modal-text">
-        Запрос принят. Сравните эмодзи на обоих устройствах: если совпадут, сеанс будет подтверждён.
+        {tr("Запрос принят. Сравните эмодзи на обоих устройствах: если совпадут, сеанс будет подтверждён.")}
       </p>
     );
     actions = (
       <>
         <button className="ghost" onClick={() => verification.close()}>
-          Отмена
+          {tr("Отмена")}
         </button>
         <button className="primary" disabled={busy} onClick={() => run(() => req.startVerification("m.sas.v1"))}>
-          Сравнить эмодзи
+          {tr("Сравнить эмодзи")}
         </button>
       </>
     );
@@ -141,7 +142,7 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
     const emoji = sas?.sas.emoji;
     body = emoji ? (
       <>
-        <p className="modal-text">Убедитесь, что на другом устройстве те же эмодзи в том же порядке.</p>
+        <p className="modal-text">{tr("Убедитесь, что на другом устройстве те же эмодзи в том же порядке.")}</p>
         <div className="sas-grid">
           {emoji.map(([e, name], i) => (
             <div key={i} className="sas-item">
@@ -154,7 +155,7 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
     ) : (
       <div className="verify-wait">
         <LoaderCircle size={22} className="spin" />
-        <p className="modal-text">Готовлю эмодзи для сверки…</p>
+        <p className="modal-text">{tr("Готовлю эмодзи для сверки…")}</p>
       </div>
     );
     actions = emoji ? (
@@ -166,15 +167,15 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
             sas?.mismatch();
           }}
         >
-          Не совпадают
+          {tr("Не совпадают")}
         </button>
         <button className="primary" disabled={busy} onClick={() => run(() => sas!.confirm())}>
-          Совпадают
+          {tr("Совпадают")}
         </button>
       </>
     ) : (
       <button className="ghost" onClick={() => verification.close()}>
-        Отмена
+        {tr("Отмена")}
       </button>
     );
   } else if (phase === VerificationPhase.Done) {
@@ -182,14 +183,14 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
       <div className="verify-result ok">
         <CircleCheck size={40} />
         <p className="modal-text">
-          {req.isSelfVerification ? "Сеанс подтверждён." : `${who} подтверждён.`}
-          {restoring ? " Подтягиваю ключи старых сообщений…" : ""}
+          {req.isSelfVerification ? tr("Сеанс подтверждён.") : tr("{0} подтверждён.", who)}
+          {restoring ? tr(" Подтягиваю ключи старых сообщений…") : ""}
         </p>
       </div>
     );
     actions = (
       <button className="primary" onClick={() => verification.close()}>
-        Готово
+        {tr("Готово")}
       </button>
     );
   } else {
@@ -201,7 +202,7 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
     );
     actions = (
       <button className="primary" onClick={() => verification.close()}>
-        Закрыть
+        {tr("Закрыть")}
       </button>
     );
   }
@@ -212,7 +213,7 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
         <div className="modal-icon">
           <MonitorSmartphone size={22} />
         </div>
-        <h2>{req.isSelfVerification ? "Подтверждение сеанса" : "Подтверждение пользователя"}</h2>
+        <h2>{req.isSelfVerification ? tr("Подтверждение сеанса") : tr("Подтверждение пользователя")}</h2>
         {body}
         <div className="modal-actions">{actions}</div>
       </div>
@@ -223,14 +224,14 @@ export default function VerificationDialog({ client, onVerified }: { client: Mat
 function cancelText(code: string | null): string {
   switch (code) {
     case "m.mismatched_sas":
-      return "Эмодзи не совпали, подтверждение отменено. Если это не вы входили в аккаунт — смените пароль.";
+      return tr("Эмодзи не совпали, подтверждение отменено. Если это не вы входили в аккаунт — смените пароль.");
     case "m.timeout":
-      return "Время ожидания истекло. Попробуйте ещё раз.";
+      return tr("Время ожидания истекло. Попробуйте ещё раз.");
     case "m.user":
-      return "Подтверждение отменено.";
+      return tr("Подтверждение отменено.");
     case "m.accepted":
-      return "Запрос принят на другом устройстве.";
+      return tr("Запрос принят на другом устройстве.");
     default:
-      return "Подтверждение прервано. Попробуйте ещё раз.";
+      return tr("Подтверждение прервано. Попробуйте ещё раз.");
   }
 }

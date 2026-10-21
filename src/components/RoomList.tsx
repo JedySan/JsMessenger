@@ -36,6 +36,7 @@ import { matchesText, searchKnown, searchPeople, type Person } from "../people";
 import { openDirectChat } from "../rooms";
 import { openDialog } from "./DialogHost";
 import { PopupMenu, type MenuItem } from "./ui";
+import { tr } from "../i18n";
 
 type Filter = "all" | "unread" | "fav";
 
@@ -107,15 +108,15 @@ export default function RoomList({
       x: e.clientX,
       y: e.clientY,
       items: [
-        { label: fav ? "Убрать из избранного" : "В избранное", icon: fav ? <StarOff size={15} /> : <Star size={15} />, onClick: () => run(() => toggleFavourite(client, r)) },
-        { label: muted ? "Включить уведомления" : "Без звука", icon: muted ? <Bell size={15} /> : <BellOff size={15} />, onClick: () => run(() => toggleMute(client, r)) },
-        { label: "Пригласить", icon: <UserPlus size={15} />, hidden: !r.canInvite(me), onClick: () => openDialog({ kind: "invite", roomId: r.roomId }) },
-        { label: "Участники и настройки", icon: <Settings size={15} />, onClick: () => onOpenInfo(r.roomId) },
+        { label: fav ? tr("Убрать из избранного") : tr("В избранное"), icon: fav ? <StarOff size={15} /> : <Star size={15} />, onClick: () => run(() => toggleFavourite(client, r)) },
+        { label: muted ? tr("Включить уведомления") : tr("Без звука"), icon: muted ? <Bell size={15} /> : <BellOff size={15} />, onClick: () => run(() => toggleMute(client, r)) },
+        { label: tr("Пригласить"), icon: <UserPlus size={15} />, hidden: !r.canInvite(me), onClick: () => openDialog({ kind: "invite", roomId: r.roomId }) },
+        { label: tr("Участники и настройки"), icon: <Settings size={15} />, onClick: () => onOpenInfo(r.roomId) },
         {
-          label: "Покинуть",
+          label: tr("Покинуть"),
           icon: <LogOut size={15} />,
           danger: true,
-          onClick: () => confirm(`Покинуть «${r.name}»?`) && run(() => leaveRoom(client, r)),
+          onClick: () => confirm(tr("Покинуть «{0}»?", r.name)) && run(() => leaveRoom(client, r)),
         },
       ],
     });
@@ -127,14 +128,14 @@ export default function RoomList({
       x: r.left,
       y: r.bottom + 6,
       items: [
-        { label: "Новый личный чат", icon: <MessageSquarePlus size={15} />, onClick: () => openDialog({ kind: "startChat" }) },
+        { label: tr("Новый личный чат"), icon: <MessageSquarePlus size={15} />, onClick: () => openDialog({ kind: "startChat" }) },
         {
-          label: space ? `Новая комната в «${space.name}»` : "Новая комната",
+          label: space ? tr("Новая комната в «{0}»", space.name) : tr("Новая комната"),
           icon: <Hash size={15} />,
           onClick: () => openDialog({ kind: "createRoom", spaceId: space?.roomId }),
         },
         {
-          label: "Новое пространство",
+          label: tr("Новое пространство"),
           icon: <LayoutGrid size={15} />,
           hidden: !!space,
           onClick: () => openDialog({ kind: "createSpace" }),
@@ -143,7 +144,7 @@ export default function RoomList({
     });
   };
 
-  const title = scope.kind === "all" ? "Все чаты" : scope.kind === "dm" ? "Личные" : (space?.name ?? "Пространство");
+  const title = scope.kind === "all" ? tr("Все чаты") : scope.kind === "dm" ? tr("Личные") : (space?.name ?? tr("Пространство"));
 
   const row = ({ r, last }: { r: Room; last: ReturnType<typeof lastMessagePreview> }) => {
     const unread = r.getUnreadNotificationCount(NotificationCountType.Total);
@@ -168,9 +169,9 @@ export default function RoomList({
             <span className="room-time">{last ? listTime(last.ts) : ""}</span>
           </div>
           <div className="room-bottom">
-            <span className="room-preview">{last?.text ?? "Нет сообщений"}</span>
+            <span className="room-preview">{last?.text ?? tr("Нет сообщений")}</span>
             {inCall && (
-              <span className="room-call" title="Сейчас идёт звонок">
+              <span className="room-call" title={tr("Сейчас идёт звонок")}>
                 <Phone size={12} />
               </span>
             )}
@@ -179,7 +180,7 @@ export default function RoomList({
             )}
           </div>
         </div>
-        <button className="room-more" onClick={(e) => roomMenu(r, e)} aria-label="Действия с чатом">
+        <button className="room-more" onClick={(e) => roomMenu(r, e)} aria-label={tr("Действия с чатом")}>
           <MoreHorizontal size={16} />
         </button>
       </div>
@@ -193,20 +194,20 @@ export default function RoomList({
           {title}
         </div>
         {space && (
-          <button className="icon-btn small" onClick={() => onOpenInfo(space.roomId)} title="Пространство" aria-label="Страница пространства">
+          <button className="icon-btn small" onClick={() => onOpenInfo(space.roomId)} title={tr("Пространство")} aria-label={tr("Страница пространства")}>
             <LayoutGrid size={15} />
           </button>
         )}
-        <button className="icon-btn small" onClick={addMenu} title="Новый чат" aria-label="Новый чат">
+        <button className="icon-btn small" onClick={addMenu} title={tr("Новый чат")} aria-label={tr("Новый чат")}>
           <Plus size={17} />
         </button>
       </div>
 
       <label className="search">
         <Search size={15} />
-        <input placeholder="Поиск" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input placeholder={tr("Поиск")} value={search} onChange={(e) => setSearch(e.target.value)} />
         {search && (
-          <button className="search-clear" onClick={() => setSearch("")} aria-label="Очистить поиск">
+          <button className="search-clear" onClick={() => setSearch("")} aria-label={tr("Очистить поиск")}>
             <X size={14} />
           </button>
         )}
@@ -215,9 +216,9 @@ export default function RoomList({
       <div className="chips">
         {(
           [
-            ["all", "Все"],
-            ["unread", "Непрочитанные"],
-            ["fav", "Избранное"],
+            ["all", tr("Все")],
+            ["unread", tr("Непрочитанные")],
+            ["fav", tr("Избранное")],
           ] as const
         ).map(([k, label]) => (
           <button key={k} className={"chip" + (filter === k ? " on" : "")} onClick={() => setFilter(k)}>
@@ -227,7 +228,7 @@ export default function RoomList({
       </div>
 
       <nav className="room-list">
-        {invites.length > 0 && <div className="list-heading">Приглашения</div>}
+        {invites.length > 0 && <div className="list-heading">{tr("Приглашения")}</div>}
         {invites.map((r) => (
           <div key={r.roomId} className="room-item invite">
             <RoomAvatar client={client} room={r} size={40} />
@@ -236,19 +237,19 @@ export default function RoomList({
               <div className="room-preview">{inviteText(r, me)}</div>
             </div>
             <div className="invite-actions">
-              <button className="round-btn accept" onClick={() => accept(r)} title="Принять" aria-label="Принять">
+              <button className="round-btn accept" onClick={() => accept(r)} title={tr("Принять")} aria-label={tr("Принять")}>
                 <Check size={16} />
               </button>
-              <button className="round-btn" onClick={() => decline(r)} title="Отклонить" aria-label="Отклонить">
+              <button className="round-btn" onClick={() => decline(r)} title={tr("Отклонить")} aria-label={tr("Отклонить")}>
                 <X size={16} />
               </button>
             </div>
           </div>
         ))}
 
-        {favs.length > 0 && <div className="list-heading">Избранное</div>}
+        {favs.length > 0 && <div className="list-heading">{tr("Избранное")}</div>}
         {favs.map(row)}
-        {(favs.length > 0 || invites.length > 0) && rest.length > 0 && <div className="list-heading">Чаты</div>}
+        {(favs.length > 0 || invites.length > 0) && rest.length > 0 && <div className="list-heading">{tr("Чаты")}</div>}
         {rest.map(row)}
 
         {f && (
@@ -264,14 +265,14 @@ export default function RoomList({
         {!f && joined.length === 0 && invites.length === 0 && (
           <div className="list-empty">
             {filter === "unread"
-                ? "Всё прочитано"
+                ? tr("Всё прочитано")
                 : filter === "fav"
-                  ? "Добавьте чаты в избранное через правый клик"
+                  ? tr("Добавьте чаты в избранное через правый клик")
                   : scope.kind === "dm"
-                    ? "Личных переписок пока нет. Нажмите «+», чтобы начать личный чат"
+                    ? tr("Личных переписок пока нет. Нажмите «+», чтобы начать личный чат")
                     : scope.kind === "space"
-                      ? "Вы не вступили ни в одну комнату этого пространства. Откройте страницу пространства, чтобы выбрать"
-                      : "У вас пока нет чатов"}
+                      ? tr("Вы не вступили ни в одну комнату этого пространства. Откройте страницу пространства, чтобы выбрать")
+                      : tr("У вас пока нет чатов")}
           </div>
         )}
       </nav>
@@ -284,9 +285,9 @@ export default function RoomList({
 function inviteText(r: Room, me: string): string {
   const inviterId = r.getMember(me)?.events.member?.getSender();
   const inviter = inviterId ? (r.getMember(inviterId)?.name ?? inviterId) : null;
-  if (r.getDMInviter()) return "Хочет начать личный чат";
-  if (r.isSpaceRoom()) return inviter ? `${inviter} приглашает в пространство` : "Приглашение в пространство";
-  return inviter ? `Приглашает ${inviter}` : "Вас пригласили";
+  if (r.getDMInviter()) return tr("Хочет начать личный чат");
+  if (r.isSpaceRoom()) return inviter ? tr("{0} приглашает в пространство", inviter) : tr("Приглашение в пространство");
+  return inviter ? tr("Приглашает {0}", inviter) : tr("Вас пригласили");
 }
 
 /** Люди по запросу: свои — сразу, каталог сервера — через мгновение. Щелчок — личный чат. */
@@ -338,14 +339,14 @@ function PeopleResults({
   };
 
   if (!loading && list.length === 0) {
-    return chatsFound ? null : <div className="list-empty">Ничего не нашлось. Человека с другого сервера можно найти по полному адресу: @логин:сервер</div>;
+    return chatsFound ? null : <div className="list-empty">{tr("Ничего не нашлось. Человека с другого сервера можно найти по полному адресу: @логин:сервер")}</div>;
   }
 
   return (
     <>
       <div className="list-heading people-heading">
-        Люди
-        {loading && <span className="people-loading">ищу на сервере…</span>}
+        {tr("Люди")}
+        {loading && <span className="people-loading">{tr("ищу на сервере…")}</span>}
       </div>
       {list.map((p) => (
         <div key={p.userId} className="room-item person" role="button" tabIndex={0} onClick={() => open(p)} onKeyDown={(e) => e.key === "Enter" && open(p)}>
@@ -355,7 +356,7 @@ function PeopleResults({
               e.stopPropagation();
               openDialog({ kind: "user", userId: p.userId });
             }}
-            title="Карточка"
+            title={tr("Карточка")}
           >
             <Avatar client={client} mxc={p.avatar} name={p.name} seed={p.userId} size={40} />
           </span>
@@ -363,7 +364,7 @@ function PeopleResults({
             <div className="room-top">
               <span className="room-name">{p.name}</span>
             </div>
-            <div className="room-preview">{opening === p.userId ? "Открываю чат…" : p.userId}</div>
+            <div className="room-preview">{opening === p.userId ? tr("Открываю чат…") : p.userId}</div>
           </div>
           <MessageSquarePlus size={16} className="person-go" />
         </div>

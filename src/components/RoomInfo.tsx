@@ -19,6 +19,7 @@ import { leaveRoom, openDirectChat, powerLevelOf, requiredLevel, roleName } from
 import Avatar, { RoomAvatar } from "./Avatar";
 import { openDialog } from "./DialogHost";
 import { PopupMenu, Toggle, type MenuItem } from "./ui";
+import { locale, tr } from "../i18n";
 
 type Tab = "members" | "settings";
 
@@ -42,13 +43,13 @@ export default function RoomInfo({
       <div className="info-head">
         <div className="info-tabs">
           <button className={tab === "members" ? "on" : ""} onClick={() => setTab("members")}>
-            Участники
+            {tr("Участники")}
           </button>
           <button className={tab === "settings" ? "on" : ""} onClick={() => setTab("settings")}>
-            Настройки
+            {tr("Настройки")}
           </button>
         </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Закрыть панель">
+        <button className="icon-btn" onClick={onClose} aria-label={tr("Закрыть панель")}>
           <X size={18} />
         </button>
       </div>
@@ -69,7 +70,7 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
   const myLevel = powerLevelOf(room, me);
   const f = filter.trim().toLowerCase();
   const match = (m: RoomMember) => !f || m.name.toLowerCase().includes(f) || m.userId.toLowerCase().includes(f);
-  const byLevel = (a: RoomMember, b: RoomMember) => b.powerLevel - a.powerLevel || a.name.localeCompare(b.name, "ru");
+  const byLevel = (a: RoomMember, b: RoomMember) => b.powerLevel - a.powerLevel || a.name.localeCompare(b.name, locale);
   const all = room.getMembers();
   const joined = all.filter((m) => m.membership === KnownMembership.Join && match(m)).sort(byLevel);
   const invited = all.filter((m) => m.membership === KnownMembership.Invite && match(m)).sort(byLevel);
@@ -94,51 +95,51 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
     const bannedM = m.membership === KnownMembership.Ban;
     return [
       {
-        label: "Написать лично",
+        label: tr("Написать лично"),
         icon: <MessageSquare size={15} />,
         hidden: !other,
         onClick: () => act(async () => onOpenRoom(await openDirectChat(client, m.userId))),
       },
       {
-        label: "Сделать модератором",
+        label: tr("Сделать модератором"),
         icon: <ShieldPlus size={15} />,
         hidden: !canPower || m.powerLevel >= 50 || bannedM || myLevel < 50,
         onClick: () => act(() => client.setPowerLevel(room.roomId, m.userId, 50)),
       },
       {
-        label: "Сделать администратором",
+        label: tr("Сделать администратором"),
         icon: <ShieldCheck size={15} />,
         hidden: !canPower || m.powerLevel >= 100 || bannedM || myLevel < 100,
         onClick: () =>
-          confirm(`${m.name} получит те же права, что и вы, и забрать их будет нельзя. Продолжить?`) &&
+          confirm(tr("{0} получит те же права, что и вы, и забрать их будет нельзя. Продолжить?", m.name)) &&
           act(() => client.setPowerLevel(room.roomId, m.userId, 100)),
       },
       {
-        label: "Снять роль",
+        label: tr("Снять роль"),
         icon: <ShieldMinus size={15} />,
         hidden: !canPower || m.powerLevel <= 0,
         onClick: () => act(() => client.setPowerLevel(room.roomId, m.userId, undefined)),
       },
       {
-        label: invitedM ? "Отозвать приглашение" : "Удалить из комнаты",
+        label: invitedM ? tr("Отозвать приглашение") : tr("Удалить из комнаты"),
         icon: <UserMinus size={15} />,
         danger: true,
         hidden: !canKick || bannedM,
         onClick: () =>
-          confirm(invitedM ? `Отозвать приглашение для ${m.name}?` : `Удалить ${m.name} из «${room.name}»?`) &&
+          confirm(invitedM ? tr("Отозвать приглашение для {0}?", m.name) : tr("Удалить {0} из «{1}»?", m.name, room.name)) &&
           act(() => client.kick(room.roomId, m.userId)),
       },
       {
-        label: "Заблокировать",
+        label: tr("Заблокировать"),
         icon: <Ban size={15} />,
         danger: true,
         hidden: !canBan || bannedM,
         onClick: () =>
-          confirm(`Заблокировать ${m.name}? Он не сможет вернуться, пока его не разблокируют.`) &&
+          confirm(tr("Заблокировать {0}? Он не сможет вернуться, пока его не разблокируют.", m.name)) &&
           act(() => client.ban(room.roomId, m.userId)),
       },
       {
-        label: "Разблокировать",
+        label: tr("Разблокировать"),
         icon: <ShieldCheck size={15} />,
         hidden: !bannedM || myLevel < requiredLevel(room, "ban"),
         onClick: () => act(() => client.unban(room.roomId, m.userId)),
@@ -151,13 +152,13 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
     const items = menuItems(m).filter((i) => !i.hidden);
     return (
       <div key={m.userId} className="member-row">
-        <button className="member-open" onClick={() => openDialog({ kind: "user", userId: m.userId })} title="Карточка">
+        <button className="member-open" onClick={() => openDialog({ kind: "user", userId: m.userId })} title={tr("Карточка")}>
           <Avatar client={client} mxc={m.getMxcAvatarUrl()} name={m.name} seed={m.userId} size={32} />
         </button>
         <div className="member-text member-open" role="button" tabIndex={0} onClick={() => openDialog({ kind: "user", userId: m.userId })}>
           <div className="member-name">
             {m.name}
-            {m.userId === me && <span className="member-you"> (вы)</span>}
+            {m.userId === me && <span className="member-you"> {tr("(вы)")}</span>}
           </div>
           <div className="member-id">{m.userId}</div>
         </div>
@@ -166,7 +167,7 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
           <button
             className="icon-btn small"
             onClick={(e) => setMenu({ x: e.clientX - 200, y: e.clientY + 8, m })}
-            aria-label={`Действия с ${m.name}`}
+            aria-label={tr("Действия с {0}", m.name)}
           >
             <MoreHorizontal size={16} />
           </button>
@@ -180,24 +181,24 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
       <div className="members-top">
         <label className="search">
           <Search size={15} />
-          <input placeholder="Найти участника" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <input placeholder={tr("Найти участника")} value={filter} onChange={(e) => setFilter(e.target.value)} />
         </label>
         {canInvite && (
           <button
             className="icon-btn"
             onClick={() => openDialog({ kind: "invite", roomId: room.roomId })}
-            title="Пригласить"
-            aria-label="Пригласить"
+            title={tr("Пригласить")}
+            aria-label={tr("Пригласить")}
           >
             <UserPlus size={18} />
           </button>
         )}
       </div>
-      <div className="info-section">Участники ({joined.length})</div>
+      <div className="info-section">{tr("Участники ({0})", joined.length)}</div>
       {joined.map(row)}
-      {invited.length > 0 && <div className="info-section">Приглашены ({invited.length})</div>}
+      {invited.length > 0 && <div className="info-section">{tr("Приглашены ({0})", invited.length)}</div>}
       {invited.map(row)}
-      {banned.length > 0 && <div className="info-section">Заблокированы ({banned.length})</div>}
+      {banned.length > 0 && <div className="info-section">{tr("Заблокированы ({0})", banned.length)}</div>}
       {banned.map(row)}
       {menu && <PopupMenu x={menu.x} y={menu.y} items={menuItems(menu.m)} onClose={() => setMenu(null)} />}
     </div>
@@ -276,7 +277,7 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
           <>
             <button className="pill" onClick={() => fileRef.current?.click()}>
               <Camera size={15} />
-              Сменить аватар
+              {tr("Сменить аватар")}
             </button>
             <input
               ref={fileRef}
@@ -294,11 +295,11 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
       </div>
 
       <label className="field">
-        <span>Название</span>
+        <span>{tr("Название")}</span>
         <input className="text-input" value={name} onChange={(e) => setName(e.target.value)} disabled={!may(EventType.RoomName)} />
       </label>
       <label className="field">
-        <span>Тема</span>
+        <span>{tr("Тема")}</span>
         <textarea
           className="text-input"
           rows={2}
@@ -309,31 +310,31 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
       </label>
       {(may(EventType.RoomName) || may(EventType.RoomTopic)) && (
         <div className="row-end">
-          {saved && <span className="saved-note">Сохранено</span>}
+          {saved && <span className="saved-note">{tr("Сохранено")}</span>}
           <button className="primary" onClick={saveText} disabled={saving || !changed}>
-            {saving ? "Сохраняю…" : "Сохранить"}
+            {saving ? tr("Сохраняю…") : tr("Сохранить")}
           </button>
         </div>
       )}
 
       <div className="field">
-        <span>Кто может вступить</span>
+        <span>{tr("Кто может вступить")}</span>
         <select
           className="text-input"
           value={joinRule}
           onChange={(e) => setJoinRule(e.target.value)}
           disabled={!may(EventType.RoomJoinRules)}
         >
-          <option value="invite">Только по приглашению</option>
-          {parentId && <option value="restricted">Участники пространства «{client.getRoom(parentId)?.name ?? "родительского"}»</option>}
-          <option value="public">Все на сервере</option>
-          {joinRule === "knock" && <option value="knock">По запросу</option>}
+          <option value="invite">{tr("Только по приглашению")}</option>
+          {parentId && <option value="restricted">{client.getRoom(parentId) ? tr("Участники пространства «{0}»", client.getRoom(parentId)!.name) : tr("Участники родительского пространства")}</option>}
+          <option value="public">{tr("Все на сервере")}</option>
+          {joinRule === "knock" && <option value="knock">{tr("По запросу")}</option>}
         </select>
       </div>
 
       {!isSpace && (
         <div className="field">
-          <span>Кто видит историю</span>
+          <span>{tr("Кто видит историю")}</span>
           <select
             className="text-input"
             value={history}
@@ -344,10 +345,10 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
             }
             disabled={!may(EventType.RoomHistoryVisibility)}
           >
-            <option value="shared">Все участники, включая новых</option>
-            <option value="invited">Участники с момента приглашения</option>
-            <option value="joined">Участники с момента вступления</option>
-            <option value="world_readable">Кто угодно</option>
+            <option value="shared">{tr("Все участники, включая новых")}</option>
+            <option value="invited">{tr("Участники с момента приглашения")}</option>
+            <option value="joined">{tr("Участники с момента вступления")}</option>
+            <option value="world_readable">{tr("Кто угодно")}</option>
           </select>
         </div>
       )}
@@ -357,25 +358,25 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
           checked={encrypted}
           onChange={(v) => {
             if (!v || encrypted) return;
-            if (confirm("Включить шифрование? Отключить его потом будет нельзя, а боты без поддержки шифрования перестанут видеть сообщения."))
+            if (confirm(tr("Включить шифрование? Отключить его потом будет нельзя, а боты без поддержки шифрования перестанут видеть сообщения.")))
               run(() =>
                 client.sendStateEvent(room.roomId, EventType.RoomEncryption, { algorithm: "m.megolm.v1.aes-sha2" } as never, ""),
               );
           }}
-          label="Сквозное шифрование"
-          hint={encrypted ? "Включено. Отключить нельзя" : "Выключено"}
+          label={tr("Сквозное шифрование")}
+          hint={encrypted ? tr("Включено. Отключить нельзя") : tr("Выключено")}
         />
       )}
 
       <div className="settings-meta">
         <span>ID: {room.roomId}</span>
-        {room.getCanonicalAlias() && <span>Адрес: {room.getCanonicalAlias()}</span>}
+        {room.getCanonicalAlias() && <span>{tr("Адрес:")} {room.getCanonicalAlias()}</span>}
       </div>
 
       <button
         className="leave-btn"
         onClick={() =>
-          confirm(isSpace ? `Покинуть пространство «${room.name}»? Комнаты в нём останутся.` : `Покинуть «${room.name}»?`) &&
+          confirm(isSpace ? tr("Покинуть пространство «{0}»? Комнаты в нём останутся.", room.name) : tr("Покинуть «{0}»?", room.name)) &&
           run(async () => {
             await leaveRoom(client, room);
             onLeft();
@@ -383,7 +384,7 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
         }
       >
         <LogOut size={15} />
-        {isSpace ? "Покинуть пространство" : "Покинуть комнату"}
+        {isSpace ? tr("Покинуть пространство") : tr("Покинуть комнату")}
       </button>
     </div>
   );

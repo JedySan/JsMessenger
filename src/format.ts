@@ -1,5 +1,6 @@
 // Форматирование дат и превью сообщений.
 import { EventType, MsgType, type MatrixEvent, type Room } from "matrix-js-sdk";
+import { locale, tr } from "./i18n";
 
 const VISIBLE = new Set<string>([EventType.RoomMessage, EventType.RoomMessageEncrypted, EventType.Sticker]);
 
@@ -13,7 +14,7 @@ function startOfDay(d: Date): number {
 }
 
 export function timeHM(ts: number): string {
-  return new Date(ts).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return new Date(ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
 
 /** Время для списка чатов: сегодня — часы, на неделе — день недели, иначе дата. */
@@ -22,19 +23,19 @@ export function listTime(ts: number): string {
   const d = new Date(ts);
   const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86_400_000);
   if (days === 0) return timeHM(ts);
-  if (days === 1) return "вчера";
-  if (days < 7) return d.toLocaleDateString("ru-RU", { weekday: "short" });
-  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: days > 300 ? "2-digit" : undefined });
+  if (days === 1) return tr("вчера");
+  if (days < 7) return d.toLocaleDateString(locale, { weekday: "short" });
+  return d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: days > 300 ? "2-digit" : undefined });
 }
 
 /** Подпись разделителя дня в ленте. */
 export function dayLabel(ts: number): string {
   const d = new Date(ts);
   const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86_400_000);
-  if (days === 0) return "Сегодня";
-  if (days === 1) return "Вчера";
+  if (days === 0) return tr("Сегодня");
+  if (days === 1) return tr("Вчера");
   const sameYear = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: sameYear ? undefined : "numeric" });
+  return d.toLocaleDateString(locale, { day: "numeric", month: "long", year: sameYear ? undefined : "numeric" });
 }
 
 export function sameDay(a: number, b: number): boolean {
@@ -49,15 +50,15 @@ export function lastMessagePreview(room: Room, myUserId: string, isDm = false): 
     if (!isVisibleMessage(e)) continue;
     const content = e.replacingEvent()?.getContent()["m.new_content"] ?? e.getContent();
     let text: string;
-    if (e.isRedacted()) text = "Сообщение удалено";
-    else if (e.isDecryptionFailure() || e.getType() === EventType.RoomMessageEncrypted) text = "Зашифрованное сообщение";
-    else if (content.msgtype === MsgType.Image) text = "Фото";
-    else if (content.msgtype === MsgType.File) text = `Файл: ${content.body ?? ""}`;
-    else if (content.msgtype === MsgType.Video) text = "Видео";
-    else if (content.msgtype === MsgType.Audio) text = "Аудио";
+    if (e.isRedacted()) text = tr("Сообщение удалено");
+    else if (e.isDecryptionFailure() || e.getType() === EventType.RoomMessageEncrypted) text = tr("Зашифрованное сообщение");
+    else if (content.msgtype === MsgType.Image) text = tr("Фото");
+    else if (content.msgtype === MsgType.File) text = tr("Файл: {0}", content.body ?? "");
+    else if (content.msgtype === MsgType.Video) text = tr("Видео");
+    else if (content.msgtype === MsgType.Audio) text = tr("Аудио");
     else text = stripReplyFallback(String(content.body ?? "")).replace(/\*\*|`/g, "").replace(/\s+/g, " ");
     const sender = e.getSender();
-    const who = sender === myUserId ? "Вы" : isDm ? null : (room.getMember(sender ?? "")?.name ?? null);
+    const who = sender === myUserId ? tr("Вы") : isDm ? null : (room.getMember(sender ?? "")?.name ?? null);
     return { text: who ? `${who}: ${text}` : text, ts: e.getTs() };
   }
   return null;

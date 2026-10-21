@@ -8,6 +8,7 @@ import {
   type MatrixClient,
   type Room,
 } from "matrix-js-sdk";
+import { locale, tr } from "./i18n";
 
 export type Scope = { kind: "all" } | { kind: "dm" } | { kind: "space"; id: string };
 
@@ -37,7 +38,7 @@ export function spaceChildren(space: Room): string[] {
 export function topLevelSpaces(client: MatrixClient): Room[] {
   const spaces = joinedSpaces(client);
   const nested = new Set(spaces.flatMap(spaceChildren));
-  return spaces.filter((s) => !nested.has(s.roomId)).sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return spaces.filter((s) => !nested.has(s.roomId)).sort((a, b) => a.name.localeCompare(b.name, locale));
 }
 
 /** Все комнаты пространства, включая вложенные пространства. */
@@ -211,9 +212,9 @@ export function powerLevelOf(room: Room, userId: string): number {
 }
 
 export function roleName(level: number): string | null {
-  if (level >= 100) return "Администратор";
-  if (level >= 50) return "Модератор";
-  if (level > 0) return `Уровень ${level}`;
+  if (level >= 100) return tr("Администратор");
+  if (level >= 50) return tr("Модератор");
+  if (level > 0) return tr("Уровень {0}", level);
   return null;
 }
 
