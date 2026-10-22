@@ -7,6 +7,7 @@ import { textToContent } from "../richtext";
 import { effectiveContent, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
 import { tr } from "../i18n";
+import { notice } from "./Ask";
 
 const PASTE_KEY = window.jsmDesktop && window.jsmDesktop.platform !== "darwin" ? "Ctrl+V" : "⌘V";
 
@@ -108,7 +109,7 @@ export default function Composer({
         await client.sendMessage(room.roomId, content as any);
       }
     } catch (e) {
-      alert(tr("Сообщение не отправлено: ") + errText(e));
+      notice(tr("Сообщение не отправлено: ") + errText(e));
       setText(body);
       setMode(current);
     }

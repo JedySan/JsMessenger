@@ -9,6 +9,7 @@ import { openDialog } from "./DialogHost";
 import { PopupMenu } from "./ui";
 import { plural } from "../i18n";
 import { tr } from "../i18n";
+import { ask, notice } from "./Ask";
 
 /** Главная страница пространства: описание, действия и каталог комнат. */
 export default function SpaceHome({
@@ -77,7 +78,7 @@ export default function SpaceHome({
       if (r.room_type === "m.space") onOpenSpace(r.room_id);
       else onOpenRoom(r.room_id);
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     } finally {
       setJoining(null);
     }
@@ -124,8 +125,9 @@ export default function SpaceHome({
             title={tr("Убрать из пространства")}
             aria-label={tr("Убрать из пространства")}
             onClick={() =>
-              confirm(tr("Убрать «{0}» из пространства? Сама комната останется.", name)) &&
-              removeFromSpace(client, space.roomId, r.room_id).catch((e) => alert(errText(e)))
+              void ask(tr("Убрать «{0}» из пространства? Сама комната останется.", name), { ok: tr("Убрать") }).then(
+                (ok): unknown => ok && removeFromSpace(client, space.roomId, r.room_id).catch((e) => notice(errText(e))),
+              )
             }
           >
             <X size={15} />

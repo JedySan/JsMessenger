@@ -3,6 +3,7 @@ import type { MatrixClient } from "matrix-js-sdk";
 import { Download, FileText, ImageOff, LoaderCircle, Play, X } from "lucide-react";
 import { downloadMedia, formatSize, saveToDownloads } from "../attachments";
 import { tr } from "../i18n";
+import { notice } from "./Ask";
 
 // ---------- общая загрузка с кэшем ----------
 const blobCache = new Map<string, Promise<string>>();
@@ -76,7 +77,7 @@ export function Lightbox() {
     try {
       await saveContent(v.client, v.content);
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      notice(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }

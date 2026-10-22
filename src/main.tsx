@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { AskHost } from "./components/Ask";
 import "./platform";
 import { lang } from "./i18n";
 import "@fontsource-variable/onest";
@@ -16,5 +17,6 @@ else if (/Android/i.test(navigator.userAgent)) document.documentElement.dataset.
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
+    <AskHost />
   </StrictMode>,
 );

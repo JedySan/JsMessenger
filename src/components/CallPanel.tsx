@@ -18,6 +18,7 @@ import { Track, type Participant, type TrackPublication } from "livekit-client";
 import { call, userIdFromIdentity } from "../call";
 import { setWindowFullscreen } from "../desktop";
 import { plural, tr } from "../i18n";
+import { notice } from "./Ask";
 
 export function useCallState() {
   return useSyncExternalStore(
@@ -395,5 +396,5 @@ function Audio({ pub }: { pub: TrackPublication }) {
 }
 
 function alertErr(e: unknown) {
-  alert(e instanceof Error ? e.message : String(e));
+  notice(e instanceof Error ? e.message : String(e));
 }

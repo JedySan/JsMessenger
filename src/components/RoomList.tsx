@@ -37,6 +37,7 @@ import { openDirectChat } from "../rooms";
 import { openDialog } from "./DialogHost";
 import { PopupMenu, type MenuItem } from "./ui";
 import { tr } from "../i18n";
+import { ask, notice } from "./Ask";
 
 type Filter = "all" | "unread" | "fav";
 
@@ -86,18 +87,18 @@ export default function RoomList({
       await client.joinRoom(r.roomId);
       onSelect(r.roomId);
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     }
   };
   const decline = async (r: Room) => {
     try {
       await client.leave(r.roomId);
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     }
   };
 
-  const run = (fn: () => Promise<unknown>) => fn().catch((e) => alert(errText(e)));
+  const run = (fn: () => Promise<unknown>) => fn().catch((e) => notice(errText(e)));
 
   const roomMenu = (r: Room, e: MouseEvent) => {
     e.preventDefault();
@@ -116,7 +117,8 @@ export default function RoomList({
           label: tr("Покинуть"),
           icon: <LogOut size={15} />,
           danger: true,
-          onClick: () => confirm(tr("Покинуть «{0}»?", r.name)) && run(() => leaveRoom(client, r)),
+          onClick: () =>
+            void ask(tr("Покинуть «{0}»?", r.name), { ok: tr("Покинуть"), danger: true }).then((ok): unknown => ok && run(() => leaveRoom(client, r))),
         },
       ],
     });
@@ -332,7 +334,7 @@ function PeopleResults({
     try {
       onOpen(p.dmRoomId ?? (await openDirectChat(client, p.userId)));
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     } finally {
       setOpening(null);
     }

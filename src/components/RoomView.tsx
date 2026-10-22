@@ -15,6 +15,7 @@ import { flashEvent, loadUntil, onJump, takeJump } from "../jump";
 import { PinnedBar, PinsPanel, SearchPanel, ThreadPanel, ThreadsPanel } from "./Panels";
 import { plural } from "../i18n";
 import { tr } from "../i18n";
+import { notice } from "./Ask";
 
 type Panel =
   | { kind: "info" }
@@ -78,7 +79,7 @@ export default function RoomView({
     if (!flashEvent(eventId)) {
       const ok = await loadUntil(client, room, eventId);
       requestAnimationFrame(() => {
-        if (!flashEvent(eventId) && !ok) alert(tr("Сообщение не найдено в истории этого чата"));
+        if (!flashEvent(eventId) && !ok) notice(tr("Сообщение не найдено в истории этого чата"));
       });
     }
   };

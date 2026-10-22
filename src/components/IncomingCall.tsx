@@ -5,6 +5,7 @@ import { acceptIncoming, declineIncoming, getIncoming, subscribeIncoming } from 
 import { isDirect } from "../rooms";
 import Avatar from "./Avatar";
 import { tr } from "../i18n";
+import { notice } from "./Ask";
 
 /** Карточка входящего звонка поверх окна. Для групповых звонков без «ring» — тихая плашка. */
 export default function IncomingCall({ client, onOpenRoom }: { client: MatrixClient; onOpenRoom: (id: string) => void }) {
@@ -19,7 +20,7 @@ export default function IncomingCall({ client, onOpenRoom }: { client: MatrixCli
 
   const accept = (video: boolean) => {
     onOpenRoom(c.roomId);
-    acceptIncoming(video).catch((e) => alert(tr("Не удалось подключиться: {0}", e)));
+    acceptIncoming(video).catch((e) => notice(tr("Не удалось подключиться: {0}", e)));
   };
 
   return (

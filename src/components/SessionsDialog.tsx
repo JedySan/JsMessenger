@@ -5,6 +5,7 @@ import { errText } from "../App";
 import { listTime } from "../format";
 import { verifyOtherDevice } from "../verification";
 import { tr } from "../i18n";
+import { notice } from "./Ask";
 
 interface Device {
   id: string;
@@ -64,7 +65,7 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
       setRenaming(null);
       load();
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     }
   };
 
@@ -137,7 +138,7 @@ export default function SessionsDialog({ client, onClose }: { client: MatrixClie
                     <button
                       className="pill"
                       onClick={() => {
-                        verifyOtherDevice(client, d.id).catch((e) => alert(errText(e)));
+                        verifyOtherDevice(client, d.id).catch((e) => notice(errText(e)));
                         onClose();
                       }}
                     >

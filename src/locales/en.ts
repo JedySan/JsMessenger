@@ -514,6 +514,11 @@ const en: Record<string, string> = {
   "Наушники": "Headphones",
   "Папка": "Folder",
   "Булавка": "Pin",
+  // Ask.tsx — окна подтверждения
+  "Продолжить": "Continue",
+  "Понятно": "OK",
+  "Отозвать": "Revoke",
+  "Включить": "Turn on",
 };
 
 export default en;

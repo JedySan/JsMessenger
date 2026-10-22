@@ -20,6 +20,7 @@ import Avatar, { RoomAvatar } from "./Avatar";
 import { openDialog } from "./DialogHost";
 import { PopupMenu, Toggle, type MenuItem } from "./ui";
 import { locale, tr } from "../i18n";
+import { ask, notice } from "./Ask";
 
 type Tab = "members" | "settings";
 
@@ -81,7 +82,7 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
     try {
       await fn();
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     }
   };
 
@@ -111,8 +112,9 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
         icon: <ShieldCheck size={15} />,
         hidden: !canPower || m.powerLevel >= 100 || bannedM || myLevel < 100,
         onClick: () =>
-          confirm(tr("{0} получит те же права, что и вы, и забрать их будет нельзя. Продолжить?", m.name)) &&
-          act(() => client.setPowerLevel(room.roomId, m.userId, 100)),
+          void ask(tr("{0} получит те же права, что и вы, и забрать их будет нельзя. Продолжить?", m.name)).then(
+            (ok): unknown => ok && act(() => client.setPowerLevel(room.roomId, m.userId, 100)),
+          ),
       },
       {
         label: tr("Снять роль"),
@@ -126,8 +128,10 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
         danger: true,
         hidden: !canKick || bannedM,
         onClick: () =>
-          confirm(invitedM ? tr("Отозвать приглашение для {0}?", m.name) : tr("Удалить {0} из «{1}»?", m.name, room.name)) &&
-          act(() => client.kick(room.roomId, m.userId)),
+          void ask(invitedM ? tr("Отозвать приглашение для {0}?", m.name) : tr("Удалить {0} из «{1}»?", m.name, room.name), {
+            ok: invitedM ? tr("Отозвать") : tr("Удалить"),
+            danger: true,
+          }).then((ok): unknown => ok && act(() => client.kick(room.roomId, m.userId))),
       },
       {
         label: tr("Заблокировать"),
@@ -135,8 +139,10 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
         danger: true,
         hidden: !canBan || bannedM,
         onClick: () =>
-          confirm(tr("Заблокировать {0}? Он не сможет вернуться, пока его не разблокируют.", m.name)) &&
-          act(() => client.ban(room.roomId, m.userId)),
+          void ask(tr("Заблокировать {0}? Он не сможет вернуться, пока его не разблокируют.", m.name), {
+            ok: tr("Заблокировать"),
+            danger: true,
+          }).then((ok): unknown => ok && act(() => client.ban(room.roomId, m.userId))),
       },
       {
         label: tr("Разблокировать"),
@@ -230,7 +236,7 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
     try {
       await fn();
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     }
   };
 
@@ -242,7 +248,7 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
       if (topic !== oldTopic) await client.setRoomTopic(room.roomId, topic);
       setSaved(true);
     } catch (e) {
-      alert(errText(e));
+      notice(errText(e));
     } finally {
       setSaving(false);
     }
@@ -358,10 +364,15 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
           checked={encrypted}
           onChange={(v) => {
             if (!v || encrypted) return;
-            if (confirm(tr("Включить шифрование? Отключить его потом будет нельзя, а боты без поддержки шифрования перестанут видеть сообщения.")))
-              run(() =>
-                client.sendStateEvent(room.roomId, EventType.RoomEncryption, { algorithm: "m.megolm.v1.aes-sha2" } as never, ""),
-              );
+            void ask(tr("Включить шифрование? Отключить его потом будет нельзя, а боты без поддержки шифрования перестанут видеть сообщения."), {
+              ok: tr("Включить"),
+            }).then(
+              (ok): unknown =>
+                ok &&
+                run(() =>
+                  client.sendStateEvent(room.roomId, EventType.RoomEncryption, { algorithm: "m.megolm.v1.aes-sha2" } as never, ""),
+                ),
+            );
           }}
           label={tr("Сквозное шифрование")}
           hint={encrypted ? tr("Включено. Отключить нельзя") : tr("Выключено")}
@@ -376,11 +387,17 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
       <button
         className="leave-btn"
         onClick={() =>
-          confirm(isSpace ? tr("Покинуть пространство «{0}»? Комнаты в нём останутся.", room.name) : tr("Покинуть «{0}»?", room.name)) &&
-          run(async () => {
-            await leaveRoom(client, room);
-            onLeft();
-          })
+          void ask(isSpace ? tr("Покинуть пространство «{0}»? Комнаты в нём останутся.", room.name) : tr("Покинуть «{0}»?", room.name), {
+            ok: tr("Покинуть"),
+            danger: true,
+          }).then(
+            (ok): unknown =>
+              ok &&
+              run(async () => {
+                await leaveRoom(client, room);
+                onLeft();
+              }),
+          )
         }
       >
         <LogOut size={15} />

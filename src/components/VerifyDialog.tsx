@@ -5,6 +5,7 @@ import { verifyWithOtherDevice } from "../verification";
 import { verifyWithRecoveryKey } from "../matrix";
 import { errText } from "../App";
 import { tr } from "../i18n";
+import { notice } from "./Ask";
 
 export default function VerifyDialog({ client, onClose }: { client: MatrixClient; onClose: () => void }) {
   const [key, setKey] = useState("");
@@ -46,7 +47,7 @@ export default function VerifyDialog({ client, onClose }: { client: MatrixClient
               className="choice"
               onClick={() => {
                 onClose();
-                verifyWithOtherDevice(client).catch((e) => alert(errText(e)));
+                verifyWithOtherDevice(client).catch((e) => notice(errText(e)));
               }}
             >
               <MonitorSmartphone size={20} />

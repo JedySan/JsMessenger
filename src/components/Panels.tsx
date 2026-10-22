@@ -10,6 +10,7 @@ import Message, { pinnedIds, plainText, PINNED, togglePin, type MessageActions }
 import UploadDialog from "./UploadDialog";
 import { plural } from "../i18n";
 import { tr } from "../i18n";
+import { notice } from "./Ask";
 
 function PanelHead({ title, onClose, onBack }: { title: string; onClose: () => void; onBack?: () => void }) {
   return (
@@ -485,7 +486,7 @@ export function PinsPanel({
               {canPin && (
                 <button
                   className="icon-btn small"
-                  onClick={() => togglePin(client, room, id).catch((e) => alert(errText(e)))}
+                  onClick={() => togglePin(client, room, id).catch((e) => notice(errText(e)))}
                   title={tr("Открепить")}
                   aria-label={tr("Открепить")}
                 >

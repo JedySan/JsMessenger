@@ -1102,3 +1102,9 @@ textarea.text-input { resize: vertical; font: inherit; }
 .user-action span { color: var(--text); }
 .user-action:hover:not(:disabled) { background: var(--accent-soft); }
 .user-action:disabled { opacity: 0.6; }
+
+/* ---------- свои окна подтверждения (вместо confirm/alert) ---------- */
+.modal-bg.ask-bg { z-index: 40; }
+.modal.ask { width: 380px; max-width: calc(100vw - 32px); gap: 18px; padding: 22px 22px 18px; }
+.ask-text { font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.modal.ask .modal-actions { margin-top: 0; }

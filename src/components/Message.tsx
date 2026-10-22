@@ -11,6 +11,7 @@ import { openDialog } from "./DialogHost";
 import { AudioMessage, FileMessage, ImageMessage, VideoMessage } from "./Media";
 import { plural } from "../i18n";
 import { tr } from "../i18n";
+import { ask, notice } from "./Ask";
 
 export interface MessageActions {
   onReply: (ev: MatrixEvent) => void;
@@ -188,7 +189,7 @@ export default function Message({
           {canPin && (
             <button
               className="act"
-              onClick={() => togglePin(client, room, ev.getId()!).catch((e) => alert(e?.message ?? String(e)))}
+              onClick={() => togglePin(client, room, ev.getId()!).catch((e) => notice(e?.message ?? String(e)))}
               title={pinned ? tr("Открепить") : tr("Закрепить")}
               aria-label={pinned ? tr("Открепить") : tr("Закрепить")}
             >
@@ -214,9 +215,10 @@ export default function Message({
             <button
               className="act danger"
               onClick={() => {
-                if (confirm(mine ? tr("Удалить сообщение у всех?") : tr("Удалить чужое сообщение у всех?"))) {
-                  client.redactEvent(room.roomId, ev.getId()!).catch((e) => alert(e?.message ?? String(e)));
-                }
+                void ask(mine ? tr("Удалить сообщение у всех?") : tr("Удалить чужое сообщение у всех?"), {
+                  ok: tr("Удалить"),
+                  danger: true,
+                }).then((ok): unknown => ok && client.redactEvent(room.roomId, ev.getId()!).catch((e) => notice(e?.message ?? String(e))));
               }}
               title={tr("Удалить")}
               aria-label={tr("Удалить")}

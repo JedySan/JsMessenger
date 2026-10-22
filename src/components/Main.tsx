@@ -36,6 +36,7 @@ import { PopupMenu } from "./ui";
 import { isDesktop } from "../platform";
 import { attachNotifications, onNotificationClick, testNotification, updateBadge } from "../notifications";
 import { LANGS, lang, setLang, tr } from "../i18n";
+import { ask, notice } from "./Ask";
 
 export default function Main({ client, onLogout }: { client: MatrixClient; onLogout: () => void }) {
   useClientUpdates(client);
@@ -245,7 +246,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             {
               label: tr("Проверить уведомления"),
               icon: <Bell size={15} />,
-              onClick: () => testNotification().then((msg) => alert(msg)),
+              onClick: () => testNotification().then((msg) => notice(msg)),
             },
             {
               label: tr("Запускать при входе в систему"),
@@ -254,7 +255,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
               onClick: () =>
                 setAutostart(!autostart)
                   .then(() => setAutostartState(!autostart))
-                  .catch((e) => alert(tr("Не удалось изменить автозапуск: {0}", e))),
+                  .catch((e) => notice(tr("Не удалось изменить автозапуск: {0}", e))),
             },
             {
               label: tr("Проверить обновления"),
@@ -279,7 +280,8 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
               label: tr("Выйти из аккаунта"),
               icon: <LogOut size={15} />,
               danger: true,
-              onClick: () => confirm(tr("Выйти из аккаунта на этом устройстве?")) && onLogout(),
+              onClick: () =>
+                void ask(tr("Выйти из аккаунта на этом устройстве?"), { ok: tr("Выйти"), danger: true }).then((ok): unknown => ok && onLogout()),
             },
           ]}
         />
