@@ -16,6 +16,7 @@ import { PinnedBar, PinsPanel, SearchPanel, ThreadPanel, ThreadsPanel } from "./
 import { plural } from "../i18n";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
+import { isAppFocused, onAppFocus } from "../focus";
 
 type Panel =
   | { kind: "info" }
@@ -101,20 +102,21 @@ export default function RoomView({
   }, [lastId, events.length]);
 
   // Отметка о прочтении последнего сообщения — сразу, если окно активно, иначе когда к нему вернутся
+  const sentFor = useRef("");
   useEffect(() => {
     const send = () => {
       const last = room.getLiveTimeline().getEvents().at(-1);
-      if (!last || last.isSending() || !document.hasFocus() || document.hidden) return;
-      if (room.getEventReadUpTo(client.getSafeUserId()) === last.getId()) return; // уже отмечено
-      client.sendReadReceipt(last).catch(() => {});
+      if (!last || last.isSending() || !isAppFocused()) return;
+      if (room.getEventReadUpTo(client.getSafeUserId(), true) === last.getId() && sentFor.current === last.getId()) return; // уже отмечено
+      sentFor.current = last.getId()!;
+      // Отметка без привязки к треду (как у Element X) + маркер «прочитано до сюда»:
+      // по ней сервер обнуляет счётчик непрочитанных и гасит уведомления на телефоне.
+      client.setRoomReadMarkers(room.roomId, last.getId()!, last).catch(() => {
+        sentFor.current = "";
+      });
     };
     send();
-    window.addEventListener("focus", send);
-    document.addEventListener("visibilitychange", send);
-    return () => {
-      window.removeEventListener("focus", send);
-      document.removeEventListener("visibilitychange", send);
-    };
+    return onAppFocus(send);
   }, [client, room, lastId]);
 
   // Мало сообщений, чтобы появилась прокрутка, — подгружаем историю сразу

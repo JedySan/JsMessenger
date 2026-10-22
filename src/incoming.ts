@@ -15,6 +15,7 @@ import { isDirect, isMuted } from "./rooms";
 import { startRingtone, stopRingtone } from "./ringtone";
 import { notifySystem, presentWindow } from "./notifications";
 import { tr } from "./i18n";
+import { isAppFocused } from "./focus";
 
 export interface IncomingCall {
   roomId: string;
@@ -123,7 +124,7 @@ function present(client: MatrixClient, room: Room, c: IncomingCall) {
     startRingtone("ring");
     presentWindow();
     notifySystem(`${kind}: ${who}`, isDirect(client, room) ? tr("Входящий звонок") : tr("Звонок в «{0}»", room.name), room.roomId);
-  } else if (!document.hasFocus()) {
+  } else if (!isAppFocused()) {
     notifySystem(tr("{0} начал звонок", who), tr("«{0}» — откройте чат, чтобы присоединиться", room.name), room.roomId);
   }
 }

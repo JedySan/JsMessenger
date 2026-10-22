@@ -14,6 +14,7 @@ import { plainText } from "./components/Message";
 
 import { electron, isTauri } from "./platform";
 import { tr } from "./i18n";
+import { isAppFocused } from "./focus";
 
 // ---------- всплывающие карточки внутри приложения ----------
 // macOS не показывает баннеры активного приложения, поэтому, пока окно в фокусе,
@@ -105,7 +106,7 @@ export async function presentWindow() {
     if (!(await w.isVisible())) await w.show();
     if (await w.isMinimized()) await w.unminimize();
     // Dock подпрыгивает, пока пользователь не переключится на приложение
-    if (!document.hasFocus()) await w.requestUserAttention(UserAttentionType.Critical);
+    if (!isAppFocused()) await w.requestUserAttention(UserAttentionType.Critical);
   } catch (e) {
     console.warn("present window", e);
   }
@@ -122,7 +123,7 @@ export async function onNotificationClick(open: (roomId: string) => void): Promi
 
 /** Иконка в Dock подпрыгивает один раз — сигнал, даже если баннеры уведомлений отключены. */
 async function bounceDock() {
-  if (document.hasFocus()) return;
+  if (isAppFocused()) return;
   const el = electron();
   if (el) return el.attention();
   if (!isTauri()) return;
@@ -184,12 +185,12 @@ export function attachNotifications(client: MatrixClient, currentRoom: () => str
     if (!NOTIFY_TYPES.has(ev.getType()) || ev.isRelation("m.replace")) return;
     const actions = client.getPushActionsForEvent(ev, true);
     if (!actions?.notify) return;
-    if (document.hasFocus() && currentRoom() === room.roomId) return;
+    if (isAppFocused() && currentRoom() === room.roomId) return;
 
     const sender = room.getMember(ev.getSender() ?? "")?.name ?? ev.getSender() ?? "";
     const title = isDirect(client, room) ? sender : tr("{0} в «{1}»", sender, room.name);
     const body = ev.isDecryptionFailure() ? tr("Новое зашифрованное сообщение") : plainText(ev).slice(0, 200);
-    if (document.hasFocus()) pushToast(room.roomId, title, body);
+    if (isAppFocused()) pushToast(room.roomId, title, body);
     else {
       show(title, body, room.roomId);
       bounceDock();

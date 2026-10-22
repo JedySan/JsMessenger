@@ -11,6 +11,7 @@ import UploadDialog from "./UploadDialog";
 import { plural } from "../i18n";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
+import { isAppFocused, onAppFocus } from "../focus";
 
 function PanelHead({ title, onClose, onBack }: { title: string; onClose: () => void; onBack?: () => void }) {
   return (
@@ -68,6 +69,19 @@ export function ThreadPanel({
       thread?.off(RoomEvent.Timeline, onNew);
     };
   }, [room, thread]);
+
+  // открытый тред — прочитан: отметка внутри треда, чтобы телефон не считал ответы непрочитанными
+  const lastReplyId = thread?.lastReply()?.getId();
+  useEffect(() => {
+    const send = () => {
+      const last = thread?.lastReply();
+      if (!last || last.isSending() || !isAppFocused()) return;
+      if (thread!.getEventReadUpTo(client.getSafeUserId(), true) === last.getId()) return;
+      client.sendReadReceipt(last).catch(() => {});
+    };
+    send();
+    return onAppFocus(send);
+  }, [client, thread, lastReplyId]);
 
   useEffect(() => {
     if (root) return;

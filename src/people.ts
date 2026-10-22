@@ -1,6 +1,6 @@
 // Поиск людей: участники наших чатов (мгновенно) + каталог пользователей сервера.
 // Понимает перепутанную раскладку («lfybbk» → «даниил», «вфтшшд» → «daniil»).
-import { EventType, KnownMembership, type MatrixClient } from "matrix-js-sdk";
+import { EventType, KnownMembership, type MatrixClient, type Room } from "matrix-js-sdk";
 import { locale } from "./i18n";
 
 export interface Person {
@@ -137,4 +137,34 @@ export function matchesText(text: string, term: string): boolean {
   if (h.includes(t)) return true;
   const alt = switchLayout(t);
   return !!alt && h.includes(norm(alt));
+}
+
+/**
+ * Кого упомянуть через «@»: участники комнаты (и приглашённые).
+ * Пустой запрос — недавно писавшие сверху. Понимает другую раскладку.
+ */
+export function searchMembers(room: Room, me: string, term: string, limit = 8): Person[] {
+  const t = term.trim();
+  const alt = t ? switchLayout(t) : null;
+  const members = room.getMembers().filter(
+    (m) => m.userId !== me && (m.membership === KnownMembership.Join || m.membership === KnownMembership.Invite),
+  );
+  // порядок «кто писал недавно»
+  const recent = new Map<string, number>();
+  const evs = room.getLiveTimeline().getEvents();
+  for (let i = evs.length - 1, n = 0; i >= 0 && n < 200; i--, n++) {
+    const s = evs[i].getSender();
+    if (s && !recent.has(s)) recent.set(s, recent.size);
+  }
+  const scored: Array<[number, Person]> = [];
+  for (const m of members) {
+    const s = t ? Math.max(score(t, m.name, m.userId), alt ? score(alt, m.name, m.userId) : 0) : 1;
+    if (s <= 0) continue;
+    const r = recent.get(m.userId);
+    scored.push([s + (r !== undefined ? 1 - r / 1000 : 0), { userId: m.userId, name: m.name, avatar: m.getMxcAvatarUrl() ?? undefined, known: true }]);
+  }
+  return scored
+    .sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name, locale))
+    .slice(0, limit)
+    .map(([, p]) => p);
 }

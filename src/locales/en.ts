@@ -519,6 +519,7 @@ const en: Record<string, string> = {
   "Понятно": "OK",
   "Отозвать": "Revoke",
   "Включить": "Turn on",
+  "Упомянуть": "Mention",
 };
 
 export default en;
