@@ -528,6 +528,24 @@ const en: Record<string, string> = {
   "текст": "text",
   "Форматирование": "Formatting",
   "Shift+Enter — новая строка,": "Shift+Enter for a new line,",
+  // MediaPanel — медиа и файлы чата
+  "{0} из {1}": "{0} of {1}",
+  "Предыдущее": "Previous",
+  "Следующее": "Next",
+  "Не удалось загрузить": "Couldn't load",
+  "Медиа": "Media",
+  "Фото и видео в этом чате пока нет": "No photos or videos in this chat yet",
+  "Файлы": "Files",
+  "Файлов в этом чате пока нет": "No files in this chat yet",
+  "Ссылки": "Links",
+  "Ссылок в этом чате пока нет": "No links in this chat yet",
+  "Аудио и голосовых в этом чате пока нет": "No audio or voice messages in this chat yet",
+  "Показать в чате": "Show in chat",
+  "Медиа и файлы": "Media and files",
+  "Не удалось загрузить историю: {0}": "Couldn't load history: {0}",
+  "Показать ещё": "Show more",
+  "В последних сообщениях ничего не нашлось.": "Nothing in recent messages.",
+  "Искать дальше": "Search further",
 };
 
 export default en;

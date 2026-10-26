@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { Direction, MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { ChevronLeft, LockKeyhole, MessagesSquare, PanelRight, Search, Upload } from "lucide-react";
+import { ChevronLeft, LockKeyhole, MessagesSquare, PanelRight, Search, Upload, Images } from "lucide-react";
 import { dayLabel, isVisibleMessage, sameDay } from "../format";
 import { RoomAvatar } from "./Avatar";
 import CallPanel from "./CallPanel";
@@ -17,6 +17,7 @@ import { plural } from "../i18n";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
 import { isAppFocused, onAppFocus } from "../focus";
+import MediaPanel from "./MediaPanel";
 
 type Panel =
   | { kind: "info" }
@@ -24,6 +25,7 @@ type Panel =
   | { kind: "threads" }
   | { kind: "search" }
   | { kind: "pins" }
+  | { kind: "media" }
   | null;
 
 export default function RoomView({
@@ -69,7 +71,7 @@ export default function RoomView({
     if (panel?.kind === "info") onToggleInfo();
     else setPanel(null);
   };
-  const togglePanel = (kind: "search" | "threads") => {
+  const togglePanel = (kind: "search" | "threads" | "media") => {
     if (panel?.kind === "info") onToggleInfo();
     setPanel((p) => (p?.kind === kind ? null : { kind }));
   };
@@ -234,6 +236,14 @@ export default function RoomView({
           <Search size={18} />
         </button>
         <button
+          className={"icon-btn" + (panel?.kind === "media" ? " on" : "")}
+          onClick={() => togglePanel("media")}
+          title={tr("Медиа и файлы")}
+          aria-label={tr("Медиа и файлы")}
+        >
+          <Images size={18} />
+        </button>
+        <button
           className={"icon-btn" + (panel?.kind === "threads" || panel?.kind === "thread" ? " on" : "")}
           onClick={() => togglePanel("threads")}
           title={tr("Треды")}
@@ -345,6 +355,16 @@ export default function RoomView({
         onOpenRoom={onOpenRoom}
       />
     )}
+    {panel?.kind === "media" && <MediaPanel
+        client={client}
+        room={room}
+        onClose={closePanel}
+        onJump={(id) => {
+          // на телефоне панель закрывает чат — убираем её, чтобы было видно сообщение
+          if (matchMedia("(max-width: 720px)").matches) closePanel();
+          void jumpTo(id);
+        }}
+      />}
     {panel?.kind === "pins" && <PinsPanel client={client} room={room} onClose={closePanel} onJump={jumpTo} />}
     </div>
   );

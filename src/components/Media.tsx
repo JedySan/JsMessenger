@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
-import { Download, FileText, ImageOff, LoaderCircle, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, ImageOff, LoaderCircle, Play, X } from "lucide-react";
 import { downloadMedia, formatSize, saveToDownloads } from "../attachments";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
@@ -12,7 +12,7 @@ function cacheKey(content: Record<string, any>): string {
   return content.file?.url ?? content.url ?? "";
 }
 
-function loadBlobUrl(client: MatrixClient, content: Record<string, any>): Promise<string> {
+export function loadBlobUrl(client: MatrixClient, content: Record<string, any>): Promise<string> {
   const key = cacheKey(content);
   let p = blobCache.get(key);
   if (!p) {
@@ -23,10 +23,12 @@ function loadBlobUrl(client: MatrixClient, content: Record<string, any>): Promis
   return p;
 }
 
-function useBlobUrl(client: MatrixClient, content: Record<string, any>, enabled = true) {
+export function useBlobUrl(client: MatrixClient, content: Record<string, any>, enabled = true) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
+    setUrl(null);
+    setError(false);
     if (!enabled) return;
     let alive = true;
     loadBlobUrl(client, content).then(
@@ -40,18 +42,23 @@ function useBlobUrl(client: MatrixClient, content: Record<string, any>, enabled 
   return { url, error };
 }
 
-async function saveContent(client: MatrixClient, content: Record<string, any>) {
+export async function saveContent(client: MatrixClient, content: Record<string, any>) {
   const blob = await downloadMedia(client, content);
   await saveToDownloads(content.filename ?? content.body ?? "file", blob);
 }
 
-// ---------- просмотр картинки на весь окно ----------
-type Viewing = { client: MatrixClient; content: Record<string, any>; url: string } | null;
+// ---------- просмотр фото и видео на всё окно (с листанием, как в Telegram) ----------
+type Viewing = { client: MatrixClient; items: Record<string, any>[]; index: number; onJump?: (index: number) => void } | null;
 let viewing: Viewing = null;
 const viewers = new Set<() => void>();
 function setViewing(v: Viewing) {
   viewing = v;
   viewers.forEach((f) => f());
+}
+
+/** Открыть просмотр: список фото/видео и с какого начать. */
+export function openViewer(client: MatrixClient, items: Record<string, any>[], index = 0, onJump?: (index: number) => void) {
+  setViewing({ client, items, index, onJump });
 }
 
 export function Lightbox() {
@@ -63,29 +70,58 @@ export function Lightbox() {
     () => viewing,
   );
   const [saving, setSaving] = useState(false);
+  const content = v ? v.items[v.index] : null;
+  const isVideo = content?.msgtype === "m.video";
+  const { url, error } = useBlobUrl(v?.client as MatrixClient, content ?? {}, !!v);
+  const go = (d: number) => {
+    if (!v) return;
+    const i = v.index + d;
+    if (i >= 0 && i < v.items.length) setViewing({ ...v, index: i });
+  };
 
   useEffect(() => {
     if (!v) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setViewing(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setViewing(null);
+      // список идёт от новых к старым: «влево» — более старое
+      else if (e.key === "ArrowLeft") go(1);
+      else if (e.key === "ArrowRight") go(-1);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [v]);
+  });
 
-  if (!v) return null;
+  if (!v || !content) return null;
   const save = async () => {
     setSaving(true);
     try {
-      await saveContent(v.client, v.content);
+      await saveContent(v.client, content);
     } catch (e) {
       notice(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
   };
+  const many = v.items.length > 1;
   return (
     <div className="lightbox" onClick={() => setViewing(null)}>
       <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
-        <span className="lightbox-name">{v.content.body}</span>
+        <span className="lightbox-name">{content.body}</span>
+        {many && <span className="lightbox-count">{tr("{0} из {1}", v.items.length - v.index, v.items.length)}</span>}
+        {v.onJump && (
+          <button
+            className="icon-btn light"
+            onClick={() => {
+              const i = v.index;
+              setViewing(null);
+              v.onJump!(i);
+            }}
+            title={tr("Показать в чате")}
+            aria-label={tr("Показать в чате")}
+          >
+            <CornerUpLeft size={18} />
+          </button>
+        )}
         <button className="icon-btn light" onClick={save} disabled={saving} title={tr("Сохранить в «Загрузки»")} aria-label={tr("Сохранить")}>
           {saving ? <LoaderCircle size={18} className="spin" /> : <Download size={18} />}
         </button>
@@ -93,7 +129,27 @@ export function Lightbox() {
           <X size={20} />
         </button>
       </div>
-      <img src={v.url} alt={v.content.body ?? ""} onClick={(e) => e.stopPropagation()} />
+      {many && v.index < v.items.length - 1 && (
+        <button className="lightbox-nav prev" onClick={(e) => (e.stopPropagation(), go(1))} aria-label={tr("Предыдущее")}>
+          <ChevronLeft size={28} />
+        </button>
+      )}
+      {many && v.index > 0 && (
+        <button className="lightbox-nav next" onClick={(e) => (e.stopPropagation(), go(-1))} aria-label={tr("Следующее")}>
+          <ChevronRight size={28} />
+        </button>
+      )}
+      {error ? (
+        <span className="lightbox-msg">
+          <ImageOff size={18} /> {tr("Не удалось загрузить")}
+        </span>
+      ) : !url ? (
+        <LoaderCircle size={32} className="spin lightbox-msg" />
+      ) : isVideo ? (
+        <video key={url} src={url} controls autoPlay onClick={(e) => e.stopPropagation()} />
+      ) : (
+        <img src={url} alt={content.body ?? ""} onClick={(e) => e.stopPropagation()} />
+      )}
     </div>
   );
 }
@@ -118,7 +174,7 @@ export function ImageMessage({ client, content }: { client: MatrixClient; conten
     );
   if (!url) return <span className="media-box loading" style={box} />;
   return (
-    <button className="media-box" style={box} onClick={() => setViewing({ client, content, url })} title={tr("Открыть")}>
+    <button className="media-box" style={box} onClick={() => openViewer(client, [content])} title={tr("Открыть")}>
       <img src={url} alt={content.body ?? ""} />
     </button>
   );

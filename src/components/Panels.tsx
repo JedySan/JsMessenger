@@ -13,7 +13,7 @@ import { tr } from "../i18n";
 import { notice } from "./Ask";
 import { isAppFocused, onAppFocus } from "../focus";
 
-function PanelHead({ title, onClose, onBack }: { title: string; onClose: () => void; onBack?: () => void }) {
+export function PanelHead({ title, onClose, onBack }: { title: string; onClose: () => void; onBack?: () => void }) {
   return (
     <div className="info-head">
       <div className="panel-title">
