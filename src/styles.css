@@ -539,7 +539,19 @@ button.media-box { cursor: zoom-in; }
   display: inline-flex; align-items: center; justify-content: center;
 }
 .attach-btn:hover:not(:disabled) { background: var(--hover); color: var(--text); }
-.composer-hint { font-size: 11.5px; color: var(--text-3); padding: 5px 4px 0; opacity: 0; transition: opacity 0.15s; }
+.composer-hint {
+  display: flex; align-items: center; gap: 12px; font-size: 11.5px; color: var(--text-3);
+  padding: 4px 2px 0; opacity: 0.6; transition: opacity 0.15s;
+}
+/* кнопки форматирования: выделили текст — нажали */
+.fmt-tools { display: flex; gap: 2px; }
+.fmt-btn {
+  width: 28px; height: 26px; border-radius: 7px; color: var(--text-3);
+  display: inline-flex; align-items: center; justify-content: center; transition: background 0.12s, color 0.12s;
+}
+.fmt-btn:hover { background: var(--hover); color: var(--text); }
+.fmt-btn:active { background: var(--accent-soft); color: var(--accent); }
+.composer-keys { margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .composer:focus-within .composer-hint { opacity: 1; }
 .composer { padding-bottom: 10px; }
 .typing { height: 18px; padding: 0 24px; font-size: 12px; color: var(--text-3); }
@@ -826,7 +838,7 @@ textarea.text-input { resize: vertical; font: inherit; }
 .thread-panel .msg { padding-left: 14px; padding-right: 14px; }
 .thread-panel .msg-actions { right: 10px; }
 .thread-panel .composer { padding: 4px 12px 10px; }
-.thread-panel .composer-hint { display: none; }
+.thread-panel .composer-keys { display: none; }
 .load-more { display: block; margin: 6px auto; font-size: 12.5px; color: var(--accent); padding: 4px 10px; border-radius: 7px; }
 .load-more:hover:not(:disabled) { background: var(--hover); }
 
@@ -1062,7 +1074,8 @@ textarea.text-input { resize: vertical; font: inherit; }
   .room-shell > .room-info { position: absolute; inset: 0; width: auto; z-index: 5; border-left: 0; }
   .msg { padding-left: 12px; padding-right: 12px; gap: 10px; }
   .composer { padding-left: 10px; padding-right: 10px; }
-  .composer-hint { display: none; }
+  .composer-keys { display: none; }
+  .fmt-btn { width: 34px; height: 30px; }
   .call-panel { height: 48%; min-height: 260px; }
   .call-controls { padding: 10px; gap: 8px; }
   .call-info { display: none; }

@@ -86,7 +86,6 @@ const en: Record<string, string> = {
   "Сообщение для «{0}»": "Message “{0}”",
   "Отправить (Enter)": "Send (Enter)",
   "Отправить": "Send",
-  "**жирный**, _курсив_, `код`, Shift+Enter — новая строка,": "**bold**, _italic_, `code`, Shift+Enter — new line,",
   "— вставить скриншот": "— paste a screenshot",
   // src/components/Dialogs.tsx
   "Новое пространство в «{0}»": "New space in “{0}”",
@@ -520,6 +519,15 @@ const en: Record<string, string> = {
   "Отозвать": "Revoke",
   "Включить": "Turn on",
   "Упомянуть": "Mention",
+  "Жирный": "Bold",
+  "Курсив": "Italic",
+  "Зачёркнутый": "Strikethrough",
+  "Код": "Code",
+  "Цитата": "Quote",
+  "Ссылка": "Link",
+  "текст": "text",
+  "Форматирование": "Formatting",
+  "Shift+Enter — новая строка,": "Shift+Enter for a new line,",
 };
 
 export default en;

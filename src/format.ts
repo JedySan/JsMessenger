@@ -1,6 +1,7 @@
 // Форматирование дат и превью сообщений.
 import { EventType, MsgType, type MatrixEvent, type Room } from "matrix-js-sdk";
 import { locale, tr } from "./i18n";
+import { htmlToText } from "./richtext";
 
 const VISIBLE = new Set<string>([EventType.RoomMessage, EventType.RoomMessageEncrypted, EventType.Sticker]);
 
@@ -56,6 +57,8 @@ export function lastMessagePreview(room: Room, myUserId: string, isDm = false): 
     else if (content.msgtype === MsgType.File) text = tr("Файл: {0}", content.body ?? "");
     else if (content.msgtype === MsgType.Video) text = tr("Видео");
     else if (content.msgtype === MsgType.Audio) text = tr("Аудио");
+    else if (content.format === "org.matrix.custom.html" && typeof content.formatted_body === "string")
+      text = htmlToText(content.formatted_body).replace(/\s+/g, " ").trim(); // без значков Markdown
     else text = stripReplyFallback(String(content.body ?? "")).replace(/\*\*|`/g, "").replace(/\s+/g, " ");
     const sender = e.getSender();
     const who = sender === myUserId ? tr("Вы") : isDm ? null : (room.getMember(sender ?? "")?.name ?? null);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { Paperclip, Pencil, Reply, SendHorizontal, X } from "lucide-react";
+import { Bold, Code, Italic, Link, Paperclip, Pencil, Quote, Reply, SendHorizontal, Strikethrough, X } from "lucide-react";
 import { errText } from "../App";
 import { nameForPasted } from "../attachments";
 import { textToContent } from "../richtext";
@@ -42,7 +42,65 @@ function withMentions(text: string, picked: Map<string, string>): { md: string; 
   return { md, userIds: [...used] };
 }
 
-const PASTE_KEY = window.jsmDesktop && window.jsmDesktop.platform !== "darwin" ? "Ctrl+V" : "⌘V";
+const MAC = !window.jsmDesktop || window.jsmDesktop.platform === "darwin";
+const PASTE_KEY = MAC ? "⌘V" : "Ctrl+V";
+const MOD = MAC ? "⌘" : "Ctrl+";
+
+type Fmt = "bold" | "italic" | "strike" | "code" | "quote" | "link";
+const WRAP: Partial<Record<Fmt, string>> = { bold: "**", italic: "_", strike: "~~", code: "`" };
+
+/**
+ * Применить Markdown к выделению: обернуть (или снять обёртку), цитата — «> » в начале строк,
+ * ссылка — [текст](https://). Возвращает новый текст и выделение.
+ */
+function applyFormat(text: string, a: number, b: number, f: Fmt): { text: string; a: number; b: number } {
+  const sel = text.slice(a, b);
+  if (f === "quote") {
+    const ls = text.lastIndexOf("\n", a - 1) + 1;
+    const block = text.slice(ls, b);
+    const lines = block.split("\n");
+    const quoted = lines.every((l) => l.startsWith("> "));
+    const next = lines.map((l) => (quoted ? l.slice(2) : "> " + l)).join("\n");
+    return { text: text.slice(0, ls) + next + text.slice(b), a: ls, b: ls + next.length };
+  }
+  if (f === "link") {
+    const label = sel || tr("текст");
+    const url = "https://";
+    const ins = `[${label}](${url})`;
+    const urlAt = a + label.length + 3;
+    // «https://» выделено — вставленный из буфера адрес сразу его заменит
+    return { text: text.slice(0, a) + ins + text.slice(b), a: urlAt, b: urlAt + url.length };
+  }
+  let m = WRAP[f]!;
+  // несколько строк кода — блоком
+  if (f === "code" && sel.includes("\n")) m = "```";
+  const nl = m === "```" ? "\n" : "";
+  // уже обёрнуто — снимаем
+  if (text.slice(a - m.length - nl.length, a) === m + nl && text.slice(b, b + m.length + nl.length) === nl + m) {
+    const s0 = a - m.length - nl.length;
+    return { text: text.slice(0, s0) + sel + text.slice(b + m.length + nl.length), a: s0, b: s0 + sel.length };
+  }
+  if (sel.startsWith(m + nl) && sel.endsWith(nl + m) && sel.length >= 2 * (m.length + nl.length)) {
+    const inner = sel.slice(m.length + nl.length, sel.length - m.length - nl.length);
+    return { text: text.slice(0, a) + inner + text.slice(b), a, b: a + inner.length };
+  }
+  // пробелы по краям выделения оставляем снаружи: «**слово** », а не «**слово **»
+  const lead = sel.length - sel.trimStart().length;
+  const trail = sel.length - sel.trimEnd().length;
+  const core = sel.trim();
+  const ins = sel.slice(0, lead) + m + nl + core + nl + m + sel.slice(sel.length - trail);
+  const start = a + lead + m.length + nl.length;
+  return { text: text.slice(0, a) + ins + text.slice(b), a: start, b: start + core.length };
+}
+
+const TOOLS: Array<{ f: Fmt; icon: typeof Bold; label: string; key: string }> = [
+  { f: "bold", icon: Bold, label: tr("Жирный"), key: "B" },
+  { f: "italic", icon: Italic, label: tr("Курсив"), key: "I" },
+  { f: "strike", icon: Strikethrough, label: tr("Зачёркнутый"), key: "Shift+X" },
+  { f: "code", icon: Code, label: tr("Код"), key: "E" },
+  { f: "quote", icon: Quote, label: tr("Цитата"), key: "Shift+." },
+  { f: "link", icon: Link, label: tr("Ссылка"), key: "K" },
+];
 
 export type ComposerMode = { kind: "normal" } | { kind: "reply"; ev: MatrixEvent } | { kind: "edit"; ev: MatrixEvent };
 
@@ -214,8 +272,36 @@ export default function Composer({
     }
   };
 
+  const format = (f: Fmt) => {
+    const el = ref.current;
+    if (!el) return;
+    const r = applyFormat(text, el.selectionStart ?? 0, el.selectionEnd ?? 0, f);
+    setText(r.text);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(r.a, r.b);
+    });
+  };
+
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) return;
+    // ⌘B / ⌘I / ⌘E / ⌘K / ⌘⇧X / ⌘⇧. — форматирование выделенного
+    if (MAC ? e.metaKey : e.ctrlKey) {
+      const k = e.code;
+      const f: Fmt | null =
+        !e.shiftKey && k === "KeyB" ? "bold"
+        : !e.shiftKey && k === "KeyI" ? "italic"
+        : !e.shiftKey && k === "KeyE" ? "code"
+        : !e.shiftKey && k === "KeyK" ? "link"
+        : e.shiftKey && k === "KeyX" ? "strike"
+        : e.shiftKey && k === "Period" ? "quote"
+        : null;
+      if (f) {
+        e.preventDefault();
+        format(f);
+        return;
+      }
+    }
     // список упоминаний: стрелки, Enter/Tab — выбрать, Esc — закрыть
     if (mention && options.length) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -335,7 +421,24 @@ export default function Composer({
         </button>
       </div>
       <div className="composer-hint">
-        {tr("**жирный**, _курсив_, `код`, Shift+Enter — новая строка,")} {PASTE_KEY} {tr("— вставить скриншот")}
+        <div className="fmt-tools" role="toolbar" aria-label={tr("Форматирование")}>
+          {TOOLS.map(({ f, icon: Icon, label, key }) => (
+            <button
+              key={f}
+              type="button"
+              className="fmt-btn"
+              title={`${label} (${MOD}${key})`}
+              aria-label={label}
+              onMouseDown={(e) => e.preventDefault()} // не забирать фокус и выделение у поля
+              onClick={() => format(f)}
+            >
+              <Icon size={15} strokeWidth={f === "bold" ? 2.6 : 2} />
+            </button>
+          ))}
+        </div>
+        <span className="composer-keys">
+          {tr("Shift+Enter — новая строка,")} {PASTE_KEY} {tr("— вставить скриншот")}
+        </span>
       </div>
     </div>
   );
