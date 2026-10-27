@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Свой сервер Matrix со звонками — JsMessenger Server</title>
+    <meta
+      name="description"
+      content="Matrix, звонки LiveKit и Jitsi Meet на своём сервере одной командой: Synapse, PostgreSQL, LiveKit, Jitsi и HTTPS от Let's Encrypt."
+    />
+    <meta property="og:title" content="JsMessenger Server" />
+    <meta property="og:description" content="Свой сервер Matrix со звонками и Jitsi — одной командой." />
+    <meta property="og:image" content="../icon.png" />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="icon" href="../favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <!-- Та же переписка, что на главной: теперь в комнате про свой сервер -->
+    <div class="room">
+      <header class="room-head">
+        <a class="room-back" href="../" aria-label="К приложению" data-i18n-label="head.back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+        <span class="room-ava server-ava" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01"/></svg>
+        </span>
+        <div class="room-title">
+          <h1>JsMessenger Server</h1>
+          <p data-i18n="head.sub">Свой сервер Matrix со звонками</p>
+        </div>
+        <nav class="room-tools">
+          <a class="tool" href="https://github.com/JedySan/JsMessenger-server" data-i18n="head.source">Исходный код</a>
+          <button class="tool lang" type="button" id="lang" aria-label="Switch language">EN</button>
+        </nav>
+      </header>
+
+      <main class="timeline" id="timeline" aria-live="polite">
+        <div class="day"><span data-i18n="day">Сегодня</span></div>
+
+        <article class="msg" data-step="1">
+          <img class="ava" src="../icon.png" alt="" width="36" height="36" />
+          <div class="msg-main">
+            <p class="who">JsMessenger <time class="time"></time></p>
+            <p data-i18n="m.hello">
+              Хотите, чтобы переписка и звонки жили на вашем сервере, а не у кого-то ещё? Я поставлю всё нужное одной
+              командой — минут за десять.
+            </p>
+          </div>
+        </article>
+
+        <article class="msg grouped" data-step="2">
+          <div class="msg-main">
+            <p data-i18n="m.inside">Что окажется на сервере:</p>
+            <ul class="stack">
+              <li data-i18n-html="m.inside.1"><b>Synapse</b> и PostgreSQL — сервер Matrix: чаты, файлы, шифрование, связь с другими серверами;</li>
+              <li data-i18n-html="m.inside.2"><b>LiveKit</b> — звонки, видео и показ экрана в JsMessenger, Element X и Element Call;</li>
+              <li data-i18n-html="m.inside.3"><b>Jitsi Meet</b> — видеовстречи по ссылке, даже для тех, у кого нет Matrix;</li>
+              <li data-i18n-html="m.inside.4"><b>Caddy</b> — HTTPS: сертификаты Let's Encrypt он получает и продлевает сам.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="msg grouped" data-step="3">
+          <div class="msg-main">
+            <p data-i18n="m.need">Понадобится сервер на Ubuntu или Debian и домен. Добавьте A-записи на IP сервера:</p>
+            <div class="dns">
+              <div class="dns-row"><code>example.ru</code><span data-i18n="dns.1">адреса вида @имя:example.ru</span></div>
+              <div class="dns-row"><code>matrix.example.ru</code><span data-i18n="dns.2">сервер Matrix</span></div>
+              <div class="dns-row"><code>rtc.example.ru</code><span data-i18n="dns.3">звонки</span></div>
+              <div class="dns-row"><code>meet.example.ru</code><span data-i18n="dns.4">Jitsi Meet</span></div>
+            </div>
+            <p class="note" data-i18n="m.need.note">2 ядра и 2 ГБ памяти без Jitsi, 4 ГБ — с Jitsi. Порты 80 и 443 должны быть свободны.</p>
+          </div>
+        </article>
+
+        <article class="msg grouped" data-step="4">
+          <div class="msg-main">
+            <p data-i18n="m.run">А дальше — три строки:</p>
+            <div class="code">
+              <pre><code id="install-cmd">git clone https://github.com/JedySan/JsMessenger-server.git /opt/jsm-server
+cd /opt/jsm-server
+sudo ./install.sh</code></pre>
+              <button type="button" class="code-copy" data-copy="install-cmd" data-i18n="copy">Скопировать</button>
+            </div>
+            <p data-i18n="m.run.after">
+              Я спрошу домен и почту, проверю DNS и порты, сам придумаю пароли, запущу всё и заведу администратора.
+              В конце проверю снаружи, что HTTPS, Matrix, звонки и Jitsi отвечают.
+            </p>
+          </div>
+        </article>
+
+        <!-- сюда добавляются вопросы посетителя и ответы -->
+      </main>
+
+      <footer class="composer">
+        <p class="ask-hint" data-i18n="ask.hint">Спросите меня:</p>
+        <div class="asks" id="asks">
+          <button type="button" class="ask" data-q="login" data-i18n="q.login">Как войти потом?</button>
+          <button type="button" class="ask" data-q="manage" data-i18n="q.manage">Как добавлять людей?</button>
+          <button type="button" class="ask" data-q="price" data-i18n="q.price">Сколько стоит?</button>
+          <button type="button" class="ask" data-q="help" data-i18n="q.help">Поставите за меня?</button>
+        </div>
+      </footer>
+    </div>
+
+    <section class="answers" id="answers">
+      <template data-a="login">
+        <p data-i18n-html="a.login.1">
+          Откройте JsMessenger, Element или Element X и укажите сервер <b>example.ru</b> — тот, что в адресах
+          пользователей. Где лежат звонки, приложение узнает само.
+        </p>
+        <p data-i18n-html="a.login.2">Jitsi Meet откроется по адресу <b>meet.example.ru</b>.</p>
+        <p><a href="../" data-i18n="a.login.link">Скачать JsMessenger</a></p>
+      </template>
+      <template data-a="manage">
+        <p data-i18n="a.manage.1">Регистрация закрыта — людей заводит администратор:</p>
+        <div class="code">
+          <pre><code id="manage-cmd">./manage.sh adduser ivan          # новый пользователь
+./manage.sh adduser olga --admin  # администратор
+./manage.sh check                 # всё ли работает
+./manage.sh backup                # резервная копия
+./manage.sh update                # обновление</code></pre>
+          <button type="button" class="code-copy" data-copy="manage-cmd" data-i18n="copy">Скопировать</button>
+        </div>
+      </template>
+      <template data-a="price">
+        <p data-i18n="a.price.1">
+          Бесплатно. Комплект открыт под лицензией AGPL-3.0: ставьте на свои серверы, в том числе в компании.
+          Если меняете его и даёте людям пользоваться — откройте свои изменения.
+        </p>
+        <p data-i18n="a.price.2">
+          Нужна закрытая доработка или встраивание в свой продукт — возможна коммерческая лицензия.
+        </p>
+      </template>
+      <template data-a="help">
+        <p data-i18n="a.help.1">
+          Да: установка под ключ, перенос с другого сервера, настройка под компанию, поддержка. Напишите — обсудим.
+        </p>
+        <p><a class="mail" href="mailto:JedySan@gmail.com">JedySan@gmail.com</a></p>
+      </template>
+    </section>
+
+    <noscript>
+      <p class="noscript">
+        <a href="https://github.com/JedySan/JsMessenger-server">github.com/JedySan/JsMessenger-server</a> ·
+        <a href="mailto:JedySan@gmail.com">JedySan@gmail.com</a>
+      </p>
+    </noscript>
+
+    <script src="app.js"></script>
+  </body>
+</html>

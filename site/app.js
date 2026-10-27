@@ -33,6 +33,9 @@
     "a.server.1": "Any Matrix server — Synapse, for example. For calls it needs LiveKit and lk-jwt-service.",
     "a.server.2":
       "If your server already works with Element Call or Element X, there's nothing to set up for me: I'll find the LiveKit address myself.",
+    "head.server": "Your server",
+    "a.server.3": "No server of your own yet? I'll install Matrix, calls and Jitsi with one command:",
+    "a.server.link": "Your own server in 10 minutes →",
     you: "You",
     typing: "JsMessenger is typing…",
     download: "Download",
