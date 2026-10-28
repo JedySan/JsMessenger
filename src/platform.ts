@@ -24,7 +24,13 @@ export interface ElectronBridge {
   setBadge(count: number, image?: string): void;
   /** Выбор экрана/окна для показа: вернуть id источника или null (отмена). */
   onPickSource(cb: (sources: ScreenSource[]) => Promise<string | null>): () => void;
+  /** в «Загрузки» (без перезаписи); возвращает путь */
   saveDownload(name: string, data: Uint8Array): Promise<string>;
+  /** окно «Сохранить как…»; null — отменили */
+  saveAs?(name: string, data: Uint8Array): Promise<string | null>;
+  openPath?(file: string): Promise<void>;
+  showItem?(file: string): Promise<void>;
+  fileExists?(file: string): Promise<boolean>;
   openExternal(url: string): Promise<void>;
   autostartGet(): Promise<boolean>;
   autostartSet(on: boolean): Promise<void>;

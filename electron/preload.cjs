@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld("jsmDesktop", {
   },
 
   saveDownload: (name, data) => ipcRenderer.invoke("save-download", { name, data }),
+  saveAs: (name, data) => ipcRenderer.invoke("save-as", { name, data }),
+  openPath: (file) => ipcRenderer.invoke("open-path", file),
+  showItem: (file) => ipcRenderer.invoke("show-item", file),
+  fileExists: (file) => ipcRenderer.invoke("file-exists", file),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
 
   autostartGet: () => ipcRenderer.invoke("autostart-get"),

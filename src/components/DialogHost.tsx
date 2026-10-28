@@ -1,9 +1,10 @@
 // Единая точка открытия диалогов из любого места интерфейса.
 import { useSyncExternalStore } from "react";
-import type { MatrixClient } from "matrix-js-sdk";
+import type { MatrixClient, MatrixEvent } from "matrix-js-sdk";
 import { AddExistingDialog, CreateRoomDialog, InviteDialog, StartChatDialog } from "./Dialogs";
 import RoomInfo from "./RoomInfo";
 import UserCard from "./UserCard";
+import ForwardDialog from "./Forward";
 import { Modal } from "./ui";
 
 export type DialogState =
@@ -13,7 +14,8 @@ export type DialogState =
   | { kind: "invite"; roomId: string }
   | { kind: "addExisting"; spaceId: string }
   | { kind: "spaceSettings"; spaceId: string; tab?: "members" | "settings" }
-  | { kind: "user"; userId: string };
+  | { kind: "user"; userId: string }
+  | { kind: "forward"; ev: MatrixEvent };
 
 let current: DialogState | null = null;
 const listeners = new Set<() => void>();
@@ -41,6 +43,8 @@ export default function DialogHost({ client, onOpenRoom }: { client: MatrixClien
       return <CreateRoomDialog client={client} kind="room" spaceId={d.spaceId} onClose={closeDialog} onCreated={onOpenRoom} />;
     case "createSpace":
       return <CreateRoomDialog client={client} kind="space" spaceId={d.parentId} onClose={closeDialog} onCreated={onOpenRoom} />;
+    case "forward":
+      return <ForwardDialog client={client} ev={d.ev} onClose={closeDialog} onOpenRoom={onOpenRoom} />;
     case "user":
       return <UserCard client={client} userId={d.userId} onClose={closeDialog} onOpenRoom={onOpenRoom} />;
     case "startChat":

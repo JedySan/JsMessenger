@@ -13,10 +13,27 @@ export interface MenuItem {
   danger?: boolean;
   onClick: () => void;
   hidden?: boolean;
+  /** черта перед пунктом — отделить группу */
+  sep?: boolean;
+  /** подсказка справа: сочетание клавиш */
+  hint?: string;
 }
 
 /** Меню, привязанное к координатам (клик правой кнопкой или по кнопке «…»). */
-export function PopupMenu({ x, y, items, onClose }: { x: number; y: number; items: MenuItem[]; onClose: () => void }) {
+export function PopupMenu({
+  x,
+  y,
+  items,
+  onClose,
+  header,
+}: {
+  x: number;
+  y: number;
+  items: MenuItem[];
+  onClose: () => void;
+  /** над пунктами — например, ряд реакций */
+  header?: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
 
@@ -48,21 +65,25 @@ export function PopupMenu({ x, y, items, onClose }: { x: number; y: number; item
 
   return (
     <div className="popup-menu" ref={ref} style={{ left: pos.x, top: pos.y }} role="menu">
+      {header}
       {items
         .filter((i) => !i.hidden)
         .map((i, n) => (
-          <button
-            key={n}
-            role="menuitem"
-            className={"popup-item" + (i.danger ? " danger" : "")}
-            onClick={() => {
-              onClose();
-              i.onClick();
-            }}
-          >
-            <span className="popup-icon">{i.icon}</span>
-            {i.label}
-          </button>
+          <div key={n} className="popup-group">
+            {i.sep && n > 0 && <div className="popup-sep" role="separator" />}
+            <button
+              role="menuitem"
+              className={"popup-item" + (i.danger ? " danger" : "")}
+              onClick={() => {
+                onClose();
+                i.onClick();
+              }}
+            >
+              <span className="popup-icon">{i.icon}</span>
+              <span className="popup-label">{i.label}</span>
+              {i.hint && <span className="popup-hint">{i.hint}</span>}
+            </button>
+          </div>
         ))}
     </div>
   );

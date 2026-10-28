@@ -1,7 +1,8 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
-import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, ImageOff, LoaderCircle, Play, X } from "lucide-react";
-import { downloadMedia, formatSize, saveToDownloads } from "../attachments";
+import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, FolderInput, FolderOpen, ImageOff, LoaderCircle, Play, X } from "lucide-react";
+import { downloadMedia, formatSize } from "../attachments";
+import { canOpenFiles, canSaveAs, download, fileName, openDownloaded, revealDownloaded, useDownload } from "../downloads";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
 
@@ -42,9 +43,22 @@ export function useBlobUrl(client: MatrixClient, content: Record<string, any>, e
   return { url, error };
 }
 
-export async function saveContent(client: MatrixClient, content: Record<string, any>) {
-  const blob = await downloadMedia(client, content);
-  await saveToDownloads(content.filename ?? content.body ?? "file", blob);
+/** Скачать в «Загрузки» (или выбрать место); ошибки — сообщением. */
+export async function saveContent(client: MatrixClient, content: Record<string, any>, saveAs = false) {
+  try {
+    return await download(client, content, saveAs);
+  } catch (e) {
+    notice(tr("Не удалось скачать: {0}", e instanceof Error ? e.message : String(e)));
+    return undefined;
+  }
+}
+
+/** Открыть скачанный файл; если его уже нет — сказать об этом. */
+export async function openSaved(content: Record<string, any>) {
+  if (!(await openDownloaded(content))) notice(tr("Файл не найден — возможно, его удалили или переместили. Скачайте заново"));
+}
+export async function revealSaved(content: Record<string, any>) {
+  if (!(await revealDownloaded(content))) notice(tr("Файл не найден — возможно, его удалили или переместили. Скачайте заново"));
 }
 
 // ---------- просмотр фото и видео на всё окно (с листанием, как в Telegram) ----------
@@ -92,12 +106,10 @@ export function Lightbox() {
   });
 
   if (!v || !content) return null;
-  const save = async () => {
+  const save = async (saveAs = false) => {
     setSaving(true);
     try {
-      await saveContent(v.client, content);
-    } catch (e) {
-      notice(e instanceof Error ? e.message : String(e));
+      await saveContent(v.client, content, saveAs);
     } finally {
       setSaving(false);
     }
@@ -122,9 +134,7 @@ export function Lightbox() {
             <CornerUpLeft size={18} />
           </button>
         )}
-        <button className="icon-btn light" onClick={save} disabled={saving} title={tr("Сохранить в «Загрузки»")} aria-label={tr("Сохранить")}>
-          {saving ? <LoaderCircle size={18} className="spin" /> : <Download size={18} />}
-        </button>
+        <LightboxSave client={v.client} content={content} busy={saving} onSave={save} />
         <button className="icon-btn light" onClick={() => setViewing(null)} title={tr("Закрыть (Esc)")} aria-label={tr("Закрыть")}>
           <X size={20} />
         </button>
@@ -151,6 +161,40 @@ export function Lightbox() {
         <img src={url} alt={content.body ?? ""} onClick={(e) => e.stopPropagation()} />
       )}
     </div>
+  );
+}
+
+/** Кнопки просмотрщика: сохранить → затем «Показать в папке»; «Сохранить как…». */
+function LightboxSave({
+  content,
+  busy,
+  onSave,
+}: {
+  client: MatrixClient;
+  content: Record<string, any>;
+  busy: boolean;
+  onSave: (saveAs?: boolean) => void;
+}) {
+  const st = useDownload(content);
+  const loading = busy || st.status === "loading";
+  const saved = st.status === "done" && !!st.path && canOpenFiles();
+  return (
+    <>
+      {saved ? (
+        <button className="icon-btn light" onClick={() => void revealSaved(content)} title={tr("Показать в папке")} aria-label={tr("Показать в папке")}>
+          <FolderOpen size={18} />
+        </button>
+      ) : (
+        <button className="icon-btn light" onClick={() => onSave(false)} disabled={loading} title={tr("Сохранить в «Загрузки»")} aria-label={tr("Сохранить")}>
+          {loading ? <LoaderCircle size={18} className="spin" /> : <Download size={18} />}
+        </button>
+      )}
+      {canSaveAs() && (
+        <button className="icon-btn light" onClick={() => onSave(true)} disabled={loading} title={tr("Сохранить как…")} aria-label={tr("Сохранить как…")}>
+          <FolderInput size={18} />
+        </button>
+      )}
+    </>
   );
 }
 
@@ -216,37 +260,76 @@ export function AudioMessage({ client, content }: { client: MatrixClient; conten
   return <audio className="media-audio" src={url} controls autoPlay />;
 }
 
+/** Расширение для значка: «PDF», «ZIP»… */
+export function fileExt(name: string): string {
+  const m = name.match(/\.([a-z0-9]{1,5})$/i);
+  return m ? m[1].toUpperCase() : "";
+}
+
+/** Файл в сообщении: скачать (с прогрессом) → открыть, показать в папке. */
 export function FileMessage({ client, content }: { client: MatrixClient; content: Record<string, any> }) {
-  const [state, setState] = useState<"idle" | "saving" | "done" | "error">("idle");
-  const save = async () => {
-    setState("saving");
-    try {
-      await saveContent(client, content);
-      setState("done");
-    } catch (e) {
-      console.error(e);
-      setState("error");
-    }
+  const st = useDownload(content);
+  const name = fileName(content);
+  const ext = fileExt(name);
+  const size = formatSize(content.info?.size);
+  const done = st.status === "done";
+  const openable = done && canOpenFiles() && !!st.path;
+  const main = () => {
+    if (st.status === "loading") return;
+    if (openable) void openSaved(content);
+    else void saveContent(client, content);
   };
-  const name = content.filename ?? content.body ?? tr("Файл");
+  const pct = st.status === "loading" && st.progress != null ? Math.round(st.progress * 100) : null;
   const note =
-    state === "saving"
-      ? tr("Скачиваю…")
-      : state === "done"
-        ? tr("Сохранено в «Загрузки»")
-        : state === "error"
-          ? tr("Не удалось скачать, попробуйте ещё раз")
-          : formatSize(content.info?.size);
+    st.status === "loading"
+      ? pct != null
+        ? tr("Скачиваю… {0}%", pct) + (size ? ` · ${size}` : "")
+        : tr("Скачиваю…")
+      : st.status === "error"
+        ? tr("Не удалось скачать — нажмите, чтобы повторить")
+        : done
+          ? openable
+            ? tr("Скачано · нажмите, чтобы открыть")
+            : tr("Скачано")
+          : size;
   return (
-    <button className="file-card" onClick={save} disabled={state === "saving"} title={tr("Сохранить в «Загрузки»")}>
-      <span className="file-icon">
-        <FileText size={18} />
+    <div className={"file-card file-box" + (done ? " done" : "")}>
+      <button
+        className="file-main"
+        onClick={main}
+        title={openable ? tr("Открыть") : tr("Скачать в «Загрузки»")}
+        aria-busy={st.status === "loading"}
+      >
+        <span className="file-icon" style={pct != null ? ({ ["--p" as string]: `${pct}%` } as CSSProperties) : undefined}>
+          {st.status === "loading" ? (
+            <span className={"file-ring" + (pct == null ? " spin" : "")} />
+          ) : ext ? (
+            <span className="file-ext">{ext}</span>
+          ) : (
+            <FileText size={18} />
+          )}
+        </span>
+        <span className="file-text">
+          <span className="file-name">{name}</span>
+          <span className={"file-size" + (st.status === "error" ? " err" : "")}>{note}</span>
+        </span>
+      </button>
+      <span className="file-side">
+        {openable ? (
+          <button className="icon-btn small" onClick={() => void revealSaved(content)} title={tr("Показать в папке")} aria-label={tr("Показать в папке")}>
+            <FolderOpen size={16} />
+          </button>
+        ) : st.status !== "loading" ? (
+          <button className="icon-btn small" onClick={main} title={tr("Скачать в «Загрузки»")} aria-label={tr("Скачать")}>
+            <Download size={16} />
+          </button>
+        ) : null}
+        {canSaveAs() && st.status !== "loading" && (
+          <button className="icon-btn small" onClick={() => void saveContent(client, content, true)} title={tr("Сохранить как…")} aria-label={tr("Сохранить как…")}>
+            <FolderInput size={16} />
+          </button>
+        )}
       </span>
-      <span className="file-text">
-        <span className="file-name">{name}</span>
-        <span className={"file-size" + (state === "error" ? " err" : "")}>{note}</span>
-      </span>
-      <span className="file-dl">{state === "saving" ? <LoaderCircle size={16} className="spin" /> : <Download size={16} />}</span>
-    </button>
+    </div>
   );
 }

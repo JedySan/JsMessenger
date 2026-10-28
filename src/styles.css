@@ -514,6 +514,22 @@ button.media-box { cursor: zoom-in; }
 .file-size { display: block; font-size: 12px; color: var(--text-3); }
 .file-size.err { color: var(--danger); }
 .file-dl { color: var(--text-3); flex-shrink: 0; }
+/* файл в сообщении: скачать с прогрессом → открыть, показать в папке, сохранить как */
+.file-card.file-box { padding: 0 6px 0 0; gap: 2px; }
+.file-box .file-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 11px; padding: 9px 6px 9px 10px; text-align: left; border-radius: 11px; }
+.file-box .file-main:hover { background: var(--hover); }
+.file-box:hover { background: none; }
+.file-side { display: flex; align-items: center; gap: 0; flex-shrink: 0; color: var(--text-3); }
+.file-side .icon-btn { color: var(--text-3); }
+.file-side .icon-btn:hover { color: var(--text); }
+.file-ext { font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; }
+.file-box.done .file-icon { background: var(--accent); color: var(--accent-fg); }
+.file-icon { position: relative; }
+.file-ring {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--p, 25%), color-mix(in srgb, var(--accent) 18%, transparent) 0);
+  -webkit-mask: radial-gradient(circle, transparent 8px, #000 8.5px); mask: radial-gradient(circle, transparent 8px, #000 8.5px);
+}
 
 .lightbox {
   position: fixed; inset: 0; z-index: 20; background: rgba(8, 10, 12, 0.92);
@@ -1202,3 +1218,29 @@ textarea.text-input { resize: vertical; font: inherit; }
 @media (max-width: 720px) {
   .room-shell > .room-info.media-panel { width: auto; }
 }
+.file-badge { position: relative; }
+.file-badge.done { background: var(--accent); color: var(--accent-fg); }
+
+/* ---------- пересылка ---------- */
+.fwd-preview {
+  display: flex; flex-direction: column; gap: 1px; padding: 8px 12px; border-radius: 10px;
+  border-left: 3px solid var(--accent); background: var(--hover); font-size: 13.5px; min-width: 0;
+}
+.fwd-preview b { color: var(--accent); font-weight: 600; }
+.fwd-preview span { color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.panel-note svg { vertical-align: -2px; }
+
+/* ---------- меню по правой кнопке ---------- */
+.popup-menu { max-height: calc(100vh - 16px); overflow-y: auto; }
+.popup-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+.popup-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.popup-hint { font-size: 11.5px; color: var(--text-3); margin-left: 16px; }
+.popup-reacts { display: flex; align-items: center; gap: 2px; padding: 2px 2px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.popup-reacts button {
+  width: 34px; height: 34px; border-radius: 9px; font-size: 19px; display: inline-flex; align-items: center; justify-content: center;
+  transition: transform 0.12s, background 0.12s;
+}
+.popup-reacts button:hover { background: var(--hover); transform: scale(1.12); }
+.popup-reacts button.on { background: var(--accent-soft); }
+.popup-reacts .more { color: var(--text-2); font-size: 15px; }
+.msg.menu-target { background: var(--hover); }

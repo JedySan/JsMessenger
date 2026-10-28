@@ -1,9 +1,10 @@
 // Панель «Медиа и файлы»: всё, что присылали в чат, по вкладкам — как в Telegram.
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } from "react";
 import { RoomEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { CornerUpLeft, Download, FileText, Image as ImageIcon, LoaderCircle, Play } from "lucide-react";
+import { CornerUpLeft, FileText, FolderOpen, Image as ImageIcon, LoaderCircle, Play } from "lucide-react";
 import { MediaScanner, type MediaItem, type MediaKind } from "../roomMedia";
-import { AudioMessage, loadBlobUrl, openViewer, saveContent } from "./Media";
+import { AudioMessage, fileExt, loadBlobUrl, openSaved, openViewer, revealSaved, saveContent } from "./Media";
+import { canOpenFiles, fileName, useDownload } from "../downloads";
 import { PanelHead } from "./Panels";
 import { thumbnailUrl } from "../media";
 import { formatSize } from "../attachments";
@@ -11,7 +12,6 @@ import { listTime, timeHM } from "../format";
 import { openExternal } from "../widgets";
 import { htmlToText } from "../richtext";
 import { locale, tr } from "../i18n";
-import { notice } from "./Ask";
 
 const TABS: Array<{ id: MediaKind; label: string; empty: string }> = [
   { id: "media", label: tr("Медиа"), empty: tr("Фото и видео в этом чате пока нет") },
@@ -93,11 +93,6 @@ function duration(ms?: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function extOf(name: string): string {
-  const m = name.match(/\.([a-z0-9]{1,5})$/i);
-  return m ? m[1].toUpperCase() : "";
-}
-
 function JumpBtn({ onJump }: { onJump: () => void }) {
   return (
     <button
@@ -115,32 +110,44 @@ function JumpBtn({ onJump }: { onJump: () => void }) {
 }
 
 function FileRow({ client, room, item, onJump }: { client: MatrixClient; room: Room; item: MediaItem; onJump: () => void }) {
-  const [state, setState] = useState<"idle" | "saving" | "done">("idle");
   const c = item.content;
-  const name = String(c.filename ?? c.body ?? tr("Файл"));
+  const st = useDownload(c);
+  const name = fileName(c);
   const who = room.getMember(item.sender)?.name ?? item.sender;
-  const save = async () => {
-    setState("saving");
-    try {
-      await saveContent(client, c);
-      setState("done");
-    } catch (e) {
-      setState("idle");
-      notice(e instanceof Error ? e.message : String(e));
-    }
+  const openable = st.status === "done" && !!st.path && canOpenFiles();
+  const pct = st.status === "loading" && st.progress != null ? Math.round(st.progress * 100) : null;
+  const main = () => {
+    if (st.status === "loading") return;
+    if (openable) void openSaved(c);
+    else void saveContent(client, c);
   };
+  const meta =
+    st.status === "loading"
+      ? pct != null
+        ? tr("Скачиваю… {0}%", pct)
+        : tr("Скачиваю…")
+      : openable
+        ? tr("Скачано · нажмите, чтобы открыть")
+        : [formatSize(c.info?.size), who, listTime(item.ts)].filter(Boolean).join(" · ");
   return (
     <div className="media-row">
-      <button className="media-row-main" onClick={save} disabled={state === "saving"} title={tr("Сохранить в «Загрузки»")}>
-        <span className="file-badge">{state === "saving" ? <LoaderCircle size={18} className="spin" /> : extOf(name) || <FileText size={18} />}</span>
+      <button className="media-row-main" onClick={main} title={openable ? tr("Открыть") : tr("Скачать в «Загрузки»")}>
+        <span
+          className={"file-badge" + (openable ? " done" : "")}
+          style={pct != null ? ({ ["--p" as string]: `${pct}%` } as CSSProperties) : undefined}
+        >
+          {st.status === "loading" ? <span className={"file-ring" + (pct == null ? " spin" : "")} /> : fileExt(name) || <FileText size={18} />}
+        </span>
         <span className="media-row-text">
           <span className="media-row-title">{name}</span>
-          <span className="media-row-meta">
-            {state === "done" ? tr("Сохранено в «Загрузки»") : [formatSize(c.info?.size), who, listTime(item.ts)].filter(Boolean).join(" · ")}
-          </span>
+          <span className="media-row-meta">{meta}</span>
         </span>
-        <Download size={15} className="media-row-dl" />
       </button>
+      {openable && (
+        <button className="icon-btn small media-jump" onClick={() => void revealSaved(c)} title={tr("Показать в папке")} aria-label={tr("Показать в папке")}>
+          <FolderOpen size={15} />
+        </button>
+      )}
       <JumpBtn onJump={onJump} />
     </div>
   );

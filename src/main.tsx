@@ -14,6 +14,19 @@ if (window.jsmDesktop) {
 }
 else if (/Android/i.test(navigator.userAgent)) document.documentElement.dataset.platform = "android";
 
+// В приложении системное меню WebView («Перезагрузить», «Проверить элемент») не нужно.
+// Оставляем его только для полей ввода и выделенного текста (вырезать/копировать/вставить);
+// у сообщений, чатов и вложений — свои меню.
+if (window.jsmDesktop || "__TAURI_INTERNALS__" in window) {
+  document.addEventListener("contextmenu", (e) => {
+    if (e.defaultPrevented) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest("input, textarea, [contenteditable=true]")) return;
+    if (window.getSelection()?.toString()) return;
+    e.preventDefault();
+  });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

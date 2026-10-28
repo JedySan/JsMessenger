@@ -1,6 +1,32 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { EventType, MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { Ban, Check, CheckCheck, Circle, CircleAlert, Copy, Lock, MessagesSquare, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from "lucide-react";
+import {
+  Ban,
+  Check,
+  CheckCheck,
+  Circle,
+  CircleAlert,
+  ClipboardCopy,
+  Copy,
+  Download,
+  ExternalLink,
+  FolderInput,
+  FolderOpen,
+  Forward,
+  Image as ImageIcon,
+  Link2,
+  Lock,
+  Maximize2,
+  MessagesSquare,
+  Pencil,
+  Pin,
+  PinOff,
+  Reply,
+  SmilePlus,
+  TextSelect,
+  Trash2,
+} from "lucide-react";
 import { listTime, stripReplyFallback, timeHM } from "../format";
 import { htmlToText, linkify, sanitizeMessageHtml } from "../richtext";
 import { openExternal } from "../widgets";
@@ -8,7 +34,10 @@ import { flashEvent, requestJump } from "../jump";
 import Avatar from "./Avatar";
 import type { SendStatus } from "../receipts";
 import { openDialog } from "./DialogHost";
-import { AudioMessage, FileMessage, ImageMessage, VideoMessage } from "./Media";
+import { AudioMessage, FileMessage, ImageMessage, VideoMessage, openSaved, openViewer, revealSaved, saveContent } from "./Media";
+import { PopupMenu, type MenuItem } from "./ui";
+import { canForward } from "../forward";
+import { canOpenFiles, canSaveAs, copyImage, useDownload } from "../downloads";
 import { plural } from "../i18n";
 import { tr } from "../i18n";
 import { ask, notice } from "./Ask";
@@ -90,6 +119,7 @@ export default function Message({
   const time = timeHM(ev.getTs());
   const replyId: string | undefined = ev.getContent()["m.relates_to"]?.["m.in_reply_to"]?.event_id;
   const [picker, setPicker] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; link?: string; selection?: string } | null>(null);
 
   const redacted = ev.isRedacted();
   const canEdit = mine && !redacted && !ev.isSending() && (content.msgtype === MsgType.Text || content.msgtype === MsgType.Emote);
@@ -101,12 +131,34 @@ export default function Message({
   const threadCount = thread && ev.isThreadRoot ? thread.length : 0;
   const pinned = pinnedIds(room).includes(ev.getId() ?? "");
   const canPin = !redacted && !ev.isSending() && room.currentState.maySendStateEvent(PINNED, me);
+  const forwardable = canForward(ev);
+
+  const pin = () => togglePin(client, room, ev.getId()!).catch((e) => notice(e?.message ?? String(e)));
+  const del = () =>
+    void ask(mine ? tr("Удалить сообщение у всех?") : tr("Удалить чужое сообщение у всех?"), {
+      ok: tr("Удалить"),
+      danger: true,
+    }).then((ok): unknown => ok && client.redactEvent(room.roomId, ev.getId()!).catch((e) => notice(e?.message ?? String(e))));
+  const forward = () => openDialog({ kind: "forward", ev });
+
+  // правая кнопка (на телефоне — долгое нажатие): своё меню вместо системного
+  const onContextMenu = (e: ReactMouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("input, textarea, [contenteditable=true], video, audio")) return;
+    e.preventDefault();
+    const sel = window.getSelection();
+    const root = e.currentTarget as HTMLElement;
+    const selection = sel && !sel.isCollapsed && root.contains(sel.anchorNode) ? sel.toString().trim() : "";
+    const href = target.closest("a")?.getAttribute("href") ?? undefined;
+    setMenu({ x: e.clientX, y: e.clientY, link: href && /^(https?|mailto):/i.test(href) ? href : undefined, selection: selection || undefined });
+  };
 
   return (
     <div
       id={`ev-${ev.getId()}`}
-      className={"msg" + (grouped ? " grouped" : "") + (mine ? " mine" : "") + (picker ? " menu-open" : "")}
+      className={"msg" + (grouped ? " grouped" : "") + (mine ? " mine" : "") + (picker ? " menu-open" : "") + (menu ? " menu-target" : "")}
       tabIndex={-1}
+      onContextMenu={onContextMenu}
     >
       <div className="msg-gutter">
         {grouped ? (
@@ -186,10 +238,15 @@ export default function Message({
               <MessagesSquare size={15} />
             </button>
           )}
+          {forwardable && (
+            <button className="act" onClick={forward} title={tr("Переслать")} aria-label={tr("Переслать")}>
+              <Forward size={15} />
+            </button>
+          )}
           {canPin && (
             <button
               className="act"
-              onClick={() => togglePin(client, room, ev.getId()!).catch((e) => notice(e?.message ?? String(e)))}
+              onClick={pin}
               title={pinned ? tr("Открепить") : tr("Закрепить")}
               aria-label={pinned ? tr("Открепить") : tr("Закрепить")}
             >
@@ -214,12 +271,7 @@ export default function Message({
           {canDelete && (
             <button
               className="act danger"
-              onClick={() => {
-                void ask(mine ? tr("Удалить сообщение у всех?") : tr("Удалить чужое сообщение у всех?"), {
-                  ok: tr("Удалить"),
-                  danger: true,
-                }).then((ok): unknown => ok && client.redactEvent(room.roomId, ev.getId()!).catch((e) => notice(e?.message ?? String(e))));
-              }}
+              onClick={del}
               title={tr("Удалить")}
               aria-label={tr("Удалить")}
             >
@@ -237,8 +289,157 @@ export default function Message({
           )}
         </div>
       )}
+      {menu && (
+        <MessageMenu
+          client={client}
+          room={room}
+          ev={ev}
+          content={content}
+          at={menu}
+          onClose={() => setMenu(null)}
+          can={{ edit: canEdit, del: canDelete, pin: canPin, pinned, forward: forwardable, thread: !!actions.onThread && !ev.threadRootId, readable: !encryptedUnreadable && !redacted }}
+          act={{
+            react,
+            more: () => setPicker(true),
+            reply: () => actions.onReply(ev),
+            thread: () => actions.onThread?.(ev),
+            edit: () => actions.onEdit(ev),
+            pin,
+            del,
+            forward,
+          }}
+        />
+      )}
     </div>
   );
+}
+
+const copy = (text: string) => navigator.clipboard.writeText(text).catch(() => notice(tr("Не удалось скопировать")));
+
+/** Меню сообщения по правой кнопке: реакции, ответ, пересылка, копирование, вложение, правка, удаление. */
+function MessageMenu({
+  client,
+  room,
+  ev,
+  content,
+  at,
+  onClose,
+  can,
+  act,
+}: {
+  client: MatrixClient;
+  room: Room;
+  ev: MatrixEvent;
+  content: Record<string, any>;
+  at: { x: number; y: number; link?: string; selection?: string };
+  onClose: () => void;
+  can: { edit: boolean; del: boolean; pin: boolean; pinned: boolean; forward: boolean; thread: boolean; readable: boolean };
+  act: {
+    react: (k: string) => void;
+    more: () => void;
+    reply: () => void;
+    thread: () => void;
+    edit: () => void;
+    pin: () => void;
+    del: () => void;
+    forward: () => void;
+  };
+}) {
+  const dl = useDownload(content);
+  const t = content.msgtype as string | undefined;
+  const isImage = t === MsgType.Image || ev.getType() === EventType.Sticker;
+  const isVideo = t === MsgType.Video;
+  const isFile = t === MsgType.File || t === MsgType.Audio;
+  const hasMedia = can.readable && (isImage || isVideo || isFile) && !!(content.url || content.file);
+  const isText = can.readable && !hasMedia && typeof content.body === "string";
+  const saved = dl.status === "done" && !!dl.path && canOpenFiles();
+  const sending = ev.isSending();
+
+  const items: MenuItem[] = [
+    { label: tr("Ответить"), icon: <Reply size={15} />, onClick: act.reply, hidden: sending || ev.isRedacted() },
+    { label: tr("Ответить в треде"), icon: <MessagesSquare size={15} />, onClick: act.thread, hidden: !can.thread || sending || ev.isRedacted() },
+    { label: tr("Переслать"), icon: <Forward size={15} />, onClick: act.forward, hidden: !can.forward },
+
+    // копирование
+    { sep: true, label: tr("Копировать выделенное"), icon: <TextSelect size={15} />, onClick: () => copy(at.selection!), hidden: !at.selection },
+    { sep: !at.selection, label: tr("Копировать текст"), icon: <Copy size={15} />, onClick: () => copy(plainText(ev)), hidden: !isText },
+    { label: tr("Копировать ссылку"), icon: <Link2 size={15} />, onClick: () => copy(at.link!), hidden: !at.link },
+    { label: tr("Открыть ссылку"), icon: <ExternalLink size={15} />, onClick: () => openExternal(at.link!), hidden: !at.link },
+
+    // вложение
+    { sep: true, label: tr("Открыть"), icon: <Maximize2 size={15} />, onClick: () => openViewer(client, [content]), hidden: !hasMedia || !(isImage || isVideo) },
+    {
+      label: tr("Копировать изображение"),
+      icon: <ImageIcon size={15} />,
+      onClick: () => void copyImage(client, content).catch((e) => notice(tr("Не удалось скопировать: {0}", e instanceof Error ? e.message : String(e)))),
+      hidden: !hasMedia || !isImage,
+    },
+    { label: tr("Открыть файл"), icon: <ExternalLink size={15} />, onClick: () => void openSaved(content), hidden: !hasMedia || !saved },
+    { label: tr("Показать в папке"), icon: <FolderOpen size={15} />, onClick: () => void revealSaved(content), hidden: !hasMedia || !saved },
+    {
+      sep: !(isImage || isVideo) && !saved,
+      label: tr("Скачать в «Загрузки»"),
+      icon: <Download size={15} />,
+      onClick: () => void saveContent(client, content),
+      hidden: !hasMedia || saved || dl.status === "loading",
+    },
+    { label: tr("Сохранить как…"), icon: <FolderInput size={15} />, onClick: () => void saveContent(client, content, true), hidden: !hasMedia || !canSaveAs() },
+
+    // управление
+    { sep: true, label: tr("Изменить"), icon: <Pencil size={15} />, onClick: act.edit, hidden: !can.edit },
+    { label: can.pinned ? tr("Открепить") : tr("Закрепить"), icon: can.pinned ? <PinOff size={15} /> : <Pin size={15} />, onClick: act.pin, hidden: !can.pin },
+    {
+      label: tr("Копировать ссылку на сообщение"),
+      icon: <ClipboardCopy size={15} />,
+      onClick: () => copy(`https://matrix.to/#/${encodeURIComponent(room.roomId)}/${encodeURIComponent(ev.getId()!)}`),
+      hidden: sending,
+    },
+    { sep: true, label: tr("Удалить"), icon: <Trash2 size={15} />, danger: true, onClick: act.del, hidden: !can.del },
+  ];
+  // первая видимая черта не нужна; черты подряд — тоже
+  let prevSep = true;
+  for (const i of items) {
+    if (i.hidden) continue;
+    if (i.sep && prevSep) i.sep = false;
+    prevSep = false;
+  }
+
+  const header =
+    can.readable && !sending ? (
+      <div className="popup-reacts">
+        {QUICK_REACTIONS.map((k) => (
+          <button
+            key={k}
+            onClick={() => {
+              onClose();
+              act.react(k);
+            }}
+            title={tr("Реакция {0}", k)}
+          >
+            {k}
+          </button>
+        ))}
+        <button
+          className="more"
+          onClick={() => {
+            onClose();
+            act.more();
+          }}
+          title={tr("Другая реакция")}
+          aria-label={tr("Другая реакция")}
+        >
+          <SmilePlus size={17} />
+        </button>
+      </div>
+    ) : undefined;
+
+  const empty = !header && items.every((i) => i.hidden);
+  useEffect(() => {
+    if (empty) onClose();
+  }, [empty, onClose]);
+  if (empty) return null;
+  // в body — чтобы меню не обрезалось и не съезжало внутри прокручиваемой ленты
+  return createPortal(<PopupMenu x={at.x} y={at.y} items={items} onClose={onClose} header={header} />, document.body);
 }
 
 function EmojiPicker({ onPick, onClose }: { onPick: (k: string) => void; onClose: () => void }) {

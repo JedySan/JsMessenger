@@ -8,6 +8,7 @@ const {
   Notification,
   Tray,
   desktopCapturer,
+  dialog,
   ipcMain,
   nativeImage,
   nativeTheme,
@@ -294,19 +295,46 @@ ipcMain.on("badge", (_e, count, image) => {
 });
 
 // ---------- файлы и ссылки ----------
-ipcMain.handle("save-download", async (_e, { name, data }) => {
-  const dir = app.getPath("downloads");
+// Файлы, которые сохранило само приложение, — открывать и показывать в папке можно только их.
+const savedFiles = new Set();
+function uniquePath(dir, name) {
   const safe = String(name).replace(/[/\\:*?"<>|]+/g, "_").trim() || "file";
   const dot = safe.lastIndexOf(".");
   const base = dot > 0 ? safe.slice(0, dot) : safe;
   const ext = dot > 0 ? safe.slice(dot) : "";
   let file = path.join(dir, safe);
   for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, `${base} (${i})${ext}`);
+  return file;
+}
+ipcMain.handle("save-download", async (_e, { name, data }) => {
+  const dir = app.getPath("downloads");
   await fs.promises.mkdir(dir, { recursive: true });
+  const file = uniquePath(dir, name);
   await fs.promises.writeFile(file, Buffer.from(data));
-  shell.showItemInFolder(file);
+  savedFiles.add(file);
   return file;
 });
+// «Сохранить как…»: системное окно выбора места; null — отменили
+ipcMain.handle("save-as", async (_e, { name, data }) => {
+  const safe = String(name).replace(/[/\\:*?"<>|]+/g, "_").trim() || "file";
+  const r = await dialog.showSaveDialog(win, { defaultPath: path.join(app.getPath("downloads"), safe) });
+  if (r.canceled || !r.filePath) return null;
+  await fs.promises.writeFile(r.filePath, Buffer.from(data));
+  savedFiles.add(r.filePath);
+  return r.filePath;
+});
+ipcMain.handle("open-path", async (_e, file) => {
+  if (!savedFiles.has(file) && !file.startsWith(app.getPath("downloads"))) throw new Error("not allowed");
+  if (!fs.existsSync(file)) throw new Error("missing");
+  const err = await shell.openPath(file);
+  if (err) throw new Error(err);
+});
+ipcMain.handle("show-item", (_e, file) => {
+  if (!savedFiles.has(file) && !file.startsWith(app.getPath("downloads"))) throw new Error("not allowed");
+  if (!fs.existsSync(file)) throw new Error("missing");
+  shell.showItemInFolder(file);
+});
+ipcMain.handle("file-exists", (_e, file) => fs.existsSync(String(file)));
 
 ipcMain.handle("open-external", (_e, url) => {
   if (/^(https?|mailto):/i.test(String(url))) return shell.openExternal(url);

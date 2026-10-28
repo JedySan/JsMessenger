@@ -70,38 +70,8 @@ export async function downloadMedia(client: MatrixClient, content: Record<string
   return new Blob([data], { type: content.info?.mimetype ?? "application/octet-stream" });
 }
 
-import { electron, isTauri } from "./platform";
-import { tr } from "./i18n";
 
-/** Сохраняет файл в «Загрузки» и показывает его в Finder (в браузере — обычное скачивание). */
-export async function saveToDownloads(name: string, blob: Blob): Promise<void> {
-  const safe = name.replace(/[/\\:*?"<>|]+/g, "_").trim() || "file";
-  const el = electron();
-  if (el) {
-    await el.saveDownload(safe, new Uint8Array(await blob.arrayBuffer()));
-    return;
-  }
-  if (!isTauri()) {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = safe;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-    return;
-  }
-  const { writeFile, exists, BaseDirectory } = await import("@tauri-apps/plugin-fs");
-  const { downloadDir, join } = await import("@tauri-apps/api/path");
-  const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
-  // Не перезаписываем существующий файл: «отчёт.pdf» → «отчёт (1).pdf»
-  const dot = safe.lastIndexOf(".");
-  const base = dot > 0 ? safe.slice(0, dot) : safe;
-  const ext = dot > 0 ? safe.slice(dot) : "";
-  let candidate = safe;
-  for (let i = 1; await exists(candidate, { baseDir: BaseDirectory.Download }); i++) candidate = `${base} (${i})${ext}`;
-  await writeFile(candidate, new Uint8Array(await blob.arrayBuffer()), { baseDir: BaseDirectory.Download });
-  // на телефоне «показать в папке» нет — файл просто лежит в «Загрузках»
-  await revealItemInDir(await join(await downloadDir(), candidate)).catch(() => {});
-}
+import { tr } from "./i18n";
 
 // ---------- отправка ----------
 function imageSize(file: Blob): Promise<{ w: number; h: number } | null> {
