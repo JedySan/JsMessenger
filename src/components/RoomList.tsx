@@ -37,6 +37,8 @@ import { openDirectChat } from "../rooms";
 import { openDialog } from "./DialogHost";
 import { PopupMenu, type MenuItem } from "./ui";
 import { tr } from "../i18n";
+import { useNarrow } from "../hooks";
+import { longPressProps } from "../touch";
 import { ask, notice } from "./Ask";
 
 type Filter = "all" | "unread" | "fav";
@@ -54,6 +56,7 @@ export default function RoomList({
   onSelect: (id: string) => void;
   onOpenInfo: (id: string) => void;
 }) {
+  const narrow = useNarrow();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
@@ -124,6 +127,10 @@ export default function RoomList({
     });
   };
 
+  // телефон: долгое нажатие на чат — то же меню
+  const roomMenuAt = (r: Room, x: number, y: number) =>
+    roomMenu(r, { clientX: x, clientY: y, preventDefault() {}, stopPropagation() {} } as unknown as MouseEvent);
+
   const addMenu = (e: MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setMenu({
@@ -146,7 +153,7 @@ export default function RoomList({
     });
   };
 
-  const title = scope.kind === "all" ? tr("Все чаты") : scope.kind === "dm" ? tr("Личные") : (space?.name ?? tr("Пространство"));
+  const title = scope.kind === "all" ? (narrow ? tr("Чаты") : tr("Все чаты")) : scope.kind === "dm" ? tr("Личные") : (space?.name ?? tr("Пространство"));
 
   const row = ({ r, last }: { r: Room; last: ReturnType<typeof lastMessagePreview> }) => {
     const unread = r.getUnreadNotificationCount(NotificationCountType.Total);
@@ -159,11 +166,12 @@ export default function RoomList({
         className={"room-item" + (r.roomId === selected ? " active" : "") + (unread > 0 && !muted ? " unread" : "")}
         onClick={() => onSelect(r.roomId)}
         onContextMenu={(e) => roomMenu(r, e)}
+        {...(narrow ? longPressProps((x, y) => roomMenuAt(r, x, y)) : {})}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && onSelect(r.roomId)}
       >
-        <RoomAvatar client={client} room={r} size={40} />
+        <RoomAvatar client={client} room={r} size={narrow ? 54 : 40} />
         <div className="room-main">
           <div className="room-top">
             <span className="room-name">{r.name}</span>

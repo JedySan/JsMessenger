@@ -90,3 +90,35 @@ export function useMessageGestures(
     };
   });
 }
+
+// ---------- долгое нажатие на строке списка (чаты) ----------
+let lpTimer = 0;
+let lpX = 0;
+let lpY = 0;
+let lpFired = false;
+/** Обработчики для React-элемента: долгое нажатие вызывает onLong, а «клик» после него гасится. */
+export function longPressProps(onLong: (x: number, y: number) => void) {
+  return {
+    onTouchStart: (e: React.TouchEvent) => {
+      const t = e.touches[0];
+      lpX = t.clientX;
+      lpY = t.clientY;
+      lpFired = false;
+      window.clearTimeout(lpTimer);
+      lpTimer = window.setTimeout(() => {
+        lpFired = true;
+        navigator.vibrate?.(8);
+        onLong(lpX, lpY);
+      }, LONG_MS);
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      const t = e.touches[0];
+      if (Math.abs(t.clientX - lpX) > 8 || Math.abs(t.clientY - lpY) > 8) window.clearTimeout(lpTimer);
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      window.clearTimeout(lpTimer);
+      if (lpFired) e.preventDefault();
+    },
+    onTouchCancel: () => window.clearTimeout(lpTimer),
+  };
+}

@@ -1605,3 +1605,94 @@ html[data-platform="ios"] .titlebar { height: 0; }
   }
   .popup-item { padding-top: 10px; padding-bottom: 10px; font-size: 15px; }
 }
+
+/* ---------- телефон: главный экран (список чатов, вкладки, настройки) ---------- */
+.tab-bar, .m-back { display: none; }
+@media (max-width: 720px) {
+  .layout .space-bar, .me-row { display: none; }
+  .layout .sidebar { position: relative; background: var(--bg); }
+  .sidebar > .titlebar { height: 4px; }
+
+  .list-head { padding: 6px 12px 8px 16px; }
+  .list-title { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+  .list-head .icon-btn.small {
+    width: 38px; height: 38px; border-radius: 50%; color: var(--text);
+    background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-edge);
+  }
+  .sidebar .search { margin: 0 16px 10px; height: 40px; border-radius: 20px; padding: 0 14px; background: var(--hover); font-size: 16px; }
+  .sidebar .search svg { width: 17px; height: 17px; }
+  .chips { padding: 0 16px 6px; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .chip { height: 32px; padding: 0 14px; border-radius: 16px; font-size: 14px; flex-shrink: 0; }
+  .notice, .call-bar { margin: 0 16px 10px; border-radius: 16px; }
+
+  .room-list { padding: 0 0 calc(96px + env(safe-area-inset-bottom)); }
+  .list-heading { padding: 14px 16px 4px; font-size: 13px; text-transform: none; }
+  .room-item { position: relative; padding: 9px 16px; gap: 12px; border-radius: 0; }
+  .room-item:hover, .room-item.active { background: none; }
+  .room-item:active { background: var(--hover); }
+  /* разделитель — от текста, как в Telegram */
+  .room-item::after { content: ""; position: absolute; left: 82px; right: 0; bottom: 0; height: 0.5px; background: var(--line); }
+  .room-name { font-size: 16.5px; font-weight: 600; }
+  .room-time { font-size: 13.5px; }
+  .room-top { margin-bottom: 2px; }
+  .room-preview { font-size: 15px; line-height: 1.3; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .room-bottom { align-items: flex-start; }
+  .room-item .badge { min-width: 22px; height: 22px; border-radius: 11px; font-size: 13px; margin-top: 2px; }
+  .room-item .room-more { display: none !important; }
+  .room-item:hover .room-time, .room-item:hover .badge { visibility: visible; }
+  .room-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+  /* вкладки внизу — стеклянная «капсула» */
+  .tab-bar {
+    display: flex; position: absolute; left: 14px; right: 14px; bottom: 8px; z-index: 6;
+    height: 64px; padding: 4px; border-radius: 32px; box-sizing: border-box;
+    background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-edge);
+  }
+  .tab {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    border-radius: 28px; color: var(--text); transition: background 0.2s ease, color 0.2s ease;
+  }
+  .tab.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+  .tab-icon { position: relative; display: inline-flex; }
+  .tab-label { font-size: 11px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tab-badge {
+    position: absolute; top: -5px; left: 14px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+    border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 650; line-height: 18px; text-align: center;
+  }
+
+  /* экраны «Пространства» и «Настройки» */
+  .m-page { flex: 1; overflow-y: auto; padding-bottom: calc(96px + env(safe-area-inset-bottom)); background: var(--bg); }
+  .m-group { margin: 0 16px 18px; border-radius: 16px; overflow: hidden; background: var(--side); }
+  .m-row {
+    width: 100%; display: flex; align-items: center; gap: 12px; min-height: 50px; padding: 8px 14px; text-align: left;
+    position: relative; color: var(--text);
+  }
+  .m-row + .m-row::before { content: ""; position: absolute; top: 0; left: 56px; right: 0; height: 0.5px; background: var(--line); }
+  .m-row:active:not(:disabled) { background: var(--hover); }
+  .m-row:disabled { opacity: 1; cursor: default; }
+  .m-row-icon {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent); color: #fff;
+  }
+  .m-row-icon svg { width: 17px; height: 17px; }
+  .m-row-icon.warn { background: #e0912f; }
+  .m-row-icon.ok { background: #34a853; }
+  .m-row.danger { color: var(--danger); }
+  .m-row.danger .m-row-icon { background: var(--danger); }
+  .m-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .m-row-title { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-row-sub { font-size: 13px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-row-go { color: var(--text-3); flex-shrink: 0; }
+  .m-row .badge { margin-right: 2px; }
+  .m-group .m-row:has(.avatar) + .m-row::before { left: 70px; }
+  .m-profile {
+    display: flex; align-items: center; gap: 14px; margin: 4px 16px 18px; padding: 12px 14px; width: calc(100% - 32px);
+    box-sizing: border-box; border-radius: 16px; background: var(--side); text-align: left; color: var(--text);
+  }
+  .m-profile-name { font-size: 19px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 40px 32px; color: var(--text-2); }
+  .m-empty svg { color: var(--accent); }
+  .m-back { display: inline-flex; align-items: center; gap: 2px; align-self: flex-start; padding: 6px 12px 0 8px; color: var(--accent); font-size: 16px; }
+}

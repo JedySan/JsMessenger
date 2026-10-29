@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, UserEvent, type MatrixClient } from "matrix-js-sdk";
 import { Bell, Check, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
-import { useClientUpdates } from "../hooks";
+import { useClientUpdates, useNarrow } from "../hooks";
+import { SettingsPage, SpacesPage, TabBar, type Tab } from "./MobileNav";
+import { ChevronLeft } from "lucide-react";
 import { isThisDeviceVerified } from "../matrix";
 import { call } from "../call";
 import { roomIdsInSpace, type Scope } from "../rooms";
@@ -33,7 +35,7 @@ import {
   startUpdateChecks,
   updaterEnabled,
 } from "../desktop";
-import { PopupMenu } from "./ui";
+import { PopupMenu, type MenuItem } from "./ui";
 import { isDesktop } from "../platform";
 import { attachNotifications, onNotificationClick, testNotification, updateBadge } from "../notifications";
 import { LANGS, lang, setLang, tr } from "../i18n";
@@ -139,6 +141,63 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
     if (s.kind === "space") setRoomId(null);
   };
 
+  const meItems: MenuItem[] = [
+            { label: tr("Профиль"), icon: <UserRound size={15} />, onClick: () => setShowProfile(true) },
+            { label: tr("Сеансы и устройства"), icon: <MonitorSmartphone size={15} />, onClick: () => setShowSessions(true) },
+            {
+              sep: true,
+              label: tr("Проверить уведомления"),
+              icon: <Bell size={15} />,
+              onClick: () => testNotification().then((msg) => notice(msg)),
+            },
+            {
+              label: tr("Запускать при входе в систему"),
+              icon: autostart ? <Check size={15} /> : <Power size={15} />,
+              hidden: !isDesktop(),
+              onClick: () =>
+                setAutostart(!autostart)
+                  .then(() => setAutostartState(!autostart))
+                  .catch((e) => notice(tr("Не удалось изменить автозапуск: {0}", e))),
+            },
+            {
+              label: tr("Проверить обновления"),
+              icon: <Download size={15} />,
+              hidden: !canUpdate,
+              onClick: () => checkForUpdate(false),
+            },
+            {
+              // переключаем по кругу; язык меняется после перезапуска интерфейса
+              label: tr("Язык: {0}", LANGS.find((l) => l.id === lang)?.name ?? lang),
+              icon: <Languages size={15} />,
+              onClick: () => setLang(LANGS[(LANGS.findIndex((l) => l.id === lang) + 1) % LANGS.length].id),
+            },
+            { sep: true, label: tr("О программе"), icon: <Info size={15} />, onClick: () => setShowAbout(true) },
+            {
+              label: tr("Закрыть JsMessenger полностью"),
+              icon: <Power size={15} />,
+              hidden: !isDesktop(),
+              onClick: () => quitApp(),
+            },
+            {
+              sep: true,
+              label: tr("Выйти из аккаунта"),
+              icon: <LogOut size={15} />,
+              danger: true,
+              onClick: () =>
+                void ask(tr("Выйти из аккаунта на этом устройстве?"), { ok: tr("Выйти"), danger: true }).then((ok): unknown => ok && onLogout()),
+            },
+];
+
+  // телефон: вкладки внизу вместо колонки пространств
+  const narrow = useNarrow();
+  const [tab, setTab] = useState<Tab>("chats");
+  const onTab = (t: Tab) => {
+    setTab(t);
+    if (t === "chats" || t === "spaces") setScope({ kind: "all" });
+    if (t === "dms") setScope({ kind: "dm" });
+  };
+  const listSide = !narrow || tab === "chats" || tab === "dms" || (tab === "spaces" && scope.kind === "space");
+
   return (
     <div className={"layout " + (mobileView === "content" && (room || space) ? "show-content" : "show-list")}>
       <SpaceBar client={client} scope={scope} onScope={changeScope} />
@@ -165,7 +224,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           </button>
         </div>
 
-        {verified === false && (
+        {verified === false && (!narrow || tab === "chats") && (
           <button className="notice" onClick={() => setShowVerify(true)}>
             <ShieldAlert size={18} className="notice-icon" />
             <span>
@@ -194,6 +253,24 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
 
         <UpdateBanner />
 
+        {narrow && tab === "settings" && (
+          <SettingsPage
+            client={client}
+            name={myName}
+            avatar={me?.avatarUrl}
+            verified={verified}
+            onProfile={() => setShowProfile(true)}
+            onVerify={() => setShowVerify(true)}
+            items={meItems}
+          />
+        )}
+        {narrow && tab === "spaces" && scope.kind !== "space" && <SpacesPage client={client} onOpen={(id) => setScope({ kind: "space", id })} />}
+        {narrow && tab === "spaces" && scope.kind === "space" && (
+          <button className="m-back" onClick={() => setScope({ kind: "all" })}>
+            <ChevronLeft size={18} /> {tr("Пространства")}
+          </button>
+        )}
+        {listSide && (
         <RoomList
           client={client}
           scope={scope}
@@ -210,6 +287,8 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             setMobileView("content");
           }}
         />
+        )}
+        {narrow && <TabBar client={client} tab={tab} onTab={onTab} />}
       </aside>
 
       <main className="content">
@@ -259,50 +338,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           x={meMenu.x}
           y={meMenu.y}
           onClose={() => setMeMenu(null)}
-          items={[
-            { label: tr("Профиль"), icon: <UserRound size={15} />, onClick: () => setShowProfile(true) },
-            { label: tr("Сеансы и устройства"), icon: <MonitorSmartphone size={15} />, onClick: () => setShowSessions(true) },
-            {
-              label: tr("Проверить уведомления"),
-              icon: <Bell size={15} />,
-              onClick: () => testNotification().then((msg) => notice(msg)),
-            },
-            {
-              label: tr("Запускать при входе в систему"),
-              icon: autostart ? <Check size={15} /> : <Power size={15} />,
-              hidden: !isDesktop(),
-              onClick: () =>
-                setAutostart(!autostart)
-                  .then(() => setAutostartState(!autostart))
-                  .catch((e) => notice(tr("Не удалось изменить автозапуск: {0}", e))),
-            },
-            {
-              label: tr("Проверить обновления"),
-              icon: <Download size={15} />,
-              hidden: !canUpdate,
-              onClick: () => checkForUpdate(false),
-            },
-            {
-              // переключаем по кругу; язык меняется после перезапуска интерфейса
-              label: tr("Язык: {0}", LANGS.find((l) => l.id === lang)?.name ?? lang),
-              icon: <Languages size={15} />,
-              onClick: () => setLang(LANGS[(LANGS.findIndex((l) => l.id === lang) + 1) % LANGS.length].id),
-            },
-            { label: tr("О программе"), icon: <Info size={15} />, onClick: () => setShowAbout(true) },
-            {
-              label: tr("Закрыть JsMessenger полностью"),
-              icon: <Power size={15} />,
-              hidden: !isDesktop(),
-              onClick: () => quitApp(),
-            },
-            {
-              label: tr("Выйти из аккаунта"),
-              icon: <LogOut size={15} />,
-              danger: true,
-              onClick: () =>
-                void ask(tr("Выйти из аккаунта на этом устройстве?"), { ok: tr("Выйти"), danger: true }).then((ok): unknown => ok && onLogout()),
-            },
-          ]}
+          items={meItems}
         />
       )}
     </div>

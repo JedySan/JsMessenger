@@ -69,6 +69,8 @@ const en: Record<string, string> = {
   "Остановить показ экрана": "Stop sharing screen",
   "Показать экран": "Share screen",
   "участник|участника|участников": "member|members",
+  "чат|чата|чатов": "chat|chats",
+  "Сеанс подтверждён": "Session verified",
   "Скрыть": "Hide",
   "Подключаюсь к звонку…": "Joining the call…",
   "Вызов…": "Calling…",
