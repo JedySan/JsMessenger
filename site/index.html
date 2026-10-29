@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=20261029" />
+    <link rel="stylesheet" href="style.css?v=20261029b" />
   </head>
   <body>
     <!-- Страница — это переписка в JsMessenger: приложение рассказывает о себе и присылает установщики файлами -->
@@ -60,6 +60,12 @@
             <p data-i18n="m.others">А это для остальных:</p>
             <div class="files" id="file-others"></div>
             <p class="note" data-i18n="m.ios">Для iPhone версии пока нет — подойдёт Element X, он работает с тем же сервером.</p>
+            <p class="note" id="signing">
+              <span data-i18n="m.sign.1">Сборки для Windows подписаны. Бесплатную подпись кода предоставляет</span>
+              <a href="https://about.signpath.io/">SignPath.io</a><span data-i18n="m.sign.2">, сертификат — от</span>
+              <a href="https://signpath.org/">SignPath Foundation</a>.
+              <a href="https://github.com/JedySan/JsMessenger/blob/main/docs/CODE_SIGNING.md" data-i18n="m.sign.3">Политика подписи</a>
+            </p>
           </div>
         </article>
 
@@ -117,6 +123,6 @@
       </p>
     </noscript>
 
-    <script src="app.js?v=20261029"></script>
+    <script src="app.js?v=20261029b"></script>
   </body>
 </html>
