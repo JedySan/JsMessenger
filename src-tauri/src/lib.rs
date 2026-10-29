@@ -112,7 +112,10 @@ pub fn run() {
             }
 
             #[cfg(target_os = "ios")]
-            ios::hide_keyboard_bar();
+            {
+                ios::hide_keyboard_bar();
+                ios::keep_alive_after_background();
+            }
 
             #[cfg(target_os = "macos")]
             {

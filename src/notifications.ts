@@ -14,7 +14,7 @@ import { plainText } from "./components/Message";
 
 import { electron, isTauri } from "./platform";
 import { tr } from "./i18n";
-import { isAppFocused } from "./focus";
+import { isAppFocused, onAppFocus } from "./focus";
 
 // ---------- всплывающие карточки внутри приложения ----------
 // macOS не показывает баннеры активного приложения, поэтому, пока окно в фокусе,
@@ -54,7 +54,9 @@ function pushToast(roomId: string, title: string, body: string) {
 let permission: boolean | null = null;
 
 async function ensurePermission(): Promise<boolean> {
-  if (permission !== null) return permission;
+  // отказ не запоминаем навсегда: на iPhone спросить можно только когда приложение на экране,
+  // и если первый запрос пришёлся на фон — спросим ещё раз при следующем уведомлении
+  if (permission) return true;
   try {
     if (isTauri()) {
       const n = await import("@tauri-apps/plugin-notification");
@@ -198,9 +200,12 @@ export function attachNotifications(client: MatrixClient, currentRoom: () => str
   };
 
   client.on(RoomEvent.Timeline, onTimeline as never);
+  // разрешение спрашиваем сразу, пока приложение на экране (из фона iOS вопрос не покажет)
   ensurePermission();
+  const offFocus = onAppFocus(() => void ensurePermission());
   return () => {
     client.off(RoomEvent.Timeline, onTimeline as never);
+    offFocus();
   };
 }
 

@@ -36,6 +36,7 @@ keyring = { version = "3", features = ["apple-native"] }
 # iPhone: панель над клавиатурой (src/ios.rs)
 [target.'cfg(target_os = "ios")'.dependencies]
 objc2 = "0.6"
+block2 = "0.6"
 
 # Уведомления macOS через UNUserNotificationCenter (см. src/notify_mac.rs)
 [target.'cfg(target_os = "macos")'.dependencies]

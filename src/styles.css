@@ -1696,3 +1696,15 @@ html[data-platform="ios"] .titlebar { height: 0; }
   .m-empty svg { color: var(--accent); }
   .m-back { display: inline-flex; align-items: center; gap: 2px; align-self: flex-start; padding: 6px 12px 0 8px; color: var(--accent); font-size: 16px; }
 }
+/* телефон: карточка о новом сообщении — стеклянный баннер сверху, как системный */
+@media (max-width: 720px) {
+  .toasts { top: calc(env(safe-area-inset-top) + 8px); bottom: auto; left: 10px; right: 10px; width: auto; z-index: 90; }
+  .toast {
+    border-radius: 22px; padding: 12px 8px 12px 14px;
+    background: color-mix(in srgb, var(--raised) 90%, transparent); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge);
+    animation: toast-drop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+  }
+  .toast-main b, .toast-main span span { font-size: 15px; }
+}
+@keyframes toast-drop { from { transform: translateY(-24px); opacity: 0; } }
