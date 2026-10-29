@@ -58,5 +58,7 @@ export const electron = (): ElectronBridge | undefined => window.jsmDesktop;
 export const isMobile = () => /Android|iPhone|iPad/i.test(navigator.userAgent);
 /** Android-приложение (не мобильный браузер). */
 export const isAndroidApp = () => isTauri() && /Android/i.test(navigator.userAgent);
+/** Приложение для iPhone/iPad (не Safari). */
+export const isIOSApp = () => isTauri() && /iPhone|iPad/i.test(navigator.userAgent);
 /** Настольное приложение (любое), а не вкладка браузера и не телефон. */
 export const isDesktop = () => (isTauri() && !isMobile()) || !!electron();

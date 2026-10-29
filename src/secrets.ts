@@ -1,8 +1,8 @@
 // Защищённое хранилище секретов (токен входа):
-//   macOS (Tauri)        — Связка ключей;
+//   macOS и iOS (Tauri)  — Связка ключей;
 //   Windows/Linux (Electron) — safeStorage: шифрование ключом системы (DPAPI, libsecret/KWallet);
 //   браузер и Android    — недоступно, тогда токен остаётся в локальном хранилище, как раньше.
-import { electron, isMobile, isTauri } from "./platform";
+import { electron, isIOSApp, isMobile, isTauri } from "./platform";
 
 async function tauriInvoke<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
   const { invoke } = await import("@tauri-apps/api/core");
@@ -13,7 +13,7 @@ async function tauriInvoke<T>(cmd: string, args: Record<string, unknown>): Promi
 export async function secureStoreAvailable(): Promise<boolean> {
   const el = electron();
   if (el?.secretAvailable) return el.secretAvailable();
-  if (isTauri() && !isMobile()) {
+  if (isTauri() && (!isMobile() || isIOSApp())) {
     try {
       await tauriInvoke("secret_get", { key: "probe" });
       return true;

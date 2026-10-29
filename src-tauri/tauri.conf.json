@@ -71,6 +71,9 @@
       }
     },
     "copyright": "© 2026 JedySan. AGPL-3.0-or-later",
-    "shortDescription": "Matrix-мессенджер со звонками через LiveKit"
+    "shortDescription": "Matrix-мессенджер со звонками через LiveKit",
+    "iOS": {
+      "minimumSystemVersion": "16.0"
+    }
   }
 }

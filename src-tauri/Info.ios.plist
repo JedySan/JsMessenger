@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- Дополнения к Info.plist приложения для iPhone (tauri ios объединяет его с Info.plist) -->
+<dict>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>JsMessenger lets you send photos and videos from your library.</string>
+  <key>NSPhotoLibraryAddUsageDescription</key>
+  <string>JsMessenger saves photos you choose to your library.</string>
+  <!-- звонок и голосовое не обрываются, когда экран гаснет или приложение свёрнуто -->
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>audio</string>
+  </array>
+  <!-- скачанные файлы видны в «Файлах»: На iPhone → JsMessenger -->
+  <key>UIFileSharingEnabled</key>
+  <true/>
+  <key>LSSupportsOpeningDocumentsInPlace</key>
+  <true/>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+</dict>
+</plist>

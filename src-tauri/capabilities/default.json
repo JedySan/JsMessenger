@@ -29,6 +29,9 @@
       "allow": [
         {
           "path": "$DOWNLOAD/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
         }
       ]
     },
@@ -37,6 +40,9 @@
       "allow": [
         {
           "path": "$DOWNLOAD/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
         }
       ]
     },

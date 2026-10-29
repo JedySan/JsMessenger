@@ -170,6 +170,20 @@ VITE_DEFAULT_SERVER=matrix.example.com ./scripts/build-mac.sh
 появятся в «Artifacts». Локально: `npm run windows` (на Windows, Git Bash) или `npm run linux` (на Linux)
 → `release/electron/`. Интерфейс в Electron при разработке: `npm run dev` и `npm run electron:dev`.
 
+## iPhone (тестовая сборка)
+
+Без App Store: сборка ставится на свой iPhone через Xcode с бесплатным Apple ID и работает 7 дней,
+потом скрипт запускается ещё раз (переписка и вход сохраняются).
+
+1. Xcode → Settings → Accounts — добавьте Apple ID; там же *Manage Certificates… → + → Apple Development*.
+2. Подключите iPhone кабелем, разблокируйте, «Доверять этому компьютеру».
+   На iPhone: *Настройки → Конфиденциальность и безопасность → Режим разработчика* (пункт появляется после
+   подключения к Маку с Xcode).
+3. `./scripts/build-ios.sh` — соберёт и поставит. Первый запуск на телефоне:
+   *Настройки → Основные → VPN и управление устройством → ваш Apple ID → Доверять*.
+
+Скачанные файлы — в «Файлах»: *На iPhone → JsMessenger*. Показа экрана на iPhone нет.
+
 ## Сайт
 
 `site/` — сайт jsmassenger.ru: страница в виде переписки с JsMessenger, установщики приходят «файлами»,

@@ -4,7 +4,7 @@
 import { useSyncExternalStore } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { decryptAttachment, type EncryptedFile } from "./attachments";
-import { electron, isMobile, isTauri } from "./platform";
+import { electron, isIOSApp, isMobile, isTauri } from "./platform";
 import { tr } from "./i18n";
 
 export interface DlState {
@@ -122,13 +122,21 @@ export async function fetchMedia(
 
 const safeName = (name: string) => name.replace(/[/\\:*?"<>|]+/g, "_").trim() || "file";
 
+/** Куда сохранять в Tauri: «Загрузки»; на iPhone — папка приложения в «Файлах» (своих «Загрузок» там нет). */
+async function saveBase() {
+  const { BaseDirectory } = await import("@tauri-apps/plugin-fs");
+  const path = await import("@tauri-apps/api/path");
+  return isIOSApp() ? { baseDir: BaseDirectory.Document, dir: path.documentDir } : { baseDir: BaseDirectory.Download, dir: path.downloadDir };
+}
+
 async function tauriUnique(name: string): Promise<string> {
-  const { exists, BaseDirectory } = await import("@tauri-apps/plugin-fs");
+  const { exists } = await import("@tauri-apps/plugin-fs");
+  const { baseDir } = await saveBase();
   const dot = name.lastIndexOf(".");
   const base = dot > 0 ? name.slice(0, dot) : name;
   const ext = dot > 0 ? name.slice(dot) : "";
   let candidate = name;
-  for (let i = 1; await exists(candidate, { baseDir: BaseDirectory.Download }); i++) candidate = `${base} (${i})${ext}`;
+  for (let i = 1; await exists(candidate, { baseDir }); i++) candidate = `${base} (${i})${ext}`;
   return candidate;
 }
 
@@ -149,7 +157,7 @@ async function writeBlob(name: string, blob: Blob, saveAs: boolean): Promise<str
     setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     return undefined;
   }
-  const { writeFile, BaseDirectory } = await import("@tauri-apps/plugin-fs");
+  const { writeFile } = await import("@tauri-apps/plugin-fs");
   const { downloadDir, join } = await import("@tauri-apps/api/path");
   if (saveAs && desktopTauri()) {
     const { save } = await import("@tauri-apps/plugin-dialog");
@@ -159,8 +167,9 @@ async function writeBlob(name: string, blob: Blob, saveAs: boolean): Promise<str
     return path;
   }
   const file = await tauriUnique(safe);
-  await writeFile(file, new Uint8Array(await blob.arrayBuffer()), { baseDir: BaseDirectory.Download });
-  return join(await downloadDir(), file);
+  const base = await saveBase();
+  await writeFile(file, new Uint8Array(await blob.arrayBuffer()), { baseDir: base.baseDir });
+  return join(await base.dir(), file);
 }
 
 /**
