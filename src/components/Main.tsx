@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { KnownMembership, type MatrixClient } from "matrix-js-sdk";
-import { Bell, Check, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages } from "lucide-react";
+import { KnownMembership, UserEvent, type MatrixClient } from "matrix-js-sdk";
+import { Bell, Check, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
 import { useClientUpdates } from "../hooks";
 import { isThisDeviceVerified } from "../matrix";
 import { call } from "../call";
@@ -17,6 +17,7 @@ import SpaceHome from "./SpaceHome";
 import DialogHost from "./DialogHost";
 import { CallAudio, useCallState } from "./CallPanel";
 import AboutDialog from "./AboutDialog";
+import ProfileDialog from "./Profile";
 import Toasts from "./Toasts";
 import UpdateBanner from "./UpdateBanner";
 import IncomingCall from "./IncomingCall";
@@ -48,6 +49,8 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
   const [showSessions, setShowSessions] = useState(false);
   const [verifyTick, setVerifyTick] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [, bumpProfile] = useState(0);
   const [meMenu, setMeMenu] = useState<{ x: number; y: number } | null>(null);
   const [autostart, setAutostartState] = useState(false);
   const [canUpdate, setCanUpdate] = useState(false);
@@ -83,6 +86,18 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
   const room = roomId ? client.getRoom(roomId) : null;
   const callRoom = callState ? client.getRoom(callState.roomId) : null;
   const me = client.getUser(client.getSafeUserId());
+  // своё имя и аватар меняются — перерисовать строку профиля
+  useEffect(() => {
+    const u = client.getUser(client.getSafeUserId());
+    if (!u) return;
+    const f = () => bumpProfile((x) => x + 1);
+    u.on(UserEvent.DisplayName, f);
+    u.on(UserEvent.AvatarUrl, f);
+    return () => {
+      u.off(UserEvent.DisplayName, f);
+      u.off(UserEvent.AvatarUrl, f);
+    };
+  }, [client]);
   const myName = me?.displayName ?? client.getSafeUserId();
   const space = scope.kind === "space" ? client.getRoom(scope.id) : null;
 
@@ -130,11 +145,13 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
       <aside className="sidebar">
         <div className="titlebar" data-tauri-drag-region />
         <div className="me-row">
-          <Avatar client={client} mxc={me?.avatarUrl} name={myName} seed={client.getSafeUserId()} size={30} />
-          <div className="me-text">
-            <div className="me-name">{myName}</div>
-            <div className="me-id">{client.getSafeUserId()}</div>
-          </div>
+          <button className="me-open" onClick={() => setShowProfile(true)} title={tr("Профиль")}>
+            <Avatar client={client} mxc={me?.avatarUrl} name={myName} seed={client.getSafeUserId()} size={30} />
+            <span className="me-text">
+              <span className="me-name">{myName}</span>
+              <span className="me-id">{client.getSafeUserId()}</span>
+            </span>
+          </button>
           <button className="icon-btn" onClick={() => setShowSessions(true)} title={tr("Сеансы и устройства")} aria-label={tr("Сеансы и устройства")}>
             <MonitorSmartphone size={17} />
           </button>
@@ -236,12 +253,14 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
       {showSessions && <SessionsDialog client={client} onClose={() => setShowSessions(false)} />}
       <VerificationDialog client={client} onVerified={() => setVerifyTick((t) => t + 1)} />
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+      {showProfile && <ProfileDialog client={client} onClose={() => setShowProfile(false)} />}
       {meMenu && (
         <PopupMenu
           x={meMenu.x}
           y={meMenu.y}
           onClose={() => setMeMenu(null)}
           items={[
+            { label: tr("Профиль"), icon: <UserRound size={15} />, onClick: () => setShowProfile(true) },
             { label: tr("Сеансы и устройства"), icon: <MonitorSmartphone size={15} />, onClick: () => setShowSessions(true) },
             {
               label: tr("Проверить уведомления"),

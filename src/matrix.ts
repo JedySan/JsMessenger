@@ -7,11 +7,22 @@ import {
 } from "matrix-js-sdk";
 import { decodeRecoveryKey } from "matrix-js-sdk/lib/crypto-api/recovery-key";
 import { tr } from "./i18n";
+import { secretDelete, secretGet, secretSet, secureStoreAvailable } from "./secrets";
 
 /** Сервер по умолчанию задаётся при сборке: VITE_DEFAULT_SERVER=matrix.example.com npm run tauri build */
 export const DEFAULT_SERVER: string = (import.meta.env.VITE_DEFAULT_SERVER ?? "").trim();
 const SESSION_KEY = "jsm.session";
-const DEVICE_NAME = window.jsmDesktop?.platform === "linux" ? "JsMessenger (Linux)" : "JsMessenger (macOS)";
+const DEVICE_NAME = `JsMessenger (${
+  window.jsmDesktop?.platform === "linux"
+    ? "Linux"
+    : window.jsmDesktop?.platform === "win32"
+      ? "Windows"
+      : /Android/i.test(navigator.userAgent)
+        ? "Android"
+        : /Mac/i.test(navigator.userAgent)
+          ? "macOS"
+          : "Web"
+})`;
 
 export interface Session {
   baseUrl: string;
@@ -21,20 +32,57 @@ export interface Session {
 }
 
 // ---------- хранение сессии ----------
-// TODO (этап 3): перенести токен в связку ключей macOS через Tauri-плагин.
-export function loadSession(): Session | null {
+// Адрес сервера, пользователь и устройство — в локальном хранилище, а токен входа — в Связке ключей
+// (macOS) или в защищённом хранилище системы (Windows, Linux). Где его нет (браузер, Android),
+// токен лежит вместе с остальным, как раньше.
+const tokenKey = (userId: string) => `access-token:${userId}`;
+type Stored = Omit<Session, "accessToken"> & { accessToken?: string; tokenInSecureStore?: boolean };
+
+function readStored(): Stored | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
+    return raw ? (JSON.parse(raw) as Stored) : null;
   } catch {
     return null;
   }
 }
-function saveSession(s: Session) {
+
+export async function loadSession(): Promise<Session | null> {
+  const s = readStored();
+  if (!s) return null;
+  if (s.tokenInSecureStore) {
+    try {
+      const token = await secretGet(tokenKey(s.userId));
+      if (token) return { baseUrl: s.baseUrl, userId: s.userId, deviceId: s.deviceId, accessToken: token };
+    } catch (e) {
+      console.warn("[session] не удалось прочитать токен из защищённого хранилища", e);
+    }
+    return null; // доступа к токену нет (запись удалили или отказали) — войти заново
+  }
+  if (!s.accessToken) return null;
+  const session: Session = { baseUrl: s.baseUrl, userId: s.userId, deviceId: s.deviceId, accessToken: s.accessToken };
+  await saveSession(session); // старый формат: переносим токен в защищённое хранилище
+  return session;
+}
+
+async function saveSession(s: Session) {
+  if (await secureStoreAvailable()) {
+    try {
+      await secretSet(tokenKey(s.userId), s.accessToken);
+      const stored: Stored = { baseUrl: s.baseUrl, userId: s.userId, deviceId: s.deviceId, tokenInSecureStore: true };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(stored));
+      return;
+    } catch (e) {
+      console.warn("[session] защищённое хранилище недоступно, токен остаётся локально", e);
+    }
+  }
   localStorage.setItem(SESSION_KEY, JSON.stringify(s));
 }
-function clearSession() {
+
+async function clearSession() {
+  const s = readStored();
   localStorage.removeItem(SESSION_KEY);
+  if (s?.tokenInSecureStore) await secretDelete(tokenKey(s.userId)).catch(() => {});
 }
 
 // ---------- определение адреса сервера ----------
@@ -121,7 +169,7 @@ export async function login(server: string, user: string, password: string): Pro
     deviceId: res.device_id,
     accessToken: res.access_token,
   };
-  saveSession(session);
+  await saveSession(session);
   return session;
 }
 
@@ -138,7 +186,7 @@ export async function logout(): Promise<void> {
   }
   activeClient = null;
   starting = null;
-  clearSession();
+  await clearSession();
 }
 
 /** Ждёт первой успешной синхронизации. */

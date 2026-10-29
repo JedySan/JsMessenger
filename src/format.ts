@@ -2,8 +2,9 @@
 import { EventType, MsgType, type MatrixEvent, type Room } from "matrix-js-sdk";
 import { locale, tr } from "./i18n";
 import { htmlToText } from "./richtext";
+import { POLL_START, pollPreview } from "./polls";
 
-const VISIBLE = new Set<string>([EventType.RoomMessage, EventType.RoomMessageEncrypted, EventType.Sticker]);
+const VISIBLE = new Set<string>([EventType.RoomMessage, EventType.RoomMessageEncrypted, EventType.Sticker, ...POLL_START]);
 
 export function isVisibleMessage(e: MatrixEvent): boolean {
   // удалённые сообщения показываем заглушкой «Сообщение удалено»
@@ -53,10 +54,11 @@ export function lastMessagePreview(room: Room, myUserId: string, isDm = false): 
     let text: string;
     if (e.isRedacted()) text = tr("Сообщение удалено");
     else if (e.isDecryptionFailure() || e.getType() === EventType.RoomMessageEncrypted) text = tr("Зашифрованное сообщение");
+    else if (POLL_START.includes(e.getType())) text = pollPreview(e);
     else if (content.msgtype === MsgType.Image) text = tr("Фото");
     else if (content.msgtype === MsgType.File) text = tr("Файл: {0}", content.body ?? "");
     else if (content.msgtype === MsgType.Video) text = tr("Видео");
-    else if (content.msgtype === MsgType.Audio) text = tr("Аудио");
+    else if (content.msgtype === MsgType.Audio) text = content["org.matrix.msc3245.voice"] ? tr("Голосовое сообщение") : tr("Аудио");
     else if (content.format === "org.matrix.custom.html" && typeof content.formatted_body === "string")
       text = htmlToText(content.formatted_body).replace(/\s+/g, " ").trim(); // без значков Markdown
     else text = stripReplyFallback(String(content.body ?? "")).replace(/\*\*|`/g, "").replace(/\s+/g, " ");

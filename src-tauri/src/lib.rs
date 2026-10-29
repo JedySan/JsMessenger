@@ -1,5 +1,6 @@
 #[cfg(target_os = "macos")]
 mod notify_mac;
+mod secrets;
 
 #[cfg(target_os = "macos")]
 use tauri::{Emitter, RunEvent};
@@ -93,7 +94,14 @@ pub fn run() {
     }
 
     let app = builder
-        .invoke_handler(tauri::generate_handler![native_notify, native_notify_status, updater_enabled])
+        .invoke_handler(tauri::generate_handler![
+            native_notify,
+            native_notify_status,
+            updater_enabled,
+            secrets::secret_get,
+            secrets::secret_set,
+            secrets::secret_delete
+        ])
         .setup(|app| {
             // Окно создаётся скрытым (см. tauri.conf.json); при автозапуске так и оставляем
             let hidden = std::env::args().any(|a| a == HIDDEN_ARG);

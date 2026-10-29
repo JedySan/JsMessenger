@@ -37,6 +37,9 @@ jobs:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
       VITE_DEFAULT_SERVER: ${{ vars.VITE_DEFAULT_SERVER }}
       VITE_LIVEKIT_SERVICE_URL: ${{ vars.VITE_LIVEKIT_SERVICE_URL }}
+      # Подпись Windows через SignPath включается, когда заданы переменная SIGNPATH_ORGANIZATION_ID
+      # и секрет SIGNPATH_API_TOKEN (см. docs/CODE_SIGNING.md). Без них сборка — как раньше, без подписи.
+      SIGN: ${{ matrix.target == 'win' && vars.SIGNPATH_ORGANIZATION_ID != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +50,70 @@ jobs:
           cache: npm
       - name: Сборка
         run: ./scripts/build-electron.sh ${{ matrix.target }}
+      # ---------- подпись Windows (SignPath): сначала программа, потом установщик с ней ----------
+      - name: "Подпись: отправить программу"
+        if: env.SIGN == 'true'
+        id: up-app
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-app-unsigned
+          path: release/electron/win-unpacked/JsMessenger.exe
+          if-no-files-found: error
+          retention-days: 1
+      - name: "Подпись: программа (SignPath)"
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'JsMessenger' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: app-exe
+          github-artifact-id: ${{ steps.up-app.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-app
+      - name: "Подпись: установщик с подписанной программой"
+        if: env.SIGN == 'true'
+        run: |
+          cp signed-app/JsMessenger.exe release/electron/win-unpacked/JsMessenger.exe
+          rm -f release/electron/JsMessenger-*-Setup.exe release/electron/JsMessenger-*-Setup.exe.blockmap release/electron/latest.yml
+          npx electron-builder --win nsis --x64 --prepackaged release/electron/win-unpacked --publish never
+      - name: "Подпись: отправить установщик"
+        if: env.SIGN == 'true'
+        id: up-inst
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-installer-unsigned
+          path: release/electron/JsMessenger-*-Setup.exe
+          if-no-files-found: error
+          retention-days: 1
+      - name: "Подпись: установщик (SignPath)"
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'JsMessenger' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.up-inst.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-installer
+      - name: "Подпись: подписанный установщик и latest.yml для автообновления"
+        if: env.SIGN == 'true'
+        run: |
+          cp signed-installer/JsMessenger-*-Setup.exe release/electron/
+          node scripts/win-update-latest.mjs release/electron/JsMessenger-*-Setup.exe
+      - name: "Подпись: проверка"
+        if: env.SIGN == 'true'
+        shell: pwsh
+        run: |
+          foreach ($f in @("release/electron/win-unpacked/JsMessenger.exe") + (Get-ChildItem release/electron/JsMessenger-*-Setup.exe).FullName) {
+            $s = Get-AuthenticodeSignature $f
+            Write-Output "::notice title=Подпись::$(Split-Path $f -Leaf) — $($s.Status), $($s.SignerCertificate.Subject)"
+            if ($s.Status -ne 'Valid') { throw "Подпись недействительна: $f" }
+          }
+
       - name: Отчёт о сборке
         run: |
           cd release/electron

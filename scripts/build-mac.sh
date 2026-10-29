@@ -62,6 +62,20 @@ else
   warn "Создайте ключ один раз: ./scripts/updater-keygen.sh"
 fi
 
+# ---------- подпись приложения ----------
+# Постоянный самоподписанный сертификат (./scripts/mac-cert.sh) вместо ad-hoc: тогда macOS узнаёт
+# приложение после обновления — не спрашивает заново доступ к Связке ключей, микрофону и камере.
+SIGN_ID="${JSM_SIGN_IDENTITY:-JsMessenger Self-Signed}"
+SIGNED_WITH="ad-hoc"
+if security find-identity -p codesigning 2>/dev/null | grep -q "\"${SIGN_ID}\""; then
+  export APPLE_SIGNING_IDENTITY="$SIGN_ID"
+  SIGNED_WITH="$SIGN_ID"
+  echo "Подпись: сертификат «${SIGN_ID}»"
+else
+  warn "Подпись: ad-hoc — после каждого обновления macOS заново спросит доступ к Связке ключей."
+  warn "Чтобы не спрашивала: ./scripts/mac-cert.sh (один раз на каждом Маке)"
+fi
+
 say "Собираю универсальное приложение (первый раз — 5–10 минут)"
 if [[ $UPDATER -eq 1 ]]; then
   npm run tauri build -- --target "$TARGET" --bundles app dmg --config "$CONF"
@@ -79,7 +93,7 @@ EXE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "${APP}/Contents/In
 ARCHS=$(lipo -archs "${APP}/Contents/MacOS/${EXE}")
 echo "Архитектуры: ${ARCHS}"
 [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]] || die "сборка не универсальная"
-codesign --verify --deep --strict "$APP" && echo "Подпись: целостна (ad-hoc)"
+codesign --verify --deep --strict "$APP" && echo "Подпись: целостна (${SIGNED_WITH})"
 # без этих прав (при hardened runtime) macOS молча не даёт микрофон и камеру
 ENT=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null || true)
 [[ "$ENT" == *audio-input* && "$ENT" == *device.camera* ]] || die "в подписи нет прав на микрофон/камеру (src-tauri/Entitlements.plist)"

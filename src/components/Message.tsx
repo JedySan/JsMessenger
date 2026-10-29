@@ -34,9 +34,12 @@ import { flashEvent, requestJump } from "../jump";
 import Avatar from "./Avatar";
 import type { SendStatus } from "../receipts";
 import { openDialog } from "./DialogHost";
-import { AudioMessage, FileMessage, ImageMessage, VideoMessage, openSaved, openViewer, revealSaved, saveContent } from "./Media";
+import { AudioMessage, FileMessage, ImageMessage, VideoMessage, VoiceMessage, openSaved, openViewer, revealSaved, saveContent } from "./Media";
 import { PopupMenu, type MenuItem } from "./ui";
 import { canForward } from "../forward";
+import { isVoice } from "../voice";
+import { isPollStart, pollPreview } from "../polls";
+import { PollCard } from "./Poll";
 import { canOpenFiles, canSaveAs, copyImage, useDownload } from "../downloads";
 import { plural } from "../i18n";
 import { tr } from "../i18n";
@@ -75,6 +78,7 @@ export function effectiveContent(ev: MatrixEvent): Record<string, any> {
 /** Короткий текст сообщения — для цитат и копирования. */
 export function plainText(ev: MatrixEvent): string {
   if (ev.isRedacted()) return tr("Сообщение удалено");
+  if (isPollStart(ev)) return pollPreview(ev);
   const c = effectiveContent(ev);
   switch (c.msgtype) {
     case MsgType.Image:
@@ -82,7 +86,7 @@ export function plainText(ev: MatrixEvent): string {
     case MsgType.Video:
       return tr("Видео");
     case MsgType.Audio:
-      return tr("Аудио");
+      return isVoice(c) ? tr("Голосовое сообщение") : tr("Аудио");
     case MsgType.File:
       return tr("Файл: {0}", c.body ?? "");
   }
@@ -185,7 +189,7 @@ export default function Message({
               <Ban size={13} /> {tr("Сообщение удалено")}
             </span>
           ) : (
-            <Body client={client} ev={ev} content={content} />
+            <Body client={client} room={room} ev={ev} content={content} />
           )}
           {!redacted && ev.replacingEvent() && <span className="msg-meta"> {tr("(изменено)")}</span>}
           {status ? (
@@ -556,7 +560,7 @@ function onLinkClick(e: ReactMouseEvent) {
   if (href) openExternal(href);
 }
 
-function Body({ client, ev, content }: { client: MatrixClient; ev: MatrixEvent; content: Record<string, any> }) {
+function Body({ client, room, ev, content }: { client: MatrixClient; room: Room; ev: MatrixEvent; content: Record<string, any> }) {
   if (ev.isDecryptionFailure()) {
     return (
       <span className="msg-locked">
@@ -571,13 +575,14 @@ function Body({ client, ev, content }: { client: MatrixClient; ev: MatrixEvent; 
       </span>
     );
   }
+  if (isPollStart(ev)) return <PollCard client={client} room={room} ev={ev} />;
   switch (content.msgtype) {
     case MsgType.Image:
       return <ImageMessage client={client} content={content} />;
     case MsgType.Video:
       return <VideoMessage client={client} content={content} />;
     case MsgType.Audio:
-      return <AudioMessage client={client} content={content} />;
+      return isVoice(content) ? <VoiceMessage client={client} content={content} /> : <AudioMessage client={client} content={content} />;
     case MsgType.File:
       return <FileMessage client={client} content={content} />;
   }

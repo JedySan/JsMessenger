@@ -1,6 +1,8 @@
-import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import type React from "react";
+import { canPlayOgg, formatDuration, oggToWav, waveFromContent } from "../voice";
 import type { MatrixClient } from "matrix-js-sdk";
-import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, FolderInput, FolderOpen, ImageOff, LoaderCircle, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, FolderInput, FolderOpen, ImageOff, LoaderCircle, Pause, Play, X } from "lucide-react";
 import { downloadMedia, formatSize } from "../attachments";
 import { canOpenFiles, canSaveAs, download, fileName, openDownloaded, revealDownloaded, useDownload } from "../downloads";
 import { tr } from "../i18n";
@@ -241,6 +243,103 @@ export function VideoMessage({ client, content }: { client: MatrixClient; conten
       </button>
     );
   return <video className="media-video" style={box} src={url} controls autoPlay />;
+}
+
+/** Голосовое: кнопка, «волна» (нажать — перемотать), время, скорость 1×/1,5×/2×. */
+export function VoiceMessage({ client, content }: { client: MatrixClient; content: Record<string, any> }) {
+  const BARS = 40;
+  const wave = useMemo(() => waveFromContent(content, BARS), [content]);
+  const total = (Number(content["org.matrix.msc1767.audio"]?.duration ?? content.info?.duration) || 0) / 1000;
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const [state, setState] = useState<"idle" | "loading" | "playing" | "paused" | "error">("idle");
+  const [pos, setPos] = useState(0);
+  const [dur, setDur] = useState(total);
+  const [rate, setRate] = useState(1);
+
+  useEffect(() => () => audio.current?.pause(), []);
+
+  const ensure = async (): Promise<HTMLAudioElement | null> => {
+    if (audio.current) return audio.current;
+    setState("loading");
+    try {
+      let url = await loadBlobUrl(client, content);
+      const mime = String(content.info?.mimetype ?? content.file?.mimetype ?? "");
+      // старый Safari (WebView macOS) не играет Ogg — раскодируем сами
+      if (/ogg|opus/i.test(mime) && !canPlayOgg()) {
+        const ogg = await (await fetch(url)).arrayBuffer();
+        url = URL.createObjectURL(await oggToWav(ogg));
+      }
+      const a = new Audio(url);
+      a.playbackRate = rate;
+      a.ontimeupdate = () => setPos(a.currentTime);
+      a.onloadedmetadata = () => Number.isFinite(a.duration) && a.duration > 0 && setDur(a.duration);
+      a.onended = () => {
+        setState("paused");
+        setPos(0);
+      };
+      a.onpause = () => !a.ended && setState("paused");
+      a.onplay = () => setState("playing");
+      audio.current = a;
+      return a;
+    } catch (e) {
+      console.error("voice", e);
+      setState("error");
+      return null;
+    }
+  };
+
+  const toggle = async () => {
+    const a = await ensure();
+    if (!a) return;
+    if (a.paused) {
+      // одновременно играет только одно голосовое
+      document.dispatchEvent(new CustomEvent("jsm-voice-play", { detail: a }));
+      await a.play().catch(() => setState("error"));
+    } else a.pause();
+  };
+  useEffect(() => {
+    const other = (e: Event) => {
+      const a = audio.current;
+      if (a && (e as CustomEvent).detail !== a && !a.paused) a.pause();
+    };
+    document.addEventListener("jsm-voice-play", other);
+    return () => document.removeEventListener("jsm-voice-play", other);
+  }, []);
+
+  const seek = async (e: React.MouseEvent<HTMLSpanElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const a = await ensure();
+    if (!a) return;
+    const d = Number.isFinite(a.duration) && a.duration > 0 ? a.duration : dur;
+    a.currentTime = frac * d;
+    setPos(a.currentTime);
+    if (a.paused) void toggle();
+  };
+  const nextRate = () => {
+    const r = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1;
+    setRate(r);
+    if (audio.current) audio.current.playbackRate = r;
+  };
+
+  const progress = dur ? pos / dur : 0;
+  if (state === "error") return <FileMessage client={client} content={content} />;
+  return (
+    <div className={"voice-msg" + (state === "playing" ? " playing" : "")}>
+      <button className="voice-play" onClick={() => void toggle()} aria-label={state === "playing" ? tr("Пауза") : tr("Слушать")}>
+        {state === "loading" ? <LoaderCircle size={18} className="spin" /> : state === "playing" ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+      </button>
+      <span className="voice-wave" onClick={(e) => void seek(e)} role="slider" aria-label={tr("Перемотка")} aria-valuenow={Math.round(pos)} aria-valuemax={Math.round(dur)}>
+        {wave.map((h, i) => (
+          <i key={i} className={(i + 0.5) / wave.length <= progress ? "on" : ""} style={{ height: `${Math.round(h * 100)}%` }} />
+        ))}
+      </span>
+      <span className="voice-time">{formatDuration(state === "playing" || pos > 0 ? pos : dur)}</span>
+      <button className="voice-rate" onClick={nextRate} title={tr("Скорость")}>
+        {rate === 1.5 ? "1,5×" : `${rate}×`}
+      </button>
+    </div>
+  );
 }
 
 export function AudioMessage({ client, content }: { client: MatrixClient; content: Record<string, any> }) {

@@ -7,16 +7,22 @@ import Logo from "./components/Logo";
 import { tr } from "./i18n";
 
 type State =
+  | { kind: "boot" }
   | { kind: "login" }
   | { kind: "loading"; session: Session }
   | { kind: "ready"; client: MatrixClient }
   | { kind: "error"; message: string };
 
 export default function App() {
-  const [state, setState] = useState<State>(() => {
-    const s = loadSession();
-    return s ? { kind: "loading", session: s } : { kind: "login" };
-  });
+  const [state, setState] = useState<State>({ kind: "boot" });
+
+  // сессия: токен может лежать в Связке ключей — читаем асинхронно
+  useEffect(() => {
+    loadSession().then(
+      (s) => setState(s ? { kind: "loading", session: s } : { kind: "login" }),
+      () => setState({ kind: "login" }),
+    );
+  }, []);
 
   useEffect(() => {
     if (state.kind !== "loading") return;
@@ -42,6 +48,7 @@ export default function App() {
   switch (state.kind) {
     case "login":
       return <Login onLoggedIn={(session) => setState({ kind: "loading", session })} />;
+    case "boot":
     case "loading":
       return (
         <div className="splash">

@@ -25,6 +25,10 @@ contextBridge.exposeInMainWorld("jsmDesktop", {
   openPath: (file) => ipcRenderer.invoke("open-path", file),
   showItem: (file) => ipcRenderer.invoke("show-item", file),
   fileExists: (file) => ipcRenderer.invoke("file-exists", file),
+  secretAvailable: () => ipcRenderer.invoke("secret-available"),
+  secretGet: (key) => ipcRenderer.invoke("secret-get", key),
+  secretSet: (key, value) => ipcRenderer.invoke("secret-set", key, value),
+  secretDelete: (key) => ipcRenderer.invoke("secret-delete", key),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
 
   autostartGet: () => ipcRenderer.invoke("autostart-get"),

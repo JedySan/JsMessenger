@@ -13,6 +13,7 @@ const {
   nativeImage,
   nativeTheme,
   protocol,
+  safeStorage,
   session,
   shell,
 } = require("electron");
@@ -335,6 +336,43 @@ ipcMain.handle("show-item", (_e, file) => {
   shell.showItemInFolder(file);
 });
 ipcMain.handle("file-exists", (_e, file) => fs.existsSync(String(file)));
+
+// ---------- секреты (токен входа): safeStorage — ключ системы (DPAPI в Windows, libsecret/KWallet в Linux) ----------
+const secretsFile = () => path.join(app.getPath("userData"), "secrets.json");
+function secureAvailable() {
+  if (!safeStorage.isEncryptionAvailable()) return false;
+  // в Linux без связки ключей Electron «шифрует» постоянным паролем — это не защита
+  if (process.platform === "linux" && safeStorage.getSelectedStorageBackend?.() === "basic_text") return false;
+  return true;
+}
+function readSecrets() {
+  try {
+    return JSON.parse(fs.readFileSync(secretsFile(), "utf8"));
+  } catch {
+    return {};
+  }
+}
+function writeSecrets(all) {
+  fs.writeFileSync(secretsFile(), JSON.stringify(all), { mode: 0o600 });
+}
+ipcMain.handle("secret-available", () => secureAvailable());
+ipcMain.handle("secret-get", (_e, key) => {
+  const v = readSecrets()[String(key)];
+  if (!v) return null;
+  if (!secureAvailable()) throw new Error("secure storage unavailable");
+  return safeStorage.decryptString(Buffer.from(v, "base64"));
+});
+ipcMain.handle("secret-set", (_e, key, value) => {
+  if (!secureAvailable()) throw new Error("secure storage unavailable");
+  const all = readSecrets();
+  all[String(key)] = safeStorage.encryptString(String(value)).toString("base64");
+  writeSecrets(all);
+});
+ipcMain.handle("secret-delete", (_e, key) => {
+  const all = readSecrets();
+  delete all[String(key)];
+  writeSecrets(all);
+});
 
 ipcMain.handle("open-external", (_e, url) => {
   if (/^(https?|mailto):/i.test(String(url))) return shell.openExternal(url);

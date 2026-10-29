@@ -123,6 +123,8 @@ export async function sendFile(
   file: File,
   onProgress?: (loaded: number, total: number) => void,
   relatesTo?: Record<string, unknown>,
+  /** дополнительные поля сообщения (например, голосовое: длительность и «волна») */
+  extra?: { body?: string; info?: Record<string, unknown>; fields?: Record<string, unknown> },
 ): Promise<void> {
   const mime = file.type || "application/octet-stream";
   const info: Record<string, unknown> = { mimetype: mime, size: file.size };
@@ -139,7 +141,8 @@ export async function sendFile(
     msgtype = MsgType.Audio;
   }
 
-  const content: Record<string, any> = { msgtype, body: file.name, filename: file.name, info };
+  if (extra?.info) Object.assign(info, extra.info);
+  const content: Record<string, any> = { msgtype, body: extra?.body ?? file.name, filename: file.name, info, ...extra?.fields };
   const progressHandler = (p: { loaded: number; total: number }) => onProgress?.(p.loaded, p.total);
 
   if (room.hasEncryptionStateEvent()) {

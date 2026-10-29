@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { Bold, Code, Italic, Link, Paperclip, Pencil, Quote, Reply, SendHorizontal, Strikethrough, X } from "lucide-react";
+import { BarChart3, Bold, Code, ImagePlus, Italic, Link, LoaderCircle, Mic, Paperclip, Pencil, Quote, Reply, SendHorizontal, Strikethrough, Trash2, X } from "lucide-react";
 import { errText } from "../App";
-import { nameForPasted } from "../attachments";
+import { nameForPasted, sendFile } from "../attachments";
+import { MAX_VOICE_SECONDS, VoiceRecorder, formatDuration } from "../voice";
+import { PollDialog } from "./Poll";
+import { PopupMenu } from "./ui";
 import { textToContent } from "../richtext";
 import { effectiveContent, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
@@ -272,6 +275,89 @@ export default function Composer({
     }
   };
 
+  // ---------- голосовое: нажать микрофон → говорить → «Отправить» (или корзина / Esc) ----------
+  const [voice, setVoice] = useState<{ rec: VoiceRecorder; sec: number; levels: number[]; sending?: boolean } | null>(null);
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
+  useEffect(() => () => voiceRef.current?.rec.cancel(), []);
+  useEffect(() => {
+    voiceRef.current?.rec.cancel();
+    setVoice(null);
+  }, [room.roomId]);
+
+  const startVoice = async () => {
+    const rec = new VoiceRecorder();
+    rec.onTick = (sec) => {
+      setVoice((v) => (v && v.rec === rec ? { ...v, sec, levels: rec.levels.slice(-48) } : v));
+      if (sec >= MAX_VOICE_SECONDS) void sendVoice(rec);
+    };
+    try {
+      await rec.start();
+      setVoice({ rec, sec: 0, levels: [] });
+      client.sendTyping(room.roomId, true, 30000).catch(() => {});
+    } catch (e) {
+      rec.cancel();
+      const denied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
+      notice(denied ? tr("Нет доступа к микрофону. Разрешите его в настройках системы") : tr("Не удалось начать запись: {0}", errText(e)));
+    }
+  };
+  const cancelVoice = () => {
+    voice?.rec.cancel();
+    setVoice(null);
+    stopTyping();
+    client.sendTyping(room.roomId, false, 0).catch(() => {});
+  };
+  const sendVoice = async (rec = voice?.rec) => {
+    if (!rec || voiceRef.current?.sending) return;
+    setVoice((v) => (v ? { ...v, sending: true } : v));
+    client.sendTyping(room.roomId, false, 0).catch(() => {});
+    try {
+      const r = await rec.stop();
+      if (r.durationMs < 700) {
+        setVoice(null); // случайное касание
+        return;
+      }
+      const current = mode;
+      const rel = relationFor(
+        current.kind === "reply" ? current.ev.getId()! : undefined,
+        threadId,
+        threadId ? (room.getThread(threadId)?.lastReply()?.getId() ?? undefined) : undefined,
+      );
+      const file = new File([r.blob], "voice-message.ogg", { type: "audio/ogg" });
+      await sendFile(client, room, file, undefined, rel, {
+        body: tr("Голосовое сообщение"),
+        info: { duration: r.durationMs },
+        fields: {
+          "org.matrix.msc1767.audio": { duration: r.durationMs, waveform: r.waveform },
+          "org.matrix.msc3245.voice": {},
+        },
+      });
+      if (current.kind === "reply") setMode({ kind: "normal" });
+      onSent();
+    } catch (e) {
+      notice(tr("Голосовое не отправлено: {0}", errText(e)));
+    } finally {
+      setVoice(null);
+    }
+  };
+  useEffect(() => {
+    if (!voice) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelVoice();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        void sendVoice();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const [attachMenu, setAttachMenu] = useState<{ x: number; y: number } | null>(null);
+  const [pollOpen, setPollOpen] = useState(false);
+
   const format = (f: Fmt) => {
     const el = ref.current;
     if (!el) return;
@@ -381,12 +467,36 @@ export default function Composer({
           </button>
         </div>
       )}
+      {voice ? (
+        <div className="composer-box voice-rec" role="group" aria-label={tr("Запись голосового")}>
+          <button className="attach-btn" onClick={cancelVoice} title={tr("Отменить (Esc)")} aria-label={tr("Отменить запись")} disabled={voice.sending}>
+            <Trash2 size={18} />
+          </button>
+          <span className="rec-dot" aria-hidden />
+          <span className="rec-time">{formatDuration(voice.sec)}</span>
+          <span className="rec-wave" aria-hidden>
+            {Array.from({ length: 48 }, (_, i) => voice.levels[i - (48 - voice.levels.length)] ?? 0).map((l, i) => (
+              <i key={i} style={{ height: `${Math.max(8, l * 100)}%` }} />
+            ))}
+          </span>
+          <button className="send-btn" onClick={() => void sendVoice()} title={tr("Отправить (Enter)")} aria-label={tr("Отправить голосовое")} disabled={voice.sending}>
+            {voice.sending ? <LoaderCircle size={18} className="spin" /> : <SendHorizontal size={18} />}
+          </button>
+        </div>
+      ) : (
       <div className="composer-box">
         <button
           className="attach-btn"
-          onClick={() => fileInput.current?.click()}
-          title={tr("Прикрепить файл")}
-          aria-label={tr("Прикрепить файл")}
+          onClick={(e) => {
+            // в треде — сразу файл; в чате — меню: файл или опрос
+            if (threadId) fileInput.current?.click();
+            else {
+              const r = e.currentTarget.getBoundingClientRect();
+              setAttachMenu({ x: r.left, y: r.top - 8 });
+            }
+          }}
+          title={threadId ? tr("Прикрепить файл") : tr("Прикрепить")}
+          aria-label={threadId ? tr("Прикрепить файл") : tr("Прикрепить")}
           disabled={mode.kind === "edit"}
         >
           <Paperclip size={18} />
@@ -416,10 +526,26 @@ export default function Composer({
             setMention(null);
           }}
         />
-        <button className="send-btn" onClick={send} disabled={!text.trim()} title={tr("Отправить (Enter)")} aria-label={tr("Отправить")}>
-          <SendHorizontal size={18} />
-        </button>
+        {!text.trim() && mode.kind !== "edit" ? (
+          <button className="send-btn mic" onClick={() => void startVoice()} title={tr("Записать голосовое")} aria-label={tr("Записать голосовое")}>
+            <Mic size={18} />
+          </button>
+        ) : (
+          <button className="send-btn" onClick={send} disabled={!text.trim()} title={tr("Отправить (Enter)")} aria-label={tr("Отправить")}>
+            <SendHorizontal size={18} />
+          </button>
+        )}
       </div>
+      )}
+      {attachMenu && (
+        <AttachMenu
+          at={attachMenu}
+          onClose={() => setAttachMenu(null)}
+          onFile={() => fileInput.current?.click()}
+          onPoll={() => setPollOpen(true)}
+        />
+      )}
+      {pollOpen && <PollDialog client={client} room={room} onClose={() => setPollOpen(false)} />}
       <div className="composer-hint">
         <div className="fmt-tools" role="toolbar" aria-label={tr("Форматирование")}>
           {TOOLS.map(({ f, icon: Icon, label, key }) => (
@@ -441,5 +567,21 @@ export default function Composer({
         </span>
       </div>
     </div>
+  );
+}
+
+/** Меню скрепки над полем ввода: файл или опрос. Открывается вверх от кнопки. */
+function AttachMenu({ at, onClose, onFile, onPoll }: { at: { x: number; y: number }; onClose: () => void; onFile: () => void; onPoll: () => void }) {
+  // PopupMenu ставит меню левым верхним углом в точку — поднимаем его над кнопкой (примерная высота)
+  return (
+    <PopupMenu
+      x={at.x}
+      y={Math.max(8, at.y - 92)}
+      onClose={onClose}
+      items={[
+        { label: tr("Фото или файл"), icon: <ImagePlus size={15} />, onClick: onFile },
+        { label: tr("Опрос"), icon: <BarChart3 size={15} />, onClick: onPoll },
+      ]}
+    />
   );
 }

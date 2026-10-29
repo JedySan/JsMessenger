@@ -3,8 +3,9 @@ import { useEffect, useMemo, useReducer, useRef, useState, type CSSProperties } 
 import { RoomEvent, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
 import { CornerUpLeft, FileText, FolderOpen, Image as ImageIcon, LoaderCircle, Play } from "lucide-react";
 import { MediaScanner, type MediaItem, type MediaKind } from "../roomMedia";
-import { AudioMessage, fileExt, loadBlobUrl, openSaved, openViewer, revealSaved, saveContent } from "./Media";
+import { AudioMessage, VoiceMessage, fileExt, loadBlobUrl, openSaved, openViewer, revealSaved, saveContent } from "./Media";
 import { canOpenFiles, fileName, useDownload } from "../downloads";
+import { isVoice } from "../voice";
 import { PanelHead } from "./Panels";
 import { thumbnailUrl } from "../media";
 import { formatSize } from "../attachments";
@@ -305,7 +306,7 @@ export default function MediaPanel({
             ) : (
               list.map((it) => (
                 <div key={it.id} className="media-audio-row">
-                  <AudioMessage client={client} content={it.content} />
+                  {isVoice(it.content) ? <VoiceMessage client={client} content={it.content} /> : <AudioMessage client={client} content={it.content} />}
                   <div className="media-row-meta">
                     {[room.getMember(it.sender)?.name ?? it.sender, listTime(it.ts)].join(" · ")}
                     <JumpBtn onJump={() => onJump(it.id)} />

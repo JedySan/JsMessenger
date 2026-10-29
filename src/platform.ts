@@ -31,6 +31,11 @@ export interface ElectronBridge {
   openPath?(file: string): Promise<void>;
   showItem?(file: string): Promise<void>;
   fileExists?(file: string): Promise<boolean>;
+  /** защищённое хранилище (safeStorage) */
+  secretAvailable?(): Promise<boolean>;
+  secretGet?(key: string): Promise<string | null>;
+  secretSet?(key: string, value: string): Promise<void>;
+  secretDelete?(key: string): Promise<void>;
   openExternal(url: string): Promise<void>;
   autostartGet(): Promise<boolean>;
   autostartSet(on: boolean): Promise<void>;

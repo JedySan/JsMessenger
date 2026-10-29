@@ -24,7 +24,7 @@
     "a.features.1": "In short:",
     "a.features.2": "direct chats, groups and spaces, threads, pinned messages;",
     "a.features.3": "voice and video calls, full-screen screen sharing and a mini call window on top of other apps;",
-    "a.features.4": "files and screenshots, reactions, replies, search across messages and people;",
+    "a.features.4": "files and screenshots, voice messages, polls, reactions, replies, forwarding, search across messages and people;",
     "a.features.5": "read receipts, notifications and running in the background;",
     "a.features.6": "I update myself and speak Russian and English.",
     "a.free":
