@@ -1,7 +1,7 @@
 # Code signing policy
 
-Free code signing for the Windows builds of JsMessenger is provided by
-[SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
+Windows builds of JsMessenger are **not code-signed yet**. The CI workflow is prepared for signing
+via [SignPath](https://about.signpath.io/); this policy describes how signing will work once it is enabled.
 
 ## What is signed
 
@@ -26,6 +26,9 @@ It does not collect analytics or telemetry and does not transfer any other data.
 ---
 
 # Подпись Windows через SignPath — как включить
+
+> Заявка в SignPath Foundation (29.10.2026) отклонена: фонд берёт проекты с заметной аудиторией
+> (звёзды, форки, упоминания). Повторить можно, когда у проекта она появится; либо платная подписка SignPath.
 
 Сборка уже готова: шаги подписи в `desktop.yml` включаются сами, как только в репозитории появятся
 переменная и секрет SignPath. Пока их нет — установщик собирается без подписи, как раньше.

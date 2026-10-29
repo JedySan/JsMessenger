@@ -203,14 +203,9 @@ scripts/               сборка и выпуск обновлений, клю
 
 ## Планы
 
-- Подпись сборок для Windows — через SignPath Foundation, см. [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md)
+- Подпись сборок для Windows (сборка к ней готова, см. [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md))
 - Push-уведомления на Android
 - Мост в Telegram (mautrix-telegram) в серверном комплекте
-
-## Подпись кода
-
-Сборки для Windows будут подписываться: free code signing provided by [SignPath.io](https://about.signpath.io/),
-certificate by [SignPath Foundation](https://signpath.org/). Политика подписи — [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 
 ## Лицензия
 
