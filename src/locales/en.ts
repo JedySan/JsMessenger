@@ -70,6 +70,8 @@ const en: Record<string, string> = {
   "Показать экран": "Share screen",
   "участник|участника|участников": "member|members",
   "чат|чата|чатов": "chat|chats",
+  "Разделы": "Sections",
+  "Пространства собирают чаты команды или сообщества в одном месте.": "Spaces keep a team's or community's chats in one place.",
   "Сеанс подтверждён": "Session verified",
   "Скрыть": "Hide",
   "Подключаюсь к звонку…": "Joining the call…",
