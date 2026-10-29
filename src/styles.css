@@ -1337,3 +1337,271 @@ html[data-platform="ios"] .titlebar { height: 0; }
 .poll-edit-row { display: flex; align-items: center; gap: 4px; }
 .poll-edit-row input { flex: 1; min-width: 0; }
 .poll-add { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 6px 10px; }
+
+/* ===================================================================================
+   Телефон: вид как в Telegram, стекло в духе Liquid Glass (iOS 26).
+   Пузыри (.msg.bubble), «парящие» шапка и поле ввода над лентой, меню по долгому нажатию.
+   =================================================================================== */
+:root {
+  --chat-bg: #dce6e2;
+  --chat-pattern: radial-gradient(120% 80% at 0% 0%, #e6efe6 0%, transparent 60%),
+    radial-gradient(120% 90% at 100% 100%, #cfe0e4 0%, transparent 55%);
+  --bubble: #ffffff;
+  --bubble-mine: linear-gradient(160deg, #179487 0%, #0f766e 100%);
+  --bubble-mine-fg: #ffffff;
+  --bubble-mine-2: rgba(255, 255, 255, 0.72);
+  --stamp: #8a929c;
+  --glass: rgba(255, 255, 255, 0.58);
+  --glass-strong: rgba(255, 255, 255, 0.78);
+  --glass-edge: rgba(255, 255, 255, 0.75);
+  --glass-line: rgba(16, 24, 32, 0.08);
+  --glass-shadow: 0 6px 24px rgba(16, 24, 32, 0.12), 0 1px 2px rgba(16, 24, 32, 0.06);
+  --glass-blur: blur(22px) saturate(180%);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chat-bg: #0e1215;
+    --chat-pattern: radial-gradient(120% 80% at 0% 0%, #12201e 0%, transparent 60%),
+      radial-gradient(120% 90% at 100% 100%, #141b24 0%, transparent 55%);
+    --bubble: #222a31;
+    --bubble-mine: linear-gradient(160deg, #1f8f82 0%, #17695f 100%);
+    --bubble-mine-fg: #ffffff;
+    --bubble-mine-2: rgba(255, 255, 255, 0.66);
+    --stamp: #7f8994;
+    --glass: rgba(30, 36, 42, 0.55);
+    --glass-strong: rgba(34, 40, 47, 0.82);
+    --glass-edge: rgba(255, 255, 255, 0.12);
+    --glass-line: rgba(255, 255, 255, 0.06);
+    --glass-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* на компьютере обёртки не влияют на раскладку */
+.msg-bubble, .room-float-top, .room-float-bottom, .room-head-actions { display: contents; }
+.swipe-reply { display: none; }
+
+/* ---------- стекло ---------- */
+.glass {
+  background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-edge);
+}
+
+/* ---------- пузыри ---------- */
+.timeline.bubbles { background: var(--chat-pattern), var(--chat-bg); padding: 6px 0 8px; -webkit-user-select: none; user-select: none; }
+.msg.bubble {
+  padding: 1px 8px; margin-top: 0; gap: 6px; align-items: flex-end; background: none !important;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+.msg.bubble:not(.grouped) { margin-top: 7px; }
+.msg.bubble.mine, .msg.bubble.dm.mine { justify-content: flex-end; }
+.msg.bubble .msg-gutter { width: 32px; align-self: flex-end; margin-bottom: 1px; }
+.msg.bubble.dm .msg-gutter { display: none; }
+.msg.bubble .msg-main {
+  flex: 0 1 auto; min-width: 0; max-width: min(82%, 540px);
+  display: flex; flex-direction: column; align-items: flex-start;
+}
+.msg.bubble.mine .msg-main { align-items: flex-end; }
+.msg.bubble .msg-actions, .msg.bubble .msg-hover-time { display: none !important; }
+
+.msg.bubble .msg-bubble {
+  display: block; position: relative; max-width: 100%; min-width: 64px; box-sizing: border-box;
+  padding: 6px 10px 6px 12px; border-radius: 18px; background: var(--bubble); color: var(--text);
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+.msg.bubble.mine .msg-bubble { background: var(--bubble-mine); color: var(--bubble-mine-fg); padding: 6px 12px 6px 10px; }
+/* подряд от одного человека — углы со стороны автора меньше, как в Telegram */
+.msg.bubble.grouped:not(.mine) .msg-bubble { border-top-left-radius: 6px; }
+.msg.bubble:not(.tail):not(.mine) .msg-bubble { border-bottom-left-radius: 6px; }
+.msg.bubble.grouped.mine .msg-bubble { border-top-right-radius: 6px; }
+.msg.bubble.mine:not(.tail) .msg-bubble { border-bottom-right-radius: 6px; }
+/* «хвостик» у последнего пузыря в группе */
+.msg.bubble.tail:not(.mine) .msg-bubble { border-bottom-left-radius: 4px; }
+.msg.bubble.tail.mine .msg-bubble { border-bottom-right-radius: 4px; }
+.msg.bubble.tail .msg-bubble::before {
+  content: ""; position: absolute; bottom: 0; width: 11px; height: 15px; background: inherit;
+}
+.msg.bubble.tail:not(.mine) .msg-bubble::before {
+  left: -6px; -webkit-mask: radial-gradient(11px 15px at 0 0, transparent 98%, #000 100%); mask: radial-gradient(11px 15px at 0 0, transparent 98%, #000 100%);
+}
+.msg.bubble.tail.mine .msg-bubble::before {
+  right: -6px; -webkit-mask: radial-gradient(11px 15px at 100% 0, transparent 98%, #000 100%); mask: radial-gradient(11px 15px at 100% 0, transparent 98%, #000 100%);
+}
+.msg.bubble.mine .msg-bubble::before { background: #0f766e; }
+@media (prefers-color-scheme: dark) { .msg.bubble.mine .msg-bubble::before { background: #17695f; } }
+.msg.bubble .msg-bubble.media-only::before { display: none; }
+
+.msg.bubble .msg-head { margin-bottom: 1px; }
+.msg.bubble .msg-author { font-size: 14px; font-weight: 600; color: var(--accent); }
+.msg.bubble .msg-body { font-size: 16px; line-height: 1.34; }
+.msg.bubble .msg-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.msg.bubble:not(.mine) .msg-text a { color: var(--accent); }
+
+/* время и галочки — справа снизу внутри пузыря; «плавают», чтобы занять место на последней строке */
+.msg-stamp {
+  float: right; position: relative; top: 6px; margin: -4px -3px 0 10px; height: 18px;
+  display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
+  font-size: 11.5px; line-height: 1; color: var(--stamp); font-variant-numeric: tabular-nums;
+}
+.msg.bubble.mine .msg-stamp { color: var(--bubble-mine-2); }
+.msg-stamp .msg-status { margin-left: 1px; vertical-align: 0; color: inherit; }
+.msg.bubble.mine .msg-stamp .msg-status.read { color: var(--bubble-mine-fg); }
+.msg-edited { margin-right: 2px; }
+/* фото и видео без подписи: пузырь — сама картинка, время поверх неё */
+.msg.bubble .msg-bubble.media-only { padding: 3px; background: var(--bubble); }
+.msg.bubble.mine .msg-bubble.media-only { background: var(--bubble-mine); }
+.msg-bubble.media-only .media-box { border-radius: 15px; }
+.msg-bubble.media-only .msg-stamp {
+  position: absolute; right: 10px; bottom: 9px; top: auto; margin: 0; float: none; height: auto;
+  padding: 3px 7px; border-radius: 10px; background: rgba(0, 0, 0, 0.42); color: #fff;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.msg.bubble .msg-bubble:not(.media-only) .media-box { border-radius: 12px; margin: 3px -6px 2px -8px; }
+.msg.bubble .msg-caption { margin-top: 4px; }
+
+/* цитата ответа внутри пузыря */
+.msg.bubble .reply-quote { margin: 2px 0 5px; border-radius: 6px 10px 10px 6px; background: var(--accent-soft); max-width: 100%; }
+.msg.bubble.mine .reply-quote { background: rgba(255, 255, 255, 0.16); border-left-color: rgba(255, 255, 255, 0.9); }
+.msg.bubble.mine .reply-author { color: #fff; }
+.msg.bubble.mine .reply-text { color: var(--bubble-mine-2); }
+
+/* файлы, голосовые, опросы в своём пузыре */
+.msg.bubble.mine .file-card, .msg.bubble.mine .file-box { background: rgba(255, 255, 255, 0.12); border-color: transparent; color: inherit; }
+.msg.bubble.mine .file-size, .msg.bubble.mine .msg-file-note { color: var(--bubble-mine-2); }
+.msg.bubble.mine .msg-locked { color: var(--bubble-mine-2); }
+
+/* реакции и «прочитали» — под пузырём */
+.msg.bubble .reactions { margin-top: 3px; }
+.msg.bubble .reaction { background: var(--glass-strong); box-shadow: inset 0 0 0 0.5px var(--glass-line); }
+.msg.bubble .reaction.mine { background: var(--accent); }
+.msg.bubble .reaction.mine .reaction-count { color: #fff; }
+.msg.bubble .thread-summary { background: var(--glass-strong); border-radius: 12px; margin-top: 3px; }
+
+/* свайп для ответа: значок появляется справа */
+.msg.bubble .swipe-reply {
+  display: inline-flex; position: absolute; right: 14px; bottom: 6px; width: 30px; height: 30px; border-radius: 50%;
+  align-items: center; justify-content: center; color: var(--text-2); background: var(--glass-strong);
+  opacity: var(--swipe, 0); transform: scale(calc(0.6 + var(--swipe, 0) * 0.4)); pointer-events: none;
+}
+
+/* дата — стеклянная «пилюля» */
+.timeline.bubbles .day-sep span {
+  background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 0 0 0.5px var(--glass-edge); color: var(--text);
+}
+.timeline.bubbles .timeline-start, .timeline.bubbles .timeline-loading { color: var(--text-2); }
+
+/* ---------- меню по долгому нажатию ---------- */
+.sheet-menu {
+  position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, 0);
+  -webkit-backdrop-filter: blur(0px); backdrop-filter: blur(0px);
+  transition: background 0.22s ease, backdrop-filter 0.22s ease, -webkit-backdrop-filter 0.22s ease;
+}
+.sheet-menu.shown { background: rgba(0, 0, 0, 0.22); -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); }
+.sheet-bubble-wrap { position: absolute; transition: top 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.15); }
+.sheet-clone.msg { display: block; padding: 0; margin: 0; }
+.sheet-clone .msg-bubble { transform: scale(1); transition: transform 0.25s ease; }
+.sheet-menu.shown .sheet-clone .msg-bubble { transform: scale(1.02); }
+.sheet-top {
+  position: absolute; bottom: calc(100% + 8px); display: flex; border-radius: 26px; padding: 4px;
+  background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge);
+  opacity: 0; transform: scale(0.85) translateY(8px); transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.sheet-top .popup-reacts { padding: 0; gap: 0; border: 0; margin: 0; }
+.sheet-top .popup-reacts button { width: 42px; height: 42px; font-size: 26px; border-radius: 50%; }
+.sheet-list {
+  position: fixed; width: 270px; padding: 5px 0; border-radius: 16px; overflow: hidden;
+  background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge);
+  opacity: 0; transform: scale(0.9); transform-origin: top; transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2), top 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+.sheet-menu.shown .sheet-top, .sheet-menu.shown .sheet-list { opacity: 1; transform: none; }
+.sheet-item {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 11px 16px; font-size: 16px; text-align: left; color: var(--text);
+}
+.sheet-item:active { background: var(--hover); }
+.sheet-item.danger { color: var(--danger); }
+.sheet-icon { display: inline-flex; color: var(--text-2); }
+.sheet-item.danger .sheet-icon { color: var(--danger); }
+.sheet-icon svg { width: 19px; height: 19px; }
+.sheet-sep { height: 6px; background: var(--glass-line); }
+.sheet-picker { position: fixed; inset: 0; z-index: 81; background: rgba(0, 0, 0, 0.25); display: flex; align-items: flex-end; justify-content: center; padding: 0 12px calc(env(safe-area-inset-bottom) + 12px); }
+.sheet-picker .emoji-picker { position: static; width: min(100%, 420px); box-sizing: border-box; border-radius: 22px; grid-template-columns: repeat(8, 1fr); }
+.sheet-picker .emoji-picker button { height: 42px; font-size: 26px; }
+
+/* ---------- шапка и поле ввода «парят» над лентой ---------- */
+@media (max-width: 720px) {
+  .room-view { position: relative; }
+  .timeline { padding-top: calc(var(--top-h, 0px) + 6px) !important; padding-bottom: calc(var(--bottom-h, 0px) + 6px) !important; }
+
+  .room-float-top { display: block; position: absolute; top: 0; left: 0; right: 0; z-index: 4; pointer-events: none; }
+  .room-float-top > * { pointer-events: auto; }
+  /* под шапкой лента плавно размывается */
+  .room-float-top::before, .room-float-bottom::before {
+    content: ""; position: absolute; left: 0; right: 0; z-index: -1; pointer-events: none;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .room-float-top::before {
+    top: 0; bottom: -18px; background: linear-gradient(var(--chat-bg) 0%, color-mix(in srgb, var(--chat-bg) 60%, transparent) 60%, transparent);
+    -webkit-mask: linear-gradient(#000 65%, transparent); mask: linear-gradient(#000 65%, transparent);
+  }
+  .room-float-bottom::before {
+    top: -18px; bottom: 0; background: linear-gradient(transparent, color-mix(in srgb, var(--chat-bg) 60%, transparent) 40%, var(--chat-bg));
+    -webkit-mask: linear-gradient(transparent, #000 35%); mask: linear-gradient(transparent, #000 35%);
+  }
+  .room-head { height: 58px; border-bottom: 0; padding: 0 10px; gap: 8px; background: none; }
+  .room-head .back-btn, .room-head-actions, .room-head-title {
+    background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-edge);
+  }
+  .room-head .back-btn { margin-left: 0; width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; }
+  .room-head-title {
+    flex: 1; min-width: 0; height: 44px; border-radius: 22px; padding: 0 14px 0 7px;
+    display: flex; align-items: center; gap: 9px; text-align: left; color: var(--text);
+  }
+  .room-head-title .room-head-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+  .room-head-title .room-title { font-size: 15px; }
+  .room-head-actions { display: flex; align-items: center; height: 44px; border-radius: 22px; padding: 0 3px; flex-shrink: 0; }
+  .room-head-actions .head-actions { gap: 0; }
+  .room-head-actions .icon-btn { width: 38px; height: 38px; border-radius: 50%; }
+  .room-float-top .pinned-bar {
+    margin: 0 10px 4px; border-radius: 16px; border: 0;
+    background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge);
+  }
+  .room-float-top .call-panel { margin: 0 10px 6px; border-radius: 20px; overflow: hidden; }
+
+  .room-float-bottom { display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; }
+  .room-float-bottom .typing { height: 16px; padding: 0 16px; }
+  .room-float-bottom .composer { padding: 0 8px 8px; }
+  .room-float-bottom .composer-hint { display: none; }
+  .room-float-bottom .composer-box { background: none; border: 0; box-shadow: none; padding: 0; gap: 8px; align-items: flex-end; }
+  .room-float-bottom .attach-btn, .room-float-bottom .send-btn { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; }
+  .room-float-bottom .attach-btn, .room-float-bottom .send-btn.mic {
+    background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-edge); color: var(--text);
+  }
+  .room-float-bottom .send-btn:not(.mic) { box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent); }
+  .room-float-bottom .composer textarea {
+    flex: 1; min-height: 44px; box-sizing: border-box; padding: 11px 16px; border-radius: 22px; line-height: 22px;
+    background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge), inset 0 1px 0 var(--glass-edge);
+  }
+  .room-float-bottom .composer-context, .room-float-bottom .voice-rec {
+    border-radius: 18px; margin-bottom: 6px;
+    background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge);
+  }
+  .room-float-bottom .voice-rec { padding: 0 0 0 6px; border-radius: 22px; margin-bottom: 0; }
+}
+/* пузырь вмещает «плавающее» время целиком */
+.msg.bubble .msg-body::after { content: ""; display: block; clear: both; }
+@media (max-width: 720px) {
+  .popup-menu {
+    background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+    box-shadow: var(--glass-shadow), inset 0 0 0 0.5px var(--glass-edge); border-radius: 16px;
+  }
+  .popup-item { padding-top: 10px; padding-bottom: 10px; font-size: 15px; }
+}

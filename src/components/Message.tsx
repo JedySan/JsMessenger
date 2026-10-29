@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useNarrow } from "../hooks";
+import { useMessageGestures } from "../touch";
 import { createPortal } from "react-dom";
 import { EventType, MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
 import {
@@ -35,7 +37,7 @@ import Avatar from "./Avatar";
 import type { SendStatus } from "../receipts";
 import { openDialog } from "./DialogHost";
 import { AudioMessage, FileMessage, ImageMessage, VideoMessage, VoiceMessage, openSaved, openViewer, revealSaved, saveContent } from "./Media";
-import { PopupMenu, type MenuItem } from "./ui";
+import { PopupMenu, SheetMenu, type MenuItem } from "./ui";
 import { canForward } from "../forward";
 import { isVoice } from "../voice";
 import { isPollStart, pollPreview } from "../polls";
@@ -101,6 +103,8 @@ export default function Message({
   room,
   ev,
   prev,
+  next,
+  dm,
   actions,
   status,
   readers,
@@ -109,6 +113,10 @@ export default function Message({
   room: Room;
   ev: MatrixEvent;
   prev?: MatrixEvent;
+  /** следующее сообщение того же дня — чтобы понять, последнее ли это в группе (у пузыря «хвостик») */
+  next?: MatrixEvent;
+  /** личный чат: на телефоне без имён и аватарок у пузырей */
+  dm?: boolean;
   actions: MessageActions;
   /** для своих сообщений: отправляется / доставлено / прочитано */
   status?: SendStatus;
@@ -125,7 +133,11 @@ export default function Message({
   const time = timeHM(ev.getTs());
   const replyId: string | undefined = ev.getContent()["m.relates_to"]?.["m.in_reply_to"]?.event_id;
   const [picker, setPicker] = useState(false);
-  const [menu, setMenu] = useState<{ x: number; y: number; link?: string; selection?: string } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; link?: string; selection?: string; sheet?: boolean } | null>(null);
+  const bubbles = useNarrow();
+  const tail = !next || next.getSender() !== sender || next.getTs() - ev.getTs() >= 5 * 60_000;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
 
   const redacted = ev.isRedacted();
   const canEdit = mine && !redacted && !ev.isSending() && (content.msgtype === MsgType.Text || content.msgtype === MsgType.Emote);
@@ -147,6 +159,27 @@ export default function Message({
     }).then((ok): unknown => ok && client.redactEvent(room.roomId, ev.getId()!).catch((e) => notice(e?.message ?? String(e))));
   const forward = () => openDialog({ kind: "forward", ev });
 
+  // телефон: долгое нажатие — меню, свайп влево — ответ
+  useMessageGestures(rootRef, bubbleRef, bubbles && !ev.isSending(), {
+    long: (x, y) => setMenu({ x, y, sheet: true }),
+    reply: redacted ? undefined : () => actions.onReply(ev),
+  });
+  const t = content.msgtype as string | undefined;
+  const mediaOnly =
+    bubbles && !redacted && !replyId && (t === MsgType.Image || t === MsgType.Video || ev.getType() === EventType.Sticker) && !captionOf(content);
+  const edited = !redacted && !!ev.replacingEvent();
+  const mark = status ? (
+    <SendMark status={status} onRetry={() => client.resendEvent(ev, room).catch(() => {})} />
+  ) : (
+    ev.isSending() && (
+      <span className="msg-status sending" title={tr("Отправляется")}>
+        <Circle size={10} strokeWidth={2.5} />
+      </span>
+    )
+  );
+  const showName = bubbles ? !mine && !dm && !grouped : !grouped;
+  const showAvatar = bubbles ? !mine && !dm && tail : !grouped;
+
   // правая кнопка (на телефоне — долгое нажатие): своё меню вместо системного
   const onContextMenu = (e: ReactMouseEvent) => {
     const target = e.target as HTMLElement;
@@ -156,53 +189,75 @@ export default function Message({
     const root = e.currentTarget as HTMLElement;
     const selection = sel && !sel.isCollapsed && root.contains(sel.anchorNode) ? sel.toString().trim() : "";
     const href = target.closest("a")?.getAttribute("href") ?? undefined;
-    setMenu({ x: e.clientX, y: e.clientY, link: href && /^(https?|mailto):/i.test(href) ? href : undefined, selection: selection || undefined });
+    setMenu({
+      x: e.clientX,
+      y: e.clientY,
+      link: href && /^(https?|mailto):/i.test(href) ? href : undefined,
+      selection: selection || undefined,
+      sheet: bubbles, // на телефоне (Android присылает это и на долгое нажатие) — меню как в Telegram
+    });
   };
 
   return (
     <div
       id={`ev-${ev.getId()}`}
-      className={"msg" + (grouped ? " grouped" : "") + (mine ? " mine" : "") + (picker ? " menu-open" : "") + (menu ? " menu-target" : "")}
+      ref={rootRef}
+      className={
+        "msg" +
+        (grouped ? " grouped" : "") +
+        (mine ? " mine" : "") +
+        (picker ? " menu-open" : "") +
+        (menu ? " menu-target" : "") +
+        (bubbles ? " bubble" + (tail ? " tail" : "") + (dm ? " dm" : "") : "")
+      }
       tabIndex={-1}
       onContextMenu={onContextMenu}
     >
-      <div className="msg-gutter">
-        {grouped ? (
-          <span className="msg-hover-time">{time}</span>
-        ) : (
-          <button className="msg-avatar" onClick={() => openDialog({ kind: "user", userId: sender })} title={name} aria-label={name}>
-            <Avatar client={client} mxc={member?.getMxcAvatarUrl()} name={name} seed={sender} size={34} />
-          </button>
-        )}
-      </div>
-      <div className="msg-main">
-        {!grouped && (
-          <div className="msg-head">
-            <button className="msg-author" onClick={() => openDialog({ kind: "user", userId: sender })}>
-              {name}
+      {bubbles && <span className="swipe-reply" aria-hidden><Reply size={16} /></span>}
+      {(!bubbles || (!mine && !dm)) && (
+        <div className="msg-gutter">
+          {showAvatar ? (
+            <button className="msg-avatar" onClick={() => openDialog({ kind: "user", userId: sender })} title={name} aria-label={name}>
+              <Avatar client={client} mxc={member?.getMxcAvatarUrl()} name={name} seed={sender} size={bubbles ? 32 : 34} />
             </button>
-            <span className="msg-time">{time}</span>
-          </div>
-        )}
-        {replyId && !redacted && <ReplyQuote client={client} room={room} eventId={replyId} />}
-        <div className="msg-body">
-          {redacted ? (
-            <span className="msg-locked">
-              <Ban size={13} /> {tr("Сообщение удалено")}
-            </span>
           ) : (
-            <Body client={client} room={room} ev={ev} content={content} />
+            !bubbles && <span className="msg-hover-time">{time}</span>
           )}
-          {!redacted && ev.replacingEvent() && <span className="msg-meta"> {tr("(изменено)")}</span>}
-          {status ? (
-            <SendMark status={status} onRetry={() => client.resendEvent(ev, room).catch(() => {})} />
-          ) : (
-            ev.isSending() && (
-              <span className="msg-status sending" title={tr("Отправляется")}>
-                <Circle size={10} strokeWidth={2.5} />
+        </div>
+      )}
+      <div className="msg-main">
+        <div className={"msg-bubble" + (mediaOnly ? " media-only" : "")} ref={bubbleRef}>
+          {showName && (
+            <div className="msg-head">
+              <button className="msg-author" onClick={() => openDialog({ kind: "user", userId: sender })}>
+                {name}
+              </button>
+              {!bubbles && <span className="msg-time">{time}</span>}
+            </div>
+          )}
+          {replyId && !redacted && <ReplyQuote client={client} room={room} eventId={replyId} />}
+          <div className="msg-body">
+            {redacted ? (
+              <span className="msg-locked">
+                <Ban size={13} /> {tr("Сообщение удалено")}
               </span>
-            )
-          )}
+            ) : (
+              <Body client={client} room={room} ev={ev} content={content} />
+            )}
+            {bubbles ? (
+              // время и галочки — внутри пузыря, справа снизу (как в Telegram)
+              <span className="msg-stamp">
+                {edited && <span className="msg-edited">{tr("изм.")}</span>}
+                {time}
+                {mark}
+              </span>
+            ) : (
+              <>
+                {edited && <span className="msg-meta"> {tr("(изменено)")}</span>}
+                {mark}
+              </>
+            )}
+          </div>
         </div>
         {!redacted && <Reactions client={client} room={room} ev={ev} />}
         {readers && readers.length > 0 && <Readers client={client} room={room} userIds={readers} />}
@@ -295,8 +350,24 @@ export default function Message({
           )}
         </div>
       )}
+      {picker && bubbles && (
+        <div className="sheet-picker" onClick={() => setPicker(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <EmojiPicker
+              onPick={(k) => {
+                setPicker(false);
+                react(k);
+              }}
+              onClose={() => setPicker(false)}
+            />
+          </div>
+        </div>
+      )}
       {menu && (
         <MessageMenu
+          sheet={menu.sheet ? bubbleRef.current : null}
+          wrapClass={rootRef.current?.className.replace(" menu-target", "") ?? "msg"}
+          alignRight={mine}
           client={client}
           room={room}
           ev={ev}
@@ -332,12 +403,19 @@ function MessageMenu({
   onClose,
   can,
   act,
+  sheet,
+  wrapClass,
+  alignRight,
 }: {
   client: MatrixClient;
   room: Room;
   ev: MatrixEvent;
   content: Record<string, any>;
   at: { x: number; y: number; link?: string; selection?: string };
+  /** телефон: меню вокруг копии этого пузыря */
+  sheet?: HTMLElement | null;
+  wrapClass: string;
+  alignRight: boolean;
   onClose: () => void;
   can: { edit: boolean; del: boolean; pin: boolean; pinned: boolean; forward: boolean; thread: boolean; readable: boolean };
   act: {
@@ -447,6 +525,11 @@ function MessageMenu({
   }, [empty, onClose]);
   if (empty) return null;
   // в body — чтобы меню не обрезалось и не съезжало внутри прокручиваемой ленты
+  if (sheet)
+    return createPortal(
+      <SheetMenu source={sheet} wrapClass={wrapClass} alignRight={alignRight} items={items} header={header} onClose={onClose} />,
+      document.body,
+    );
   return createPortal(<PopupMenu x={at.x} y={at.y} items={items} onClose={onClose} header={header} />, document.body);
 }
 

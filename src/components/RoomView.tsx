@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { Direction, MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { ChevronLeft, LockKeyhole, MessagesSquare, PanelRight, Search, Upload, Images } from "lucide-react";
+import { ChevronLeft, Ellipsis, LockKeyhole, MessagesSquare, PanelRight, Search, Upload, Images } from "lucide-react";
+import { useNarrow } from "../hooks";
+import { PopupMenu } from "./ui";
 import { dayLabel, isVisibleMessage, sameDay } from "../format";
 import { RoomAvatar } from "./Avatar";
 import CallPanel from "./CallPanel";
@@ -212,8 +214,30 @@ export default function RoomView({
     if (files.length) setPending((p) => [...p, ...files]);
   };
 
+  // телефон: шапка и поле ввода «парят» над лентой — лента получает отступы по их высоте
+  const viewRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const ro = new ResizeObserver(() => {
+      view.style.setProperty("--top-h", `${topRef.current?.offsetHeight ?? 0}px`);
+      view.style.setProperty("--bottom-h", `${bottomRef.current?.offsetHeight ?? 0}px`);
+    });
+    if (topRef.current) ro.observe(topRef.current);
+    if (bottomRef.current) ro.observe(bottomRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const members = room.getJoinedMemberCount();
   const isDm = isDirect(client, room);
+  const narrow = useNarrow();
+  const [moreMenu, setMoreMenu] = useState<{ x: number; y: number } | null>(null);
+  const openInfo = () => {
+    if (panel && panel.kind !== "info") setPanel(null);
+    onToggleInfo();
+  };
   const typing = room
     .getMembers()
     .filter((m) => m.typing && m.userId !== me)
@@ -223,26 +247,60 @@ export default function RoomView({
     <div className="room-shell">
     <div
       className="room-view"
+      ref={viewRef}
       onDragEnter={onDragEnter}
       onDragOver={(e) => hasFiles(e) && e.preventDefault()}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      <div className="room-float-top" ref={topRef}>
       <header className="room-head" data-tauri-drag-region>
         {onBack && (
           <button className="icon-btn back-btn" onClick={onBack} title={tr("К списку чатов")} aria-label={tr("К списку чатов")}>
             <ChevronLeft size={22} />
           </button>
         )}
-        <RoomAvatar client={client} room={room} size={34} />
-        <div className="room-head-text" data-tauri-drag-region>
-          <div className="room-title">{room.name}</div>
-          <div className="room-sub">
-            {room.hasEncryptionStateEvent() && <LockKeyhole size={11} />}
-            {isDm ? tr("Личный чат") : `${members} ${plural(members, "участник", "участника", "участников")}`}
-          </div>
-        </div>
+        {narrow ? (
+          // телефон: имя чата — «капсула», нажатие открывает участники и настройки (как в Telegram)
+          <button className="room-head-title" onClick={openInfo}>
+            <RoomAvatar client={client} room={room} size={30} />
+            <span className="room-head-text">
+              <span className="room-title">{room.name}</span>
+              <span className="room-sub">
+                {room.hasEncryptionStateEvent() && <LockKeyhole size={11} />}
+                {isDm ? tr("Личный чат") : `${members} ${plural(members, "участник", "участника", "участников")}`}
+              </span>
+            </span>
+          </button>
+        ) : (
+          <>
+            <RoomAvatar client={client} room={room} size={34} />
+            <div className="room-head-text" data-tauri-drag-region>
+              <div className="room-title">{room.name}</div>
+              <div className="room-sub">
+                {room.hasEncryptionStateEvent() && <LockKeyhole size={11} />}
+                {isDm ? tr("Личный чат") : `${members} ${plural(members, "участник", "участника", "участников")}`}
+              </div>
+            </div>
+          </>
+        )}
+        <div className="room-head-actions">
         <CallButtons client={client} room={room} />
+        {narrow && (
+          <button
+            className="icon-btn"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setMoreMenu({ x: r.right - 230, y: r.bottom + 6 });
+            }}
+            title={tr("Ещё")}
+            aria-label={tr("Ещё")}
+          >
+            <Ellipsis size={19} />
+          </button>
+        )}
+        {!narrow && (
+        <>
         <button
           className={"icon-btn" + (panel?.kind === "search" ? " on" : "")}
           onClick={() => togglePanel("search")}
@@ -269,25 +327,40 @@ export default function RoomView({
         </button>
         <button
           className={"icon-btn" + (panel?.kind === "info" ? " on" : "")}
-          onClick={() => {
-            if (panel && panel.kind !== "info") setPanel(null);
-            onToggleInfo();
-          }}
+          onClick={openInfo}
           title={tr("Участники и настройки")}
           aria-label={tr("Участники и настройки")}
         >
           <PanelRight size={18} />
         </button>
+        </>
+        )}
+        </div>
       </header>
+      {moreMenu && (
+        <PopupMenu
+          x={moreMenu.x}
+          y={moreMenu.y}
+          onClose={() => setMoreMenu(null)}
+          items={[
+            { label: tr("Поиск по сообщениям"), icon: <Search size={15} />, onClick: () => togglePanel("search") },
+            { label: tr("Медиа и файлы"), icon: <Images size={15} />, onClick: () => togglePanel("media") },
+            { label: tr("Треды"), icon: <MessagesSquare size={15} />, onClick: () => togglePanel("threads") },
+            { label: tr("Участники и настройки"), icon: <PanelRight size={15} />, onClick: openInfo },
+          ]}
+        />
+      )}
 
       <CallPanel client={client} room={room} />
       <PinnedBar client={client} room={room} onOpen={() => setPanel({ kind: "pins" })} />
+      </div>
 
-      <div className="timeline" ref={scroller} onScroll={onScroll}>
+      <div className={"timeline" + (narrow ? " bubbles" : "")} ref={scroller} onScroll={onScroll}>
         {loadingMore && <div className="timeline-loading">{tr("Загружаю историю…")}</div>}
         {!canLoadMore && <div className="timeline-start">{tr("Начало переписки")}</div>}
         {events.map((ev, i) => {
           const prev = events[i - 1];
+          const next = events[i + 1];
           const newDay = !prev || !sameDay(prev.getTs(), ev.getTs());
           return (
             <div key={ev.getId() ?? i}>
@@ -301,6 +374,8 @@ export default function RoomView({
                 room={room}
                 ev={ev}
                 prev={newDay ? undefined : prev}
+                next={next && sameDay(next.getTs(), ev.getTs()) ? next : undefined}
+                dm={isDm}
                 actions={actions}
                 status={reads.status.get(ev.getId() ?? "")}
                 readers={isGroup ? reads.readers.get(ev.getId() ?? "") : undefined}
@@ -310,6 +385,7 @@ export default function RoomView({
         })}
       </div>
 
+      <div className="room-float-bottom" ref={bottomRef}>
       <div className="typing">{typing.length > 0 && typingText(typing)}</div>
 
       <Composer
@@ -321,6 +397,7 @@ export default function RoomView({
         onSent={() => (stickToBottom.current = true)}
         onEditLast={editLast}
       />
+      </div>
 
       {dragging && (
         <div className="drop-overlay">

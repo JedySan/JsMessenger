@@ -1,6 +1,6 @@
 // Общие элементы: всплывающее меню, модальное окно, поиск пользователей.
 import { searchPeople } from "../people";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { Check, Search, X } from "lucide-react";
 import Avatar from "./Avatar";
@@ -85,6 +85,97 @@ export function PopupMenu({
             </button>
           </div>
         ))}
+    </div>
+  );
+}
+
+// ---------- меню сообщения на телефоне (как в Telegram) ----------
+/**
+ * Фон размывается, копия пузыря «приподнимается» на своём месте (или сдвигается, чтобы всё влезло),
+ * над ней — ряд реакций, под ней — список действий.
+ */
+export function SheetMenu({
+  source,
+  wrapClass,
+  alignRight,
+  items,
+  header,
+  onClose,
+}: {
+  /** пузырь, который показываем над размытым фоном */
+  source: HTMLElement;
+  /** классы сообщения — чтобы копия выглядела так же */
+  wrapClass: string;
+  alignRight: boolean;
+  items: MenuItem[];
+  header?: ReactNode;
+  onClose: () => void;
+}) {
+  const [rect] = useState(() => source.getBoundingClientRect());
+  const holder = useRef<HTMLDivElement>(null);
+  const top = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const [y, setY] = useState(rect.top);
+  const [shown, setShown] = useState(false);
+
+  useLayoutEffect(() => {
+    const clone = source.cloneNode(true) as HTMLElement;
+    clone.style.transform = "";
+    holder.current?.replaceChildren(clone);
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    const safeTop = parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+    const hTop = (top.current?.offsetHeight ?? 0) + 8;
+    const hList = (list.current?.offsetHeight ?? 0) + 8;
+    const min = safeTop + 12 + hTop;
+    const max = vh - 12 - hList - rect.height;
+    setY(Math.max(min, Math.min(rect.top, max)));
+    requestAnimationFrame(() => setShown(true));
+  }, [source, rect]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const side = alignRight
+    ? { right: Math.max(8, window.innerWidth - rect.right) }
+    : { left: Math.max(8, rect.left) };
+  const visible = items.filter((i) => !i.hidden);
+  return (
+    <div className={"sheet-menu" + (shown ? " shown" : "")} onClick={onClose} onContextMenu={(e) => e.preventDefault()}>
+      <div className="sheet-bubble-wrap" style={{ top: shown ? y : rect.top, left: rect.left, width: rect.width }}>
+        {header && (
+          <div className="sheet-top" ref={top} style={alignRight ? { right: 0 } : { left: 0 }} onClick={(e) => e.stopPropagation()}>
+            {header}
+          </div>
+        )}
+        <div className={wrapClass + " sheet-clone"} ref={holder} />
+      </div>
+      <div
+        className="sheet-list"
+        ref={list}
+        role="menu"
+        style={{ ...side, top: (shown ? y : rect.top) + rect.height + 8 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {visible.map((i, n) => (
+          <div key={n}>
+            {i.sep && n > 0 && <div className="sheet-sep" role="separator" />}
+            <button
+              role="menuitem"
+              className={"sheet-item" + (i.danger ? " danger" : "")}
+              onClick={() => {
+                onClose();
+                i.onClick();
+              }}
+            >
+              <span className="sheet-label">{i.label}</span>
+              <span className="sheet-icon">{i.icon}</span>
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

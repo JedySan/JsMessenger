@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { BarChart3, Bold, Code, ImagePlus, Italic, Link, LoaderCircle, Mic, Paperclip, Pencil, Quote, Reply, SendHorizontal, Strikethrough, Trash2, X } from "lucide-react";
+import { BarChart3, Bold, Code, ImagePlus, Italic, Link, LoaderCircle, Mic, Paperclip, Pencil, Plus, Quote, Reply, SendHorizontal, Strikethrough, Trash2, X } from "lucide-react";
 import { errText } from "../App";
 import { nameForPasted, sendFile } from "../attachments";
 import { MAX_VOICE_SECONDS, VoiceRecorder, formatDuration } from "../voice";
@@ -10,6 +10,7 @@ import { textToContent } from "../richtext";
 import { effectiveContent, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
 import { isMobile } from "../platform";
+import { useNarrow } from "../hooks";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
 import Avatar from "./Avatar";
@@ -193,6 +194,7 @@ export default function Composer({
     });
   };
 
+  const narrow = useNarrow();
   // на телефоне клавиатура при открытии чата только мешает — фокус ставим, лишь когда отвечаем или правим
   useEffect(() => {
     if (!isMobile() || mode.kind !== "normal") ref.current?.focus();
@@ -412,8 +414,8 @@ export default function Composer({
         return;
       }
     }
-    // Enter — отправить, Shift+Enter — новая строка
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Enter — отправить, Shift+Enter — новая строка; на телефоне Enter — новая строка, отправка — кнопкой (как в Telegram)
+    if (e.key === "Enter" && !e.shiftKey && !narrow) {
       e.preventDefault();
       send();
     } else if (e.key === "Escape" && mode.kind !== "normal") {
@@ -503,7 +505,7 @@ export default function Composer({
           aria-label={threadId ? tr("Прикрепить файл") : tr("Прикрепить")}
           disabled={mode.kind === "edit"}
         >
-          <Paperclip size={18} />
+          {narrow ? <Plus size={22} /> : <Paperclip size={18} />}
         </button>
         <input
           ref={fileInput}

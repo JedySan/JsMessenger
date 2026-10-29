@@ -568,6 +568,7 @@ const en: Record<string, string> = {
   "Копировать выделенное": "Copy selection",
   "Копировать текст": "Copy text",
   "Копировать подпись": "Copy caption",
+  "изм.": "edited",
   "Подпись": "Add a caption",
   "Подпись к файлам": "Add a caption",
   "Копировать ссылку": "Copy link",

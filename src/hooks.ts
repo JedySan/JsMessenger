@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useSyncExternalStore } from "react";
 import {
   ClientEvent,
   MatrixEventEvent,
@@ -50,4 +50,17 @@ export function useClientUpdates(client: MatrixClient): void {
       for (const ev of events) (client as any).off(ev, schedule);
     };
   }, [client]);
+}
+
+// ---------- телефонная раскладка ----------
+const narrowQuery = typeof matchMedia === "function" ? matchMedia("(max-width: 720px)") : null;
+/** Узкий экран (телефон): одна колонка, пузыри сообщений, стеклянные панели. */
+export function useNarrow(): boolean {
+  return useSyncExternalStore(
+    (f) => {
+      narrowQuery?.addEventListener("change", f);
+      return () => narrowQuery?.removeEventListener("change", f);
+    },
+    () => !!narrowQuery?.matches,
+  );
 }
