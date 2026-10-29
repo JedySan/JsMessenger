@@ -128,9 +128,25 @@ export default function RoomView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events.length, canLoadMore]);
 
+  // Лента стала ниже (открылась клавиатура, панель звонка) — остаёмся у последних сообщений
+  const viewHeight = useRef(0);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    viewHeight.current = el.clientHeight;
+    const ro = new ResizeObserver(() => {
+      viewHeight.current = el.clientHeight;
+      if (stickToBottom.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [room.roomId]);
+
   const onScroll = () => {
     const el = scroller.current;
     if (!el) return;
+    // прокрутка из-за смены высоты — не жест пользователя, «прилипание» к низу не сбрасываем
+    if (el.clientHeight !== viewHeight.current) return;
     stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
     if (el.scrollTop < 120 && canLoadMore && !loadingMore) loadMore();
   };

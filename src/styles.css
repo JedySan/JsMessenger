@@ -1116,7 +1116,7 @@ textarea.text-input { resize: vertical; font: inherit; }
 }
 /* iPhone: высота — видимая часть экрана (без клавиатуры), см. src/ios.ts */
 html[data-platform="ios"], html[data-platform="ios"] body { position: fixed; inset: 0; overflow: hidden; }
-html[data-platform="ios"] body, html[data-platform="ios"] #root { height: var(--app-height, 100%); }
+html[data-platform="ios"] body { height: var(--app-height, 100%); }
 html[data-platform="ios"].keyboard body { padding-bottom: 0; }
 /* поля со шрифтом меньше 16px iOS приближает при фокусе */
 html[data-platform="ios"] input, html[data-platform="ios"] textarea { font-size: max(16px, 1em); }
