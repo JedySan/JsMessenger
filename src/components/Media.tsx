@@ -5,6 +5,7 @@ import type { MatrixClient } from "matrix-js-sdk";
 import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, FolderInput, FolderOpen, ImageOff, LoaderCircle, Pause, Play, X } from "lucide-react";
 import { downloadMedia, formatSize } from "../attachments";
 import { canOpenFiles, canSaveAs, download, fileName, openDownloaded, revealDownloaded, useDownload } from "../downloads";
+import { captionOf } from "../caption";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
 
@@ -120,7 +121,7 @@ export function Lightbox() {
   return (
     <div className="lightbox" onClick={() => setViewing(null)}>
       <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
-        <span className="lightbox-name">{content.body}</span>
+        <span className="lightbox-name" title={fileName(content)}>{captionOf(content)?.text ?? fileName(content)}</span>
         {many && <span className="lightbox-count">{tr("{0} из {1}", v.items.length - v.index, v.items.length)}</span>}
         {v.onJump && (
           <button
@@ -160,7 +161,7 @@ export function Lightbox() {
       ) : isVideo ? (
         <video key={url} src={url} controls autoPlay onClick={(e) => e.stopPropagation()} />
       ) : (
-        <img src={url} alt={content.body ?? ""} onClick={(e) => e.stopPropagation()} />
+        <img src={url} alt={fileName(content)} onClick={(e) => e.stopPropagation()} />
       )}
     </div>
   );
@@ -221,7 +222,7 @@ export function ImageMessage({ client, content }: { client: MatrixClient; conten
   if (!url) return <span className="media-box loading" style={box} />;
   return (
     <button className="media-box" style={box} onClick={() => openViewer(client, [content])} title={tr("Открыть")}>
-      <img src={url} alt={content.body ?? ""} />
+      <img src={url} alt={fileName(content)} />
     </button>
   );
 }
@@ -237,7 +238,7 @@ export function VideoMessage({ client, content }: { client: MatrixClient; conten
       <button className="media-box video-poster" style={box} onClick={() => setStart(true)}>
         <span className="play">{start ? <LoaderCircle size={24} className="spin" /> : <Play size={24} />}</span>
         <span className="video-meta">
-          {content.body}
+          {fileName(content)}
           {content.info?.size ? `, ${formatSize(content.info.size)}` : ""}
         </span>
       </button>
@@ -351,7 +352,7 @@ export function AudioMessage({ client, content }: { client: MatrixClient; conten
       <button className="file-card" onClick={() => setStart(true)}>
         <span className="file-icon">{start ? <LoaderCircle size={18} className="spin" /> : <Play size={18} />}</span>
         <span className="file-text">
-          <span className="file-name">{content.body}</span>
+          <span className="file-name">{fileName(content)}</span>
           <span className="file-size">{tr("Аудио")}{content.info?.size ? `, ${formatSize(content.info.size)}` : ""}</span>
         </span>
       </button>

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MatrixClient, MatrixEvent, Room } from "matrix-js-sdk";
 import { FileText, LockKeyhole, X } from "lucide-react";
 import { formatSize, sendFile } from "../attachments";
 import { errText } from "../App";
+import { captionFields } from "../caption";
 import { tr } from "../i18n";
 
 /** Предпросмотр и отправка выбранных, вставленных или перетащенных файлов. */
@@ -26,17 +27,25 @@ export default function UploadDialog({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ index: number; pct: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [caption, setCaption] = useState("");
+  const captionRef = useRef<HTMLTextAreaElement>(null);
 
-  const previews = useMemo(
-    () => files.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null)),
-    [files],
-  );
-  useEffect(() => () => previews.forEach((u) => u && URL.revokeObjectURL(u)), [previews]);
+  // ссылки на превью создаём и освобождаем в одном эффекте (иначе в StrictMode они «умирают» сразу)
+  const [previews, setPreviews] = useState<Array<string | null>>([]);
+  useEffect(() => {
+    const urls = files.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null));
+    setPreviews(urls);
+    return () => urls.forEach((u) => u && URL.revokeObjectURL(u));
+  }, [files]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) onClose(false);
-      if (e.key === "Enter" && !busy) send();
+      // Enter — отправить, Shift+Enter — новая строка в подписи
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !busy) {
+        e.preventDefault();
+        void send();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -47,6 +56,7 @@ export default function UploadDialog({
   const send = async () => {
     setBusy(true);
     setError(null);
+    const fields = captionFields(caption);
     try {
       for (let i = 0; i < files.length; i++) {
         setProgress({ index: i, pct: 0 });
@@ -56,6 +66,8 @@ export default function UploadDialog({
           files[i],
           (loaded, all) => setProgress({ index: i, pct: all ? Math.round((loaded / all) * 100) : 0 }),
           relationFor(i === 0 ? replyTo?.getId() : undefined, threadId, lastThreadEvent(room, threadId)),
+          // подпись — у последнего файла: в ленте она окажется под всей пачкой
+          i === files.length - 1 && fields ? { fields } : undefined,
         );
       }
       onClose(true);
@@ -105,6 +117,22 @@ export default function UploadDialog({
             </div>
           ))}
         </div>
+        <textarea
+          ref={captionRef}
+          className="upload-caption"
+          value={caption}
+          onChange={(e) => {
+            setCaption(e.target.value);
+            const el = e.target;
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 160) + "px";
+          }}
+          placeholder={files.length > 1 ? tr("Подпись к файлам") : tr("Подпись")}
+          rows={1}
+          maxLength={4000}
+          disabled={busy}
+          autoFocus
+        />
         {room.hasEncryptionStateEvent() && (
           <p className="modal-text small-note">
             <LockKeyhole size={12} /> {tr("Файлы будут зашифрованы перед отправкой")}

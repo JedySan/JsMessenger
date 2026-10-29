@@ -42,6 +42,7 @@ import { isPollStart, pollPreview } from "../polls";
 import { PollCard } from "./Poll";
 import { canOpenFiles, canSaveAs, copyImage, useDownload } from "../downloads";
 import { plural } from "../i18n";
+import { captionOf, fileNameOf } from "../caption";
 import { tr } from "../i18n";
 import { ask, notice } from "./Ask";
 
@@ -80,15 +81,16 @@ export function plainText(ev: MatrixEvent): string {
   if (ev.isRedacted()) return tr("Сообщение удалено");
   if (isPollStart(ev)) return pollPreview(ev);
   const c = effectiveContent(ev);
+  const cap = captionOf(c)?.text.replace(/\s+/g, " ");
   switch (c.msgtype) {
     case MsgType.Image:
-      return tr("Фото");
+      return cap ? `${tr("Фото")}: ${cap}` : tr("Фото");
     case MsgType.Video:
-      return tr("Видео");
+      return cap ? `${tr("Видео")}: ${cap}` : tr("Видео");
     case MsgType.Audio:
-      return isVoice(c) ? tr("Голосовое сообщение") : tr("Аудио");
+      return isVoice(c) ? tr("Голосовое сообщение") : cap ? `${tr("Аудио")}: ${cap}` : tr("Аудио");
     case MsgType.File:
-      return tr("Файл: {0}", c.body ?? "");
+      return cap ? `${fileNameOf(c)}: ${cap}` : tr("Файл: {0}", fileNameOf(c));
   }
   if (c.format === "org.matrix.custom.html" && c.formatted_body) return htmlToText(c.formatted_body);
   return stripReplyFallback(String(c.body ?? ""));
@@ -356,6 +358,7 @@ function MessageMenu({
   const isFile = t === MsgType.File || t === MsgType.Audio;
   const hasMedia = can.readable && (isImage || isVideo || isFile) && !!(content.url || content.file);
   const isText = can.readable && !hasMedia && typeof content.body === "string";
+  const cap = can.readable && hasMedia ? captionOf(content) : null;
   const saved = dl.status === "done" && !!dl.path && canOpenFiles();
   const sending = ev.isSending();
 
@@ -367,6 +370,7 @@ function MessageMenu({
     // копирование
     { sep: true, label: tr("Копировать выделенное"), icon: <TextSelect size={15} />, onClick: () => copy(at.selection!), hidden: !at.selection },
     { sep: !at.selection, label: tr("Копировать текст"), icon: <Copy size={15} />, onClick: () => copy(plainText(ev)), hidden: !isText },
+    { sep: !at.selection, label: tr("Копировать подпись"), icon: <Copy size={15} />, onClick: () => copy(cap!.text), hidden: !cap },
     { label: tr("Копировать ссылку"), icon: <Link2 size={15} />, onClick: () => copy(at.link!), hidden: !at.link },
     { label: tr("Открыть ссылку"), icon: <ExternalLink size={15} />, onClick: () => openExternal(at.link!), hidden: !at.link },
 
@@ -576,6 +580,25 @@ function Body({ client, room, ev, content }: { client: MatrixClient; room: Room;
     );
   }
   if (isPollStart(ev)) return <PollCard client={client} room={room} ev={ev} />;
+  const media = mediaBody(client, content);
+  if (media) {
+    const cap = captionOf(content);
+    return cap ? (
+      <>
+        {media}
+        <Caption {...cap} />
+      </>
+    ) : (
+      media
+    );
+  }
+  if (ev.getType() === EventType.Sticker) {
+    return <ImageMessage client={client} content={content} />;
+  }
+  return <TextBody content={content} />;
+}
+
+function mediaBody(client: MatrixClient, content: Record<string, any>) {
   switch (content.msgtype) {
     case MsgType.Image:
       return <ImageMessage client={client} content={content} />;
@@ -586,10 +609,29 @@ function Body({ client, room, ev, content }: { client: MatrixClient; room: Room;
     case MsgType.File:
       return <FileMessage client={client} content={content} />;
   }
-  if (ev.getType() === EventType.Sticker) {
-    return <ImageMessage client={client} content={content} />;
-  }
+  return null;
+}
 
+/** Подпись к файлу — обычный текст сообщения под вложением. */
+function Caption({ text, html }: { text: string; html?: string }) {
+  if (html)
+    return <div className="msg-text rich msg-caption" onClick={onLinkClick} dangerouslySetInnerHTML={{ __html: sanitizeMessageHtml(html) }} />;
+  return (
+    <span className="msg-text msg-caption">
+      {linkify(text).map((part, i) =>
+        part.href ? (
+          <a key={i} href={part.href} onClick={onLinkClick}>
+            {part.text}
+          </a>
+        ) : (
+          <span key={i}>{part.text}</span>
+        ),
+      )}
+    </span>
+  );
+}
+
+function TextBody({ content }: { content: Record<string, any> }) {
   const cls = content.msgtype === MsgType.Notice ? "msg-text notice" : content.msgtype === MsgType.Emote ? "msg-text emote" : "msg-text";
   if (content.format === "org.matrix.custom.html" && typeof content.formatted_body === "string") {
     return (

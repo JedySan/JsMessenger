@@ -30,7 +30,7 @@ function usePoll(room: Room, ev: MatrixEvent) {
     if (!poll) return;
     let alive = true;
     const load = () =>
-      void poll.getResponses().then((rel) => alive && setResponses([...(rel.getRelations() ?? [])]));
+      void poll.getResponses().then((rel) => alive && setResponses([...(rel?.getRelations() ?? [])]));
     load();
     poll.on(PollEvent.Responses, load);
     poll.on(PollEvent.End, bump);

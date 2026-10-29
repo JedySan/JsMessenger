@@ -284,7 +284,7 @@ export default function MediaPanel({
                       <button
                         className="tile-open"
                         onClick={() => openViewer(client, media, media.indexOf(it.content), (i) => onJump(items[i].id))}
-                        title={`${it.content.body ?? ""} · ${listTime(it.ts)} ${timeHM(it.ts)}`}
+                        title={`${fileName(it.content)} · ${listTime(it.ts)} ${timeHM(it.ts)}`}
                       >
                         <Thumb client={client} content={it.content} />
                         {video && (
