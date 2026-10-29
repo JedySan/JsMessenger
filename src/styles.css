@@ -1114,6 +1114,14 @@ textarea.text-input { resize: vertical; font: inherit; }
   .incoming { min-width: 0; width: calc(100vw - 24px); top: calc(env(safe-area-inset-top) + 10px); }
   .modal { width: calc(100vw - 32px); max-width: 440px; }
 }
+/* iPhone: высота — видимая часть экрана (без клавиатуры), см. src/ios.ts */
+html[data-platform="ios"], html[data-platform="ios"] body { position: fixed; inset: 0; overflow: hidden; }
+html[data-platform="ios"] body, html[data-platform="ios"] #root { height: var(--app-height, 100%); }
+html[data-platform="ios"].keyboard body { padding-bottom: 0; }
+/* поля со шрифтом меньше 16px iOS приближает при фокусе */
+html[data-platform="ios"] input, html[data-platform="ios"] textarea { font-size: max(16px, 1em); }
+html[data-platform="ios"] .titlebar { height: 0; }
+
 /* касание вместо наведения: действия у сообщения — по нажатию на него */
 @media (hover: none) {
   .msg:focus-within .msg-actions, .msg:focus .msg-actions { display: flex; opacity: 1; visibility: visible; }

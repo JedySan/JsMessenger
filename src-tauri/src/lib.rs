@@ -1,6 +1,8 @@
 #[cfg(target_os = "macos")]
 mod notify_mac;
 mod secrets;
+#[cfg(target_os = "ios")]
+mod ios;
 
 #[cfg(target_os = "macos")]
 use tauri::{Emitter, RunEvent};
@@ -108,6 +110,9 @@ pub fn run() {
             if !hidden {
                 show_main(app.handle());
             }
+
+            #[cfg(target_os = "ios")]
+            ios::hide_keyboard_bar();
 
             #[cfg(target_os = "macos")]
             {

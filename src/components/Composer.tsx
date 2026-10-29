@@ -9,6 +9,7 @@ import { PopupMenu } from "./ui";
 import { textToContent } from "../richtext";
 import { effectiveContent, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
+import { isMobile } from "../platform";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
 import Avatar from "./Avatar";
@@ -192,7 +193,10 @@ export default function Composer({
     });
   };
 
-  useEffect(() => ref.current?.focus(), [room.roomId, mode]);
+  // на телефоне клавиатура при открытии чата только мешает — фокус ставим, лишь когда отвечаем или правим
+  useEffect(() => {
+    if (!isMobile() || mode.kind !== "normal") ref.current?.focus();
+  }, [room.roomId, mode]);
 
   // При входе в режим правки подставляем текст сообщения
   useEffect(() => {
