@@ -1,5 +1,5 @@
 # Windows и Linux (Electron), Android (Tauri). Собираются на серверах GitHub, когда выходит релиз
-# (его создаёт ./scripts/build-mac.sh --publish), и прикладываются к тому же релизу.
+# (его создаёт ./scripts/build-mac.sh --publish или эта же сборка по тегу v*), и прикладываются к тому же релизу.
 # Ручной запуск: Actions → «Windows, Linux, Android» → Run workflow. С тегом (v0.9.4) — файлы уйдут
 # в релиз, без тега — просто сборка текущего кода, файлы лежат в «Artifacts» на странице запуска.
 name: Windows, Linux, Android
@@ -7,6 +7,10 @@ name: Windows, Linux, Android
 on:
   release:
     types: [published]
+  # тег версии (git push origin v0.14.0) — релиз создаётся здесь же, Мак для этого не нужен;
+  # файлы macOS потом добавляет ./scripts/build-mac.sh --publish в тот же релиз
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
@@ -17,7 +21,33 @@ permissions:
   contents: write
 
 jobs:
+  # релиз по тегу: создаём, если его ещё нет (описание — из сообщения аннотированного тега)
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      created: ${{ steps.mk.outputs.created }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Создать релиз
+        id: mk
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          git fetch --force --tags
+          # релиз уже создал build-mac.sh --publish — его сборку запустило событие «release», второй раз не собираем
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "релиз $TAG уже есть"; echo "created=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git tag -l --format='%(contents)' "$TAG" > notes.md
+          [ -s notes.md ] || echo "JsMessenger ${TAG#v}" > notes.md
+          gh release create "$TAG" --title "JsMessenger ${TAG#v}" --notes-file notes.md --verify-tag
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: release
+    if: always() && (needs.release.result == 'skipped' || needs.release.outputs.created == 'true')
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +64,7 @@ jobs:
       run:
         shell: bash
     env:
-      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
       VITE_DEFAULT_SERVER: ${{ vars.VITE_DEFAULT_SERVER }}
       VITE_LIVEKIT_SERVICE_URL: ${{ vars.VITE_LIVEKIT_SERVICE_URL }}
       # Подпись Windows через SignPath включается, когда заданы переменная SIGNPATH_ORGANIZATION_ID
@@ -143,9 +173,11 @@ jobs:
           retention-days: 7
 
   android:
+    needs: release
+    if: always() && (needs.release.result == 'skipped' || needs.release.outputs.created == 'true')
     runs-on: ubuntu-24.04
     env:
-      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
       VITE_DEFAULT_SERVER: ${{ vars.VITE_DEFAULT_SERVER }}
       VITE_LIVEKIT_SERVICE_URL: ${{ vars.VITE_LIVEKIT_SERVICE_URL }}
       # ключ подписи APK: один и тот же навсегда, иначе обновление не встанет поверх
