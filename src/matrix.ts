@@ -31,25 +31,40 @@ export interface Session {
   accessToken: string;
 }
 
-// ---------- хранение сессии ----------
+// ---------- хранение сессий (несколько аккаунтов) ----------
 // Адрес сервера, пользователь и устройство — в локальном хранилище, а токен входа — в Связке ключей
-// (macOS) или в защищённом хранилище системы (Windows, Linux). Где его нет (браузер, Android),
-// токен лежит вместе с остальным, как раньше.
+// (macOS, iOS) или в защищённом хранилище системы (Windows, Linux). Где его нет (браузер, Android),
+// токен лежит вместе с остальным.
+const ACCOUNTS_KEY = "jsm.accounts";
+const ACTIVE_KEY = "jsm.active";
 const tokenKey = (userId: string) => `access-token:${userId}`;
 type Stored = Omit<Session, "accessToken"> & { accessToken?: string; tokenInSecureStore?: boolean };
 
-function readStored(): Stored | null {
+function readAll(): Stored[] {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as Stored) : null;
+    const list = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? "null") as Stored[] | null;
+    if (Array.isArray(list)) return list;
+    // до версии с несколькими аккаунтами сессия была одна
+    const old = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null") as Stored | null;
+    return old ? [old] : [];
   } catch {
-    return null;
+    return [];
   }
 }
+function writeAll(list: Stored[]) {
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list));
+  localStorage.removeItem(SESSION_KEY);
+}
 
-export async function loadSession(): Promise<Session | null> {
-  const s = readStored();
-  if (!s) return null;
+/** Аккаунт, который был открыт последним. */
+export function getActiveUserId(): string | null {
+  return localStorage.getItem(ACTIVE_KEY);
+}
+export function setActiveUserId(userId: string) {
+  localStorage.setItem(ACTIVE_KEY, userId);
+}
+
+async function restore(s: Stored): Promise<Session | null> {
   if (s.tokenInSecureStore) {
     try {
       const token = await secretGet(tokenKey(s.userId));
@@ -65,24 +80,36 @@ export async function loadSession(): Promise<Session | null> {
   return session;
 }
 
+/** Все сохранённые аккаунты (те, к токену которых нет доступа, пропускаются). */
+export async function loadSessions(): Promise<Session[]> {
+  const out: Session[] = [];
+  for (const s of readAll()) {
+    const session = await restore(s);
+    if (session) out.push(session);
+  }
+  return out;
+}
+
 async function saveSession(s: Session) {
+  let stored: Stored = s;
   if (await secureStoreAvailable()) {
     try {
       await secretSet(tokenKey(s.userId), s.accessToken);
-      const stored: Stored = { baseUrl: s.baseUrl, userId: s.userId, deviceId: s.deviceId, tokenInSecureStore: true };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(stored));
-      return;
+      stored = { baseUrl: s.baseUrl, userId: s.userId, deviceId: s.deviceId, tokenInSecureStore: true };
     } catch (e) {
       console.warn("[session] защищённое хранилище недоступно, токен остаётся локально", e);
     }
   }
-  localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  const list = readAll().filter((x) => x.userId !== s.userId);
+  writeAll([...list, stored]);
 }
 
-async function clearSession() {
-  const s = readStored();
-  localStorage.removeItem(SESSION_KEY);
-  if (s?.tokenInSecureStore) await secretDelete(tokenKey(s.userId)).catch(() => {});
+async function clearSession(userId: string) {
+  const list = readAll();
+  const s = list.find((x) => x.userId === userId);
+  writeAll(list.filter((x) => x.userId !== userId));
+  if (s?.tokenInSecureStore) await secretDelete(tokenKey(userId)).catch(() => {});
+  if (getActiveUserId() === userId) localStorage.removeItem(ACTIVE_KEY);
 }
 
 // ---------- определение адреса сервера ----------
@@ -107,56 +134,60 @@ export async function resolveBaseUrl(input: string): Promise<string> {
 // Ключ хранится только в памяти: нужен на время подтверждения сеанса.
 let pendingRecoveryKey: Uint8Array<ArrayBuffer> | null = null;
 
-const cryptoCallbacks = {
-  getSecretStorageKey: async (
-    { keys }: { keys: Record<string, unknown> },
-  ): Promise<[string, Uint8Array<ArrayBuffer>] | null> => {
-    if (!pendingRecoveryKey || !activeClient) return null;
-    const defaultId = await activeClient.secretStorage.getDefaultKeyId();
-    const keyId = defaultId && defaultId in keys ? defaultId : Object.keys(keys)[0];
-    return keyId ? [keyId, pendingRecoveryKey] : null;
-  },
-};
-
-// ---------- клиент ----------
-let activeClient: MatrixClient | null = null;
-let starting: Promise<MatrixClient> | null = null;
-
-export function getClient(): MatrixClient | null {
-  return activeClient;
+function cryptoCallbacksFor(get: () => MatrixClient | null) {
+  return {
+    getSecretStorageKey: async ({ keys }: { keys: Record<string, unknown> }): Promise<[string, Uint8Array<ArrayBuffer>] | null> => {
+      const client = get();
+      if (!pendingRecoveryKey || !client) return null;
+      const defaultId = await client.secretStorage.getDefaultKeyId();
+      const keyId = defaultId && defaultId in keys ? defaultId : Object.keys(keys)[0];
+      return keyId ? [keyId, pendingRecoveryKey] : null;
+    },
+  };
 }
 
-/** Создаёт клиент, поднимает шифрование и запускает синхронизацию (один раз). */
+// ---------- клиенты: по одному на аккаунт, работают одновременно ----------
+const clients = new Map<string, Promise<MatrixClient>>();
+// шифрование поднимаем по очереди: одновременная инициализация двух хранилищ ключей падает в js-sdk
+let cryptoQueue: Promise<unknown> = Promise.resolve();
+
+/** Создаёт клиент, поднимает шифрование и запускает синхронизацию (один раз на аккаунт). */
 export function startClient(session: Session): Promise<MatrixClient> {
-  if (starting) return starting;
-  starting = (async () => {
+  const existing = clients.get(session.userId);
+  if (existing) return existing;
+  let ref: MatrixClient | null = null;
+  const starting = (async () => {
     const client = createClient({
       baseUrl: session.baseUrl,
       userId: session.userId,
       deviceId: session.deviceId,
       accessToken: session.accessToken,
-      cryptoCallbacks,
+      cryptoCallbacks: cryptoCallbacksFor(() => ref),
     });
-    activeClient = client;
+    ref = client;
     // Хранилище ключей шифрования — IndexedDB, отдельное на каждого пользователя
-    await client.initRustCrypto({
-      useIndexedDB: true,
-      cryptoDatabasePrefix: `jsm-crypto-${session.userId}`,
-    });
+    const init = cryptoQueue.then(() =>
+      client.initRustCrypto({
+        useIndexedDB: true,
+        cryptoDatabasePrefix: `jsm-crypto-${session.userId}`,
+      }),
+    );
+    cryptoQueue = init.catch(() => {});
+    await init;
     // threadSupport: ответы в тредах живут отдельно от основной ленты, как в Element
     await client.startClient({ initialSyncLimit: 30, lazyLoadMembers: true, threadSupport: true });
     return client;
   })();
-  starting.catch(() => {
-    starting = null;
-    activeClient = null;
-  });
+  starting.catch(() => clients.delete(session.userId));
+  clients.set(session.userId, starting);
   return starting;
 }
 
 export async function login(server: string, user: string, password: string): Promise<Session> {
   const baseUrl = await resolveBaseUrl(user.includes(":") ? user : server);
   const tmp = createClient({ baseUrl });
+  // этот аккаунт уже добавлен — второй вход создал бы лишнее устройство
+  if (user.startsWith("@") && readAll().some((s) => s.userId === user)) throw new Error(tr("Этот аккаунт уже добавлен"));
   const res = await tmp.loginRequest({
     type: "m.login.password",
     identifier: { type: "m.id.user", user },
@@ -169,12 +200,19 @@ export async function login(server: string, user: string, password: string): Pro
     deviceId: res.device_id,
     accessToken: res.access_token,
   };
+  if (readAll().some((s) => s.userId === session.userId)) {
+    // вошли повторно в уже добавленный аккаунт: лишнее устройство сразу выводим
+    await createClient({ baseUrl: session.baseUrl, accessToken: session.accessToken }).logout(true).catch(() => {});
+    throw new Error(tr("Этот аккаунт уже добавлен"));
+  }
   await saveSession(session);
   return session;
 }
 
-export async function logout(): Promise<void> {
-  const client = activeClient;
+/** Выйти из одного аккаунта (остальные продолжают работать). */
+export async function logout(userId: string): Promise<void> {
+  const client = await clients.get(userId)?.catch(() => null);
+  clients.delete(userId);
   if (client) {
     client.stopClient();
     try {
@@ -184,9 +222,7 @@ export async function logout(): Promise<void> {
     }
     await client.clearStores();
   }
-  activeClient = null;
-  starting = null;
-  await clearSession();
+  await clearSession(userId);
 }
 
 /** Ждёт первой успешной синхронизации. */

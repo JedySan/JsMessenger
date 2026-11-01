@@ -4,7 +4,7 @@ import { dismissToast, getToasts, subscribeToasts } from "../notifications";
 import { tr } from "../i18n";
 
 /** Карточки о новых сообщениях внутри приложения (когда окно в фокусе). */
-export default function Toasts({ onOpen }: { onOpen: (roomId: string) => void }) {
+export default function Toasts({ onOpen }: { onOpen: (roomId: string, account: string) => void }) {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts);
   if (!toasts.length) return null;
   return (
@@ -15,7 +15,7 @@ export default function Toasts({ onOpen }: { onOpen: (roomId: string) => void })
             className="toast-main"
             onClick={() => {
               dismissToast(t.id);
-              onOpen(t.roomId);
+              onOpen(t.roomId, t.account);
             }}
           >
             <MessageSquare size={16} />

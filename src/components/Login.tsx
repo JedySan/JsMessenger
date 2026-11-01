@@ -4,10 +4,18 @@ import { errText } from "../App";
 import Logo from "./Logo";
 import { tr } from "../i18n";
 
-export default function Login({ onLoggedIn }: { onLoggedIn: (s: Session) => void }) {
-  const [server, setServer] = useState(DEFAULT_SERVER);
+export default function Login({
+  onLoggedIn,
+  onCancel,
+}: {
+  onLoggedIn: (s: Session) => void;
+  /** добавляем ещё один аккаунт — можно вернуться к открытому */
+  onCancel?: () => void;
+}) {
+  // второй аккаунт обычно на другом сервере — поле адреса сразу открыто и пустое
+  const [server, setServer] = useState(onCancel ? "" : DEFAULT_SERVER);
   // Если сервер по умолчанию не задан при сборке — сразу показываем поле ввода
-  const [editServer, setEditServer] = useState(!DEFAULT_SERVER);
+  const [editServer, setEditServer] = useState(!DEFAULT_SERVER || !!onCancel);
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,7 +39,8 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (s: Session) => void
       <div className="titlebar" data-tauri-drag-region />
       <form className="login" onSubmit={submit}>
         <Logo size={56} />
-        <h1>{tr("Вход в JsMessenger")}</h1>
+        <h1>{onCancel ? tr("Ещё один аккаунт") : tr("Вход в JsMessenger")}</h1>
+        {onCancel && <p className="login-note">{tr("Можно войти на другом сервере Matrix — аккаунты работают одновременно.")}</p>}
         <p className="login-server">
           {editServer ? (
             <input
@@ -76,6 +85,11 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (s: Session) => void
         <button type="submit" className="primary wide" disabled={busy}>
           {busy ? tr("Вхожу…") : tr("Войти")}
         </button>
+        {onCancel && (
+          <button type="button" className="ghost wide" onClick={onCancel} disabled={busy}>
+            {tr("Отмена")}
+          </button>
+        )}
       </form>
     </div>
   );

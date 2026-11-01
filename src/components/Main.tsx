@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, UserEvent, type MatrixClient } from "matrix-js-sdk";
-import { Bell, Check, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
+import { ArrowLeftRight, Bell, Check, UserPlus, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
 import { useClientUpdates, useNarrow } from "../hooks";
+import type { Account } from "../App";
 import { SettingsPage, SpacesPage, TabBar, type Tab } from "./MobileNav";
 import { ChevronLeft } from "lucide-react";
 import { isThisDeviceVerified } from "../matrix";
@@ -37,11 +38,33 @@ import {
 } from "../desktop";
 import { PopupMenu, type MenuItem } from "./ui";
 import { isDesktop } from "../platform";
-import { attachNotifications, onNotificationClick, testNotification, updateBadge } from "../notifications";
+import { attachNotifications, onNotificationClick, testNotification, unreadTotal, updateBadge } from "../notifications";
 import { LANGS, lang, setLang, tr } from "../i18n";
 import { ask, notice } from "./Ask";
 
-export default function Main({ client, onLogout }: { client: MatrixClient; onLogout: () => void }) {
+export default function Main({
+  client,
+  accounts,
+  initialRoom,
+  onSwitchAccount,
+  onAddAccount,
+  onForeignRoom,
+  onOpenInAccount,
+  onLogout,
+}: {
+  client: MatrixClient;
+  /** все аккаунты (этот — среди них) */
+  accounts: Account[];
+  /** открыть сразу после входа в аккаунт (нажали уведомление из него) */
+  initialRoom?: string | null;
+  onSwitchAccount: (userId: string) => void;
+  onAddAccount: () => void;
+  /** чат не из этого аккаунта: true — его открыл другой аккаунт */
+  onForeignRoom: (roomId: string) => boolean;
+  /** открыть чат в другом аккаунте */
+  onOpenInAccount: (userId: string, roomId: string) => void;
+  onLogout: () => void;
+}) {
   useClientUpdates(client);
   const [scope, setScope] = useState<Scope>({ kind: "all" });
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -120,6 +143,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
 
   /** Открыть комнату; для пространства — его страницу. */
   const openRoom = (id: string) => {
+    if (!client.getRoom(id) && onForeignRoom(id)) return;
     setMobileView("content");
     const r = client.getRoom(id);
     if (r?.isSpaceRoom()) {
@@ -133,6 +157,10 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
   };
 
   openRef.current = openRoom;
+  useEffect(() => {
+    if (initialRoom && client.getRoom(initialRoom)) openRoom(initialRoom);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const changeScope = (s: Scope) => {
     setScope(s);
@@ -141,8 +169,33 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
     if (s.kind === "space") setRoomId(null);
   };
 
+  // другие аккаунты: имя, аватар, непрочитанные
+  const others = accounts
+    .filter((a) => a.session.userId !== client.getSafeUserId())
+    .map((a) => {
+      const u = a.client?.getUser(a.session.userId);
+      return {
+        userId: a.session.userId,
+        name: u?.displayName || a.session.userId,
+        avatar: u?.avatarUrl ?? undefined,
+        client: a.client,
+        unread: a.client ? unreadTotal(a.client) : 0,
+        error: a.error,
+      };
+    });
+  const othersUnread = others.reduce((n, a) => n + a.unread, 0);
+  const accountItems: MenuItem[] = [
+    ...others.map((a) => ({
+      label: a.name,
+      hint: a.unread ? String(a.unread > 99 ? "99+" : a.unread) : a.client ? a.userId.split(":")[1] : tr("подключается…"),
+      icon: <ArrowLeftRight size={15} />,
+      onClick: () => onSwitchAccount(a.userId),
+    })),
+    { label: tr("Добавить аккаунт"), icon: <UserPlus size={15} />, onClick: onAddAccount },
+  ];
+
   const meItems: MenuItem[] = [
-            { label: tr("Профиль"), icon: <UserRound size={15} />, onClick: () => setShowProfile(true) },
+            { sep: true, label: tr("Профиль"), icon: <UserRound size={15} />, onClick: () => setShowProfile(true) },
             { label: tr("Сеансы и устройства"), icon: <MonitorSmartphone size={15} />, onClick: () => setShowSessions(true) },
             {
               sep: true,
@@ -205,7 +258,10 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
         <div className="titlebar" data-tauri-drag-region />
         <div className="me-row">
           <button className="me-open" onClick={() => setShowProfile(true)} title={tr("Профиль")}>
-            <Avatar client={client} mxc={me?.avatarUrl} name={myName} seed={client.getSafeUserId()} size={30} />
+            <span className="me-avatar">
+              <Avatar client={client} mxc={me?.avatarUrl} name={myName} seed={client.getSafeUserId()} size={30} />
+              {othersUnread > 0 && <span className="me-dot" title={tr("Непрочитанные в других аккаунтах: {0}", othersUnread)} />}
+            </span>
             <span className="me-text">
               <span className="me-name">{myName}</span>
               <span className="me-id">{client.getSafeUserId()}</span>
@@ -262,6 +318,9 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
             onProfile={() => setShowProfile(true)}
             onVerify={() => setShowVerify(true)}
             items={meItems}
+            accounts={others}
+            onSwitchAccount={onSwitchAccount}
+            onAddAccount={onAddAccount}
           />
         )}
         {narrow && tab === "spaces" && scope.kind !== "space" && <SpacesPage client={client} onOpen={(id) => setScope({ kind: "space", id })} />}
@@ -288,7 +347,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           }}
         />
         )}
-        {narrow && <TabBar client={client} tab={tab} onTab={onTab} />}
+        {narrow && <TabBar client={client} tab={tab} onTab={onTab} settingsBadge={othersUnread} />}
       </aside>
 
       <main className="content">
@@ -323,7 +382,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
       </main>
       <CallAudio />
       <Lightbox />
-      <Toasts onOpen={openRoom} />
+      <Toasts onOpen={(id, account) => (account === client.getSafeUserId() ? openRoom(id) : onOpenInAccount(account, id))} />
       <IncomingCall client={client} onOpenRoom={openRoom} />
       <ScreenPicker />
       <CallMini client={client} visible={!!callState && callState.roomId !== roomId} onOpen={openRoom} />
@@ -338,7 +397,7 @@ export default function Main({ client, onLogout }: { client: MatrixClient; onLog
           x={meMenu.x}
           y={meMenu.y}
           onClose={() => setMeMenu(null)}
-          items={meItems}
+          items={[...accountItems, ...meItems]}
         />
       )}
     </div>

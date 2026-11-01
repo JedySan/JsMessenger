@@ -1,7 +1,7 @@
 // Телефон: нижняя стеклянная панель вкладок (как в Telegram) и экраны «Пространства» и «Настройки».
 import type { ReactNode } from "react";
 import { NotificationCountType, type MatrixClient } from "matrix-js-sdk";
-import { ChevronRight, LayoutGrid, MessagesSquare, Plus, Settings, ShieldAlert, ShieldCheck, User } from "lucide-react";
+import { ChevronRight, LayoutGrid, MessagesSquare, Plus, Settings, ShieldAlert, ShieldCheck, User, UserPlus } from "lucide-react";
 import { directRoomIds, roomIdsInSpace, topLevelSpaces } from "../rooms";
 import Avatar, { RoomAvatar } from "./Avatar";
 import { openDialog } from "./DialogHost";
@@ -22,14 +22,25 @@ function unreadIn(client: MatrixClient, ids: Iterable<string>) {
   return { total, mention };
 }
 
-export function TabBar({ client, tab, onTab }: { client: MatrixClient; tab: Tab; onTab: (t: Tab) => void }) {
+export function TabBar({
+  client,
+  tab,
+  onTab,
+  settingsBadge = 0,
+}: {
+  client: MatrixClient;
+  tab: Tab;
+  onTab: (t: Tab) => void;
+  /** непрочитанные в других аккаунтах */
+  settingsBadge?: number;
+}) {
   const all = unreadIn(client, client.getRooms().map((r) => r.roomId));
   const dms = unreadIn(client, directRoomIds(client));
   const tabs: Array<{ id: Tab; label: string; icon: ReactNode; badge?: number }> = [
     { id: "chats", label: tr("Чаты"), icon: <MessagesSquare size={22} />, badge: all.total },
     { id: "dms", label: tr("Личные"), icon: <User size={22} />, badge: dms.total },
     { id: "spaces", label: tr("Пространства"), icon: <LayoutGrid size={22} /> },
-    { id: "settings", label: tr("Настройки"), icon: <Settings size={22} /> },
+    { id: "settings", label: tr("Настройки"), icon: <Settings size={22} />, badge: settingsBadge },
   ];
   return (
     <nav className="tab-bar" aria-label={tr("Разделы")}>
@@ -100,6 +111,9 @@ export function SettingsPage({
   onProfile,
   onVerify,
   items,
+  accounts,
+  onSwitchAccount,
+  onAddAccount,
 }: {
   client: MatrixClient;
   name: string;
@@ -108,6 +122,10 @@ export function SettingsPage({
   onProfile: () => void;
   onVerify: () => void;
   items: MenuItem[];
+  /** другие аккаунты */
+  accounts: Array<{ userId: string; name: string; avatar?: string; client: MatrixClient | null; unread: number; error?: string }>;
+  onSwitchAccount: (userId: string) => void;
+  onAddAccount: () => void;
 }) {
   const visible = items.filter((i) => !i.hidden);
   // группы — по разделителям (sep), как в меню
@@ -129,6 +147,33 @@ export function SettingsPage({
         </span>
         <ChevronRight size={18} className="m-row-go" />
       </button>
+      {/* аккаунты на других серверах — переключение в одно нажатие, как в Telegram */}
+      <div className="m-group">
+        {accounts.map((a) => (
+          <button key={a.userId} className="m-row" onClick={() => onSwitchAccount(a.userId)}>
+            {a.client ? (
+              <Avatar client={a.client} mxc={a.avatar} name={a.name} seed={a.userId} size={30} />
+            ) : (
+              <span className="m-row-icon muted">
+                <User size={17} />
+              </span>
+            )}
+            <span className="m-row-text">
+              <span className="m-row-title">{a.name}</span>
+              <span className="m-row-sub">{a.error ? tr("Нет связи с сервером") : a.client ? a.userId : tr("подключается…")}</span>
+            </span>
+            {a.unread > 0 && <span className="badge">{a.unread > 99 ? "99+" : a.unread}</span>}
+          </button>
+        ))}
+        <button className="m-row" onClick={onAddAccount}>
+          <span className="m-row-icon">
+            <UserPlus size={17} />
+          </span>
+          <span className="m-row-text">
+            <span className="m-row-title">{tr("Добавить аккаунт")}</span>
+          </span>
+        </button>
+      </div>
       <div className="m-group">
         <button className="m-row" onClick={onVerify} disabled={verified !== false}>
           <span className={"m-row-icon" + (verified === false ? " warn" : " ok")}>

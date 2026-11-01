@@ -1708,3 +1708,13 @@ html[data-platform="ios"] .titlebar { height: 0; }
   .toast-main b, .toast-main span span { font-size: 15px; }
 }
 @keyframes toast-drop { from { transform: translateY(-24px); opacity: 0; } }
+
+/* ---------- несколько аккаунтов ---------- */
+.me-avatar { position: relative; display: inline-flex; flex-shrink: 0; }
+.me-dot {
+  position: absolute; right: -2px; top: -2px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--danger); box-shadow: 0 0 0 2px var(--side);
+}
+.login-note { margin: -6px 0 2px; color: var(--text-2); font-size: 13px; text-align: center; }
+.splash-sub { margin: -6px 0 0; color: var(--text-3); font-size: 13px; }
+.m-row-icon.muted { background: var(--hover); color: var(--text-3); }

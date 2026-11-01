@@ -24,6 +24,8 @@ export interface Toast {
   roomId: string;
   title: string;
   body: string;
+  /** аккаунт, в который пришло сообщение */
+  account: string;
 }
 let toasts: Toast[] = [];
 let toastSeq = 0;
@@ -44,10 +46,10 @@ export function dismissToast(id: number) {
   toasts = toasts.filter((t) => t.id !== id);
   emitToasts();
 }
-function pushToast(roomId: string, title: string, body: string) {
+function pushToast(account: string, roomId: string, title: string, body: string) {
   const id = ++toastSeq;
   // в одном чате — одна карточка, свежая заменяет старую; не больше трёх сразу
-  toasts = [...toasts.filter((t) => t.roomId !== roomId), { id, roomId, title, body }].slice(-3);
+  toasts = [...toasts.filter((t) => t.roomId !== roomId || t.account !== account), { id, roomId, title, body, account }].slice(-3);
   emitToasts();
   setTimeout(() => dismissToast(id), 6000);
 }
@@ -167,7 +169,12 @@ const NOTIFY_TYPES = new Set<string>([EventType.RoomMessage, EventType.Sticker])
  * Подписывается на новые события. currentRoom — какая комната сейчас открыта
  * (по ней не уведомляем, если окно активно).
  */
-export function attachNotifications(client: MatrixClient, currentRoom: () => string | null): () => void {
+export function attachNotifications(
+  client: MatrixClient,
+  currentRoom: () => string | null,
+  /** не открытый сейчас аккаунт: подпись к заголовку, чтобы было видно, куда пришло */
+  account?: string,
+): () => void {
   const me = client.getSafeUserId();
   // события первой синхронизации — это история, а не новые сообщения
   const startedAt = Date.now();
@@ -190,9 +197,10 @@ export function attachNotifications(client: MatrixClient, currentRoom: () => str
     if (isAppFocused() && currentRoom() === room.roomId) return;
 
     const sender = room.getMember(ev.getSender() ?? "")?.name ?? ev.getSender() ?? "";
-    const title = isDirect(client, room) ? sender : tr("{0} в «{1}»", sender, room.name);
+    const base = isDirect(client, room) ? sender : tr("{0} в «{1}»", sender, room.name);
+    const title = account ? `${base} · ${account}` : base;
     const body = ev.isDecryptionFailure() ? tr("Новое зашифрованное сообщение") : plainText(ev).slice(0, 200);
-    if (isAppFocused()) pushToast(room.roomId, title, body);
+    if (isAppFocused()) pushToast(me, room.roomId, title, body);
     else {
       show(title, body, room.roomId);
       bounceDock();
@@ -227,8 +235,19 @@ function badgeImage(n: number): string {
 }
 
 let lastBadge = -1;
-/** Число на иконке в Dock: непрочитанные во всех комнатах, кроме отключённых. */
+const badgeCounts = new Map<string, number>();
+/** Аккаунт удалён — его непрочитанные больше не считаем. */
+export function forgetBadge(userId: string) {
+  badgeCounts.delete(userId);
+  applyBadge();
+}
+/** Число на иконке в Dock: непрочитанные во всех комнатах всех аккаунтов, кроме отключённых. */
 export function updateBadge(client: MatrixClient) {
+  badgeCounts.set(client.getSafeUserId(), unreadTotal(client));
+  applyBadge();
+}
+/** Непрочитанные аккаунта (с приглашениями). */
+export function unreadTotal(client: MatrixClient): number {
   let total = 0;
   for (const r of client.getRooms()) {
     if (r.getMyMembership() === KnownMembership.Invite) {
@@ -238,6 +257,11 @@ export function updateBadge(client: MatrixClient) {
     if (r.getMyMembership() !== KnownMembership.Join || isMuted(client, r)) continue;
     total += r.getUnreadNotificationCount(NotificationCountType.Total);
   }
+  return total;
+}
+function applyBadge() {
+  let total = 0;
+  for (const n of badgeCounts.values()) total += n;
   if (total === lastBadge) return;
   lastBadge = total;
   const el = electron();
