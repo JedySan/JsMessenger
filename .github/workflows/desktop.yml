@@ -14,7 +14,10 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Тег релиза (например v0.9.4); пусто — только проверочная сборка"
+        description: "Тег релиза (например v0.9.4); пусто — только проверочная сборка. Нет такого релиза — создастся"
+        required: false
+      notes:
+        description: "Что нового (для нового релиза)"
         required: false
 
 permissions:
@@ -23,7 +26,8 @@ permissions:
 jobs:
   # релиз по тегу: создаём, если его ещё нет (описание — из сообщения аннотированного тега)
   release:
-    if: github.event_name == 'push'
+    # тег пушем или ручной запуск с тегом (тогда тег ставится на текущий коммит ветки)
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
     runs-on: ubuntu-24.04
     outputs:
       created: ${{ steps.mk.outputs.created }}
@@ -35,19 +39,26 @@ jobs:
         id: mk
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          NOTES: ${{ inputs.notes }}
         run: |
           git fetch --force --tags
           # релиз уже создал build-mac.sh --publish — его сборку запустило событие «release», второй раз не собираем
           if gh release view "$TAG" >/dev/null 2>&1; then echo "релиз $TAG уже есть"; echo "created=false" >> "$GITHUB_OUTPUT"; exit 0; fi
-          git tag -l --format='%(contents)' "$TAG" > notes.md
-          [ -s notes.md ] || echo "JsMessenger ${TAG#v}" > notes.md
-          gh release create "$TAG" --title "JsMessenger ${TAG#v}" --notes-file notes.md --verify-tag
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git tag -l --format='%(contents)' "$TAG" > notes.md
+            TARGET=(--verify-tag)
+          else
+            printf '%s\n' "$NOTES" > notes.md
+            TARGET=(--target "$GITHUB_SHA")
+          fi
+          [ -n "$(tr -d '[:space:]' < notes.md)" ] || echo "JsMessenger ${TAG#v}" > notes.md
+          gh release create "$TAG" --title "JsMessenger ${TAG#v}" --notes-file notes.md "${TARGET[@]}"
           echo "created=true" >> "$GITHUB_OUTPUT"
 
   build:
     needs: release
-    if: always() && (needs.release.result == 'skipped' || needs.release.outputs.created == 'true')
+    if: always() && needs.release.result != 'failure' && (github.event_name != 'push' || needs.release.outputs.created == 'true')
     strategy:
       fail-fast: false
       matrix:
@@ -174,7 +185,7 @@ jobs:
 
   android:
     needs: release
-    if: always() && (needs.release.result == 'skipped' || needs.release.outputs.created == 'true')
+    if: always() && needs.release.result != 'failure' && (github.event_name != 'push' || needs.release.outputs.created == 'true')
     runs-on: ubuntu-24.04
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
