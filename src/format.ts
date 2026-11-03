@@ -63,6 +63,8 @@ export function lastMessagePreview(room: Room, myUserId: string, isDm = false): 
     else if (POLL_START.includes(e.getType())) text = pollPreview(e);
     else if (content.msgtype === MsgType.Image) text = withCaption(tr("Фото"), content);
     else if (content.msgtype === MsgType.File) text = withCaption(tr("Файл: {0}", fileNameOf(content)), content);
+    else if (e.getType() === EventType.Sticker) text = tr("Стикер");
+    else if (content.msgtype === MsgType.Video && content["jsm.video_note"]) text = tr("Видеосообщение");
     else if (content.msgtype === MsgType.Video) text = withCaption(tr("Видео"), content);
     else if (content.msgtype === MsgType.Audio) text = content["org.matrix.msc3245.voice"] ? tr("Голосовое сообщение") : tr("Аудио");
     else if (content.format === "org.matrix.custom.html" && typeof content.formatted_body === "string")

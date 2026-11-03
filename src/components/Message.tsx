@@ -26,6 +26,7 @@ import {
   PinOff,
   Reply,
   SmilePlus,
+  Sticker as StickerIcon,
   TextSelect,
   Trash2,
 } from "lucide-react";
@@ -42,6 +43,10 @@ import { canForward } from "../forward";
 import { isVoice } from "../voice";
 import { isPollStart, pollPreview } from "../polls";
 import { PollCard } from "./Poll";
+import EmojiPanel from "./EmojiPanel";
+import { VideoNoteMessage } from "./VideoNote";
+import { isVideoNote } from "../videonote";
+import { addToMyStickers } from "../stickers";
 import { canOpenFiles, canSaveAs, copyImage, useDownload } from "../downloads";
 import { plural } from "../i18n";
 import { captionOf, fileNameOf } from "../caption";
@@ -67,11 +72,6 @@ export async function togglePin(client: MatrixClient, room: Room, eventId: strin
 }
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "👌", "🎉", "👀", "✅"];
-const MORE_REACTIONS = [
-  "👍", "👎", "❤️", "🔥", "😂", "😮", "😢", "😡", "🎉", "🙏", "👏", "💪",
-  "✅", "❌", "⚠️", "👀", "🤝", "🚀", "💯", "🤔", "😅", "😎", "🙈", "🥳",
-  "☕", "🍕", "📌", "📎", "🐛", "🛠️", "⏳", "🆗",
-];
 
 /** Текущее содержимое с учётом правок. */
 export function effectiveContent(ev: MatrixEvent): Record<string, any> {
@@ -88,12 +88,14 @@ export function plainText(ev: MatrixEvent): string {
     case MsgType.Image:
       return cap ? `${tr("Фото")}: ${cap}` : tr("Фото");
     case MsgType.Video:
+      if (isVideoNote(c)) return tr("Видеосообщение");
       return cap ? `${tr("Видео")}: ${cap}` : tr("Видео");
     case MsgType.Audio:
       return isVoice(c) ? tr("Голосовое сообщение") : cap ? `${tr("Аудио")}: ${cap}` : tr("Аудио");
     case MsgType.File:
       return cap ? `${fileNameOf(c)}: ${cap}` : tr("Файл: {0}", fileNameOf(c));
   }
+  if (ev.getType() === EventType.Sticker) return tr("Стикер");
   if (c.format === "org.matrix.custom.html" && c.formatted_body) return htmlToText(c.formatted_body);
   return stripReplyFallback(String(c.body ?? ""));
 }
@@ -177,6 +179,8 @@ export default function Message({
     reply: redacted ? undefined : () => actions.onReply(ev),
   });
   const t = content.msgtype as string | undefined;
+  // стикер и кружок — без пузыря, как в Telegram
+  const bare = !redacted && (ev.getType() === EventType.Sticker || (t === MsgType.Video && isVideoNote(content)));
   const mediaOnly =
     bubbles && !redacted && !replyId && (t === MsgType.Image || t === MsgType.Video || ev.getType() === EventType.Sticker) && !captionOf(content);
   const edited = !redacted && !!ev.replacingEvent();
@@ -238,7 +242,10 @@ export default function Message({
         </div>
       )}
       <div className="msg-main">
-        <div className={"msg-bubble" + (mediaOnly ? " media-only" : "")} ref={bubbleRef}>
+        <div
+          className={"msg-bubble" + (mediaOnly ? " media-only" : "") + (bare ? " bare" : "")}
+          ref={bubbleRef}
+        >
           {showName && (
             <div className="msg-head">
               <button className="msg-author" onClick={() => openDialog({ kind: "user", userId: sender })}>
@@ -352,7 +359,8 @@ export default function Message({
             </button>
           )}
           {picker && (
-            <EmojiPicker
+            <EmojiPanel
+              className="for-reaction"
               onPick={(k) => {
                 setPicker(false);
                 react(k);
@@ -365,7 +373,8 @@ export default function Message({
       {picker && bubbles && (
         <div className="sheet-picker" onClick={() => setPicker(false)}>
           <div onClick={(e) => e.stopPropagation()}>
-            <EmojiPicker
+            <EmojiPanel
+              className="for-reaction"
               onPick={(k) => {
                 setPicker(false);
                 react(k);
@@ -472,6 +481,16 @@ function MessageMenu({
       onClick: () => void copyImage(client, content).catch((e) => notice(tr("Не удалось скопировать: {0}", e instanceof Error ? e.message : String(e)))),
       hidden: !hasMedia || !isImage,
     },
+    {
+      label: tr("Добавить в стикеры"),
+      icon: <StickerIcon size={15} />,
+      onClick: () =>
+        void addToMyStickers(client, content).then(
+          () => notice(tr("Добавлено в «Мои стикеры» — они в панели 😊 у поля ввода")),
+          (e) => notice(tr("Не удалось добавить стикер: {0}", e instanceof Error ? e.message : String(e))),
+        ),
+      hidden: !hasMedia || !isImage,
+    },
     { label: tr("Открыть файл"), icon: <ExternalLink size={15} />, onClick: () => void openSaved(content), hidden: !hasMedia || !saved },
     { label: tr("Показать в папке"), icon: <FolderOpen size={15} />, onClick: () => void revealSaved(content), hidden: !hasMedia || !saved },
     {
@@ -545,30 +564,6 @@ function MessageMenu({
   return createPortal(<PopupMenu x={at.x} y={at.y} items={items} onClose={onClose} header={header} />, document.body);
 }
 
-function EmojiPicker({ onPick, onClose }: { onPick: (k: string) => void; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-  return (
-    <div className="emoji-picker" ref={ref}>
-      {MORE_REACTIONS.map((k) => (
-        <button key={k} onClick={() => onPick(k)}>
-          {k}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 // ---------- реакции ----------
 async function toggleReaction(client: MatrixClient, room: Room, ev: MatrixEvent, key: string) {
@@ -688,7 +683,7 @@ function Body({ client, room, ev, content }: { client: MatrixClient; room: Room;
     );
   }
   if (ev.getType() === EventType.Sticker) {
-    return <ImageMessage client={client} content={content} />;
+    return <ImageMessage client={client} content={content} sticker />;
   }
   return <TextBody content={content} />;
 }
@@ -698,7 +693,7 @@ function mediaBody(client: MatrixClient, content: Record<string, any>) {
     case MsgType.Image:
       return <ImageMessage client={client} content={content} />;
     case MsgType.Video:
-      return <VideoMessage client={client} content={content} />;
+      return isVideoNote(content) ? <VideoNoteMessage client={client} content={content} /> : <VideoMessage client={client} content={content} />;
     case MsgType.Audio:
       return isVoice(content) ? <VoiceMessage client={client} content={content} /> : <AudioMessage client={client} content={content} />;
     case MsgType.File:

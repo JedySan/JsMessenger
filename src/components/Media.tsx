@@ -202,17 +202,18 @@ function LightboxSave({
 }
 
 // ---------- типы сообщений ----------
-function boxFor(content: Record<string, any>, max = 360) {
+function boxFor(content: Record<string, any>, max = 360, maxH = 320) {
   const w = content.info?.w as number | undefined;
   const h = content.info?.h as number | undefined;
   if (!w || !h) return { width: 260, height: 180 };
-  const scale = Math.min(1, max / w, 320 / h);
+  const scale = Math.min(1, max / w, maxH / h);
   return { width: Math.round(w * scale), height: Math.round(h * scale) };
 }
 
-export function ImageMessage({ client, content }: { client: MatrixClient; content: Record<string, any> }) {
+export function ImageMessage({ client, content, sticker }: { client: MatrixClient; content: Record<string, any>; sticker?: boolean }) {
   const { url, error } = useBlobUrl(client, content);
-  const box = boxFor(content);
+  // стикер — не больше 200×200, как в Telegram
+  const box = sticker ? boxFor(content, 200, 200) : boxFor(content);
   if (error)
     return (
       <span className="msg-locked">

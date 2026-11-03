@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { BarChart3, Bold, Code, ImagePlus, Italic, Link, LoaderCircle, Mic, Paperclip, Pencil, Plus, Quote, Reply, SendHorizontal, Strikethrough, Trash2, X } from "lucide-react";
+import { BarChart3, Bold, CircleDot, Smile, Code, ImagePlus, Italic, Link, LoaderCircle, Mic, Paperclip, Pencil, Plus, Quote, Reply, SendHorizontal, Strikethrough, Trash2, X } from "lucide-react";
 import { errText } from "../App";
 import { nameForPasted, sendFile } from "../attachments";
 import { MAX_VOICE_SECONDS, VoiceRecorder, formatDuration } from "../voice";
@@ -13,6 +13,10 @@ import { isMobile } from "../platform";
 import { useNarrow } from "../hooks";
 import { draftKey, getDraft, setDraft } from "../drafts";
 import { captionOf, fileNameOf } from "../caption";
+import EmojiPanel from "./EmojiPanel";
+import { sendSticker, type Sticker } from "../stickers";
+import { VideoNoteDialog } from "./VideoNote";
+import { NOTE_FLAG, NOTE_SIZE, canRecordVideoNote, type NoteResult } from "../videonote";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
 import Avatar from "./Avatar";
@@ -397,6 +401,46 @@ export default function Composer({
 
   const [attachMenu, setAttachMenu] = useState<{ x: number; y: number } | null>(null);
   const [pollOpen, setPollOpen] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+
+  /** Вставить в поле в место курсора (смайлик). На телефоне клавиатуру не поднимаем. */
+  const insertText = (s: string) => {
+    const el = ref.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? start;
+    setText(text.slice(0, start) + s + text.slice(end));
+    requestAnimationFrame(() => {
+      if (!el) return;
+      if (!narrow) el.focus();
+      el.setSelectionRange(start + s.length, start + s.length);
+    });
+  };
+  const currentRelation = () =>
+    relationFor(
+      mode.kind === "reply" ? mode.ev.getId()! : undefined,
+      threadId,
+      threadId ? (room.getThread(threadId)?.lastReply()?.getId() ?? undefined) : undefined,
+    );
+  const onSticker = (st: Sticker) => {
+    setEmojiOpen(false);
+    const rel = currentRelation();
+    if (mode.kind === "reply") setMode({ kind: "normal" });
+    onSent();
+    sendSticker(client, room, st, rel).catch((e) => notice(tr("Стикер не отправлен: {0}", errText(e))));
+  };
+  const sendNote = async (r: NoteResult) => {
+    const rel = currentRelation();
+    const ext = r.mime.includes("mp4") ? "mp4" : "webm";
+    const file = new File([r.blob], `video-note.${ext}`, { type: r.mime });
+    await sendFile(client, room, file, undefined, rel, {
+      body: tr("Видеосообщение"),
+      info: { w: NOTE_SIZE, h: NOTE_SIZE, duration: r.durationMs, mimetype: r.mime },
+      fields: { [NOTE_FLAG]: true },
+    });
+    if (mode.kind === "reply") setMode({ kind: "normal" });
+    onSent();
+  };
 
   const format = (f: Fmt) => {
     const el = ref.current;
@@ -566,6 +610,25 @@ export default function Composer({
             setMention(null);
           }}
         />
+        <button
+          className={"attach-btn emoji-btn" + (emojiOpen ? " on" : "")}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setEmojiOpen((v) => !v)}
+          title={tr("Эмодзи и стикеры")}
+          aria-label={tr("Эмодзи и стикеры")}
+        >
+          <Smile size={19} />
+        </button>
+        {emojiOpen && (
+          <EmojiPanel
+            className="in-composer"
+            client={client}
+            room={room}
+            onPick={insertText}
+            onSticker={mode.kind === "edit" ? undefined : onSticker}
+            onClose={() => setEmojiOpen(false)}
+          />
+        )}
         {!text.trim() && mode.kind !== "edit" ? (
           <button className="send-btn mic" onClick={() => void startVoice()} title={tr("Записать голосовое")} aria-label={tr("Записать голосовое")}>
             <Mic size={18} />
@@ -583,9 +646,11 @@ export default function Composer({
           onClose={() => setAttachMenu(null)}
           onFile={() => fileInput.current?.click()}
           onPoll={() => setPollOpen(true)}
+          onNote={canRecordVideoNote() ? () => setNoteOpen(true) : undefined}
         />
       )}
       {pollOpen && <PollDialog client={client} room={room} onClose={() => setPollOpen(false)} />}
+      {noteOpen && <VideoNoteDialog onSend={sendNote} onClose={() => setNoteOpen(false)} />}
       <div className="composer-hint">
         <div className="fmt-tools" role="toolbar" aria-label={tr("Форматирование")}>
           {TOOLS.map(({ f, icon: Icon, label, key }) => (
@@ -611,15 +676,28 @@ export default function Composer({
 }
 
 /** Меню скрепки над полем ввода: файл или опрос. Открывается вверх от кнопки. */
-function AttachMenu({ at, onClose, onFile, onPoll }: { at: { x: number; y: number }; onClose: () => void; onFile: () => void; onPoll: () => void }) {
+function AttachMenu({
+  at,
+  onClose,
+  onFile,
+  onPoll,
+  onNote,
+}: {
+  at: { x: number; y: number };
+  onClose: () => void;
+  onFile: () => void;
+  onPoll: () => void;
+  onNote?: () => void;
+}) {
   // PopupMenu ставит меню левым верхним углом в точку — поднимаем его над кнопкой (примерная высота)
   return (
     <PopupMenu
       x={at.x}
-      y={Math.max(8, at.y - 92)}
+      y={Math.max(8, at.y - (onNote ? 132 : 92))}
       onClose={onClose}
       items={[
         { label: tr("Фото или файл"), icon: <ImagePlus size={15} />, onClick: onFile },
+        { label: tr("Видеосообщение"), icon: <CircleDot size={15} />, onClick: () => onNote?.(), hidden: !onNote },
         { label: tr("Опрос"), icon: <BarChart3 size={15} />, onClick: onPoll },
       ]}
     />
