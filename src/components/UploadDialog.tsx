@@ -3,7 +3,7 @@ import type { MatrixClient, MatrixEvent, Room } from "matrix-js-sdk";
 import { FileText, LockKeyhole, X } from "lucide-react";
 import { formatSize, sendFile } from "../attachments";
 import { errText } from "../App";
-import { captionFields } from "../caption";
+import { captionFields, sendCaption } from "../caption";
 import { tr } from "../i18n";
 
 /** Предпросмотр и отправка выбранных, вставленных или перетащенных файлов. */
@@ -60,15 +60,16 @@ export default function UploadDialog({
     try {
       for (let i = 0; i < files.length; i++) {
         setProgress({ index: i, pct: 0 });
-        await sendFile(
+        const id = await sendFile(
           client,
           room,
           files[i],
           (loaded, all) => setProgress({ index: i, pct: all ? Math.round((loaded / all) * 100) : 0 }),
           relationFor(i === 0 ? replyTo?.getId() : undefined, threadId, lastThreadEvent(room, threadId)),
-          // подпись — у последнего файла: в ленте она окажется под всей пачкой
-          i === files.length - 1 && fields ? { fields } : undefined,
         );
+        // подпись — к последнему файлу, отдельным сообщением следом: старый Element
+        // подписи внутри вложения (MSC2530) не показывает, а так её видят все
+        if (i === files.length - 1 && fields) await sendCaption(client, room.roomId, id, fields, threadId);
       }
       onClose(true);
     } catch (e) {

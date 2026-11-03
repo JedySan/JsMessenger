@@ -2,7 +2,7 @@
 import { EventType, MsgType, type MatrixEvent, type Room } from "matrix-js-sdk";
 import { locale, tr } from "./i18n";
 import { htmlToText } from "./richtext";
-import { captionOf, fileNameOf } from "./caption";
+import { CAPTION_FOR, CAPTION_REDACT_REASON, captionOf, fileNameOf } from "./caption";
 import { POLL_START, pollPreview } from "./polls";
 
 const VISIBLE = new Set<string>([EventType.RoomMessage, EventType.RoomMessageEncrypted, EventType.Sticker, ...POLL_START]);
@@ -56,12 +56,20 @@ export function lastMessagePreview(room: Room, myUserId: string, isDm = false): 
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i];
     if (!isVisibleMessage(e)) continue;
+    if (e.isRedacted() && (e.getUnsigned() as any)?.redacted_because?.content?.reason === CAPTION_REDACT_REASON) continue;
     const content = e.replacingEvent()?.getContent()["m.new_content"] ?? e.getContent();
     let text: string;
     if (e.isRedacted()) text = tr("Сообщение удалено");
     else if (e.isDecryptionFailure() || e.getType() === EventType.RoomMessageEncrypted) text = tr("Зашифрованное сообщение");
     else if (POLL_START.includes(e.getType())) text = pollPreview(e);
-    else if (content.msgtype === MsgType.Image) text = withCaption(tr("Фото"), content);
+    else if (typeof content[CAPTION_FOR] === "string" && !e.isRedacted()) {
+      // подпись отдельным сообщением — как у вложения: «Фото · подпись»
+      const media = room.findEventById(content[CAPTION_FOR]);
+      const t = media?.getContent().msgtype;
+      const label = t === MsgType.Image ? tr("Фото") : t === MsgType.Video ? tr("Видео") : t === MsgType.File ? tr("Файл: {0}", fileNameOf(media!.getContent())) : null;
+      const cap = content.format === "org.matrix.custom.html" && typeof content.formatted_body === "string" ? htmlToText(content.formatted_body) : String(content.body ?? "");
+      text = label ? `${label} · ${cap.replace(/\s+/g, " ").trim()}` : cap.replace(/\s+/g, " ").trim();
+    } else if (content.msgtype === MsgType.Image) text = withCaption(tr("Фото"), content);
     else if (content.msgtype === MsgType.File) text = withCaption(tr("Файл: {0}", fileNameOf(content)), content);
     else if (e.getType() === EventType.Sticker) text = tr("Стикер");
     else if (content.msgtype === MsgType.Video && content["jsm.video_note"]) text = tr("Видеосообщение");

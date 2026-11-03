@@ -1,6 +1,7 @@
 // Пересылка: копия содержимого сообщения без привязок к исходному чату (ответ, тред, правка, упоминания).
 import { EventType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
 import { stripReplyFallback } from "./format";
+import { CAPTION_FOR, captionEventOf, sendCaption } from "./caption";
 
 /** Что можно переслать: обычные сообщения и стикеры (не удалённые и расшифрованные). */
 export function canForward(ev: MatrixEvent): boolean {
@@ -27,7 +28,13 @@ export function forwardContent(ev: MatrixEvent): Record<string, any> {
 export async function forwardTo(client: MatrixClient, ev: MatrixEvent, room: Room, comment?: string) {
   const text = comment?.trim();
   if (text) await client.sendMessage(room.roomId, { msgtype: "m.text", body: text } as never);
-  await client.sendEvent(room.roomId, ev.getType() as never, forwardContent(ev) as never);
+  const res = await client.sendEvent(room.roomId, ev.getType() as never, forwardContent(ev) as never);
+  // подпись отдельным сообщением — пересылаем следом, привязав к новой копии
+  const cap = captionEventOf(ev);
+  if (cap) {
+    const { [CAPTION_FOR]: _c, msgtype: _t, ...fields } = forwardContent(cap);
+    await sendCaption(client, room.roomId, res.event_id, fields);
+  }
 }
 
 /** Чаты, куда можно переслать: где мы состоим и можем писать; сверху недавние. */

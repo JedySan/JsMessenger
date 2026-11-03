@@ -10,6 +10,7 @@ import CallButtons from "./CallButtons";
 import Composer, { type ComposerMode } from "./Composer";
 import Message, { effectiveContent } from "./Message";
 import { readInfo } from "../receipts";
+import { linkCaptions } from "../caption";
 import UploadDialog from "./UploadDialog";
 import RoomInfo from "./RoomInfo";
 import { isDirect } from "../rooms";
@@ -47,7 +48,7 @@ export default function RoomView({
   onBack?: () => void;
 }) {
   const allEvents = room.getLiveTimeline().getEvents();
-  const events = allEvents.filter(isVisibleMessage);
+  const events = linkCaptions(allEvents.filter(isVisibleMessage));
   // Кто что прочитал: галочки у своих сообщений, в группах — аватарки дочитавших
   const reads = readInfo(client, room, allEvents, events);
   const isGroup = room.getJoinedMemberCount() > 2;

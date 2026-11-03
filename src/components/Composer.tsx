@@ -7,12 +7,12 @@ import { MAX_VOICE_SECONDS, VoiceRecorder, formatDuration } from "../voice";
 import { PollDialog } from "./Poll";
 import { PopupMenu } from "./ui";
 import { textToContent } from "../richtext";
-import { effectiveContent, isCaptionable, plainText } from "./Message";
+import { baseContent, effectiveContent, isCaptionable, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
 import { isMobile } from "../platform";
 import { useNarrow } from "../hooks";
 import { draftKey, getDraft, setDraft } from "../drafts";
-import { captionOf, fileNameOf } from "../caption";
+import { CAPTION_FOR, CAPTION_REDACT_REASON, captionEventOf, captionOf, fileNameOf, sendCaption } from "../caption";
 import EmojiPanel from "./EmojiPanel";
 import { sendSticker, type Sticker } from "../stickers";
 import { VideoNoteDialog } from "./VideoNote";
@@ -272,9 +272,27 @@ export default function Composer({
       // в body — обычный текст с именами, в formatted_body — ссылки-«плашки» на людей
       const formatted = { ...textToContent(md), body };
       const mentions = { "m.mentions": { user_ids: userIds } };
-      if (current.kind === "edit" && editingMedia) {
-        // подпись вложения (MSC2530): то же вложение, в body — подпись, имя файла — в filename
-        const old = effectiveContent(current.ev);
+      if (current.kind === "edit" && editingMedia && !captionOf(baseContent(current.ev))) {
+        // подпись отдельным сообщением (так её видит и старый Element): правим, удаляем или добавляем её
+        if ((captionOf(effectiveContent(current.ev))?.text ?? "") === body) return;
+        const cap = captionEventOf(current.ev);
+        if (cap && !body) {
+          await client.redactEvent(room.roomId, cap.getId()!, undefined, { reason: CAPTION_REDACT_REASON });
+        } else if (cap) {
+          const next = { msgtype: MsgType.Text, ...formatted, ...mentions, [CAPTION_FOR]: current.ev.getId()! };
+          await client.sendMessage(room.roomId, {
+            msgtype: MsgType.Text,
+            body: `* ${body}`,
+            ...(formatted.formatted_body ? { format: formatted.format, formatted_body: `* ${formatted.formatted_body}` } : {}),
+            "m.new_content": next,
+            "m.relates_to": { rel_type: "m.replace", event_id: cap.getId()! },
+          } as any);
+        } else if (body) {
+          await sendCaption(client, room.roomId, current.ev.getId()!, { ...formatted, ...mentions }, current.ev.threadRootId);
+        }
+      } else if (current.kind === "edit" && editingMedia) {
+        // подпись внутри вложения (MSC2530, так шлёт Element X): то же вложение, в body — подпись, имя файла — в filename
+        const old = baseContent(current.ev);
         if ((captionOf(old)?.text ?? "") === body) return;
         const { body: _b, format: _f, formatted_body: _fb, "m.mentions": _m, "m.relates_to": _r, "m.new_content": _n, ...media } = old;
         const filename = fileNameOf(old);

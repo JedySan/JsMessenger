@@ -49,7 +49,7 @@ import { isVideoNote } from "../videonote";
 import { addToMyStickers } from "../stickers";
 import { canOpenFiles, canSaveAs, copyImage, useDownload } from "../downloads";
 import { plural } from "../i18n";
-import { captionOf, fileNameOf } from "../caption";
+import { CAPTION_REDACT_REASON, captionEventOf, captionOf, fileNameOf, mergeCaption } from "../caption";
 import { tr } from "../i18n";
 import { ask, notice } from "./Ask";
 
@@ -74,8 +74,14 @@ export async function togglePin(client: MatrixClient, room: Room, eventId: strin
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "👌", "🎉", "👀", "✅"];
 
 /** Текущее содержимое с учётом правок. */
-export function effectiveContent(ev: MatrixEvent): Record<string, any> {
+/** Содержимое сообщения как есть (с учётом правок), без подписи из отдельного сообщения. */
+export function baseContent(ev: MatrixEvent): Record<string, any> {
   return ev.replacingEvent()?.getContent()["m.new_content"] ?? ev.getContent();
+}
+
+/** Актуальное содержимое: с правками и с подписью, пришедшей отдельным сообщением. */
+export function effectiveContent(ev: MatrixEvent): Record<string, any> {
+  return mergeCaption(ev, baseContent(ev));
 }
 
 /** Короткий текст сообщения — для цитат и копирования. */
@@ -170,7 +176,13 @@ export default function Message({
     void ask(mine ? tr("Удалить сообщение у всех?") : tr("Удалить чужое сообщение у всех?"), {
       ok: tr("Удалить"),
       danger: true,
-    }).then((ok): unknown => ok && client.redactEvent(room.roomId, ev.getId()!).catch((e) => notice(e?.message ?? String(e))));
+    }).then((ok): unknown => {
+      if (!ok) return;
+      // вместе с вложением — и его подпись, если она отдельным сообщением
+      const cap = captionEventOf(ev);
+      if (cap) void client.redactEvent(room.roomId, cap.getId()!, undefined, { reason: CAPTION_REDACT_REASON }).catch(() => {});
+      return client.redactEvent(room.roomId, ev.getId()!).catch((e) => notice(e?.message ?? String(e)));
+    });
   const forward = () => openDialog({ kind: "forward", ev });
 
   // телефон: долгое нажатие — меню, свайп влево — ответ

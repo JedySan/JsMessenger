@@ -125,7 +125,7 @@ export async function sendFile(
   relatesTo?: Record<string, unknown>,
   /** дополнительные поля сообщения (например, голосовое: длительность и «волна») */
   extra?: { body?: string; info?: Record<string, unknown>; fields?: Record<string, unknown> },
-): Promise<void> {
+): Promise<string> {
   const mime = file.type || "application/octet-stream";
   const info: Record<string, unknown> = { mimetype: mime, size: file.size };
   let msgtype: string = MsgType.File;
@@ -158,7 +158,8 @@ export async function sendFile(
     content.url = up.content_uri;
   }
   if (relatesTo) content["m.relates_to"] = relatesTo;
-  await client.sendMessage(room.roomId, content as any);
+  const res = await client.sendMessage(room.roomId, content as any);
+  return res.event_id;
 }
 
 export function formatSize(bytes?: number): string {

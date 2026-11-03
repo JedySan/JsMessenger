@@ -3,6 +3,7 @@ import { Direction, RoomEvent, ThreadEvent, type MatrixClient, type MatrixEvent,
 import { ArrowLeft, LoaderCircle, MessagesSquare, Pin, PinOff, Search, X } from "lucide-react";
 import { errText } from "../App";
 import { dayLabel, isVisibleMessage, listTime, sameDay, timeHM } from "../format";
+import { linkCaptions } from "../caption";
 import { requestJump } from "../jump";
 import Avatar from "./Avatar";
 import Composer, { type ComposerMode } from "./Composer";
@@ -95,7 +96,7 @@ export function ThreadPanel({
       .catch(() => {});
   }, [client, room, rootId, root]);
 
-  const replies = (thread?.events ?? []).filter((e) => e.getId() !== rootId && isVisibleMessage(e));
+  const replies = linkCaptions((thread?.events ?? []).filter((e) => e.getId() !== rootId && isVisibleMessage(e)));
   const last = replies.at(-1)?.getId();
   useEffect(() => {
     const el = scroller.current;
