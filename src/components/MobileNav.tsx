@@ -27,17 +27,20 @@ export function TabBar({
   tab,
   onTab,
   settingsBadge = 0,
+  chatsExtra = 0,
 }: {
   client: MatrixClient;
   tab: Tab;
   onTab: (t: Tab) => void;
   /** непрочитанные в других аккаунтах */
   settingsBadge?: number;
+  /** общий список: непрочитанные других аккаунтов */
+  chatsExtra?: number;
 }) {
   const all = unreadIn(client, client.getRooms().map((r) => r.roomId));
   const dms = unreadIn(client, directRoomIds(client));
   const tabs: Array<{ id: Tab; label: string; icon: ReactNode; badge?: number }> = [
-    { id: "chats", label: tr("Чаты"), icon: <MessagesSquare size={22} />, badge: all.total },
+    { id: "chats", label: tr("Чаты"), icon: <MessagesSquare size={22} />, badge: all.total + chatsExtra },
     { id: "dms", label: tr("Личные"), icon: <User size={22} />, badge: dms.total },
     { id: "spaces", label: tr("Пространства"), icon: <LayoutGrid size={22} /> },
     { id: "settings", label: tr("Настройки"), icon: <Settings size={22} />, badge: settingsBadge },
@@ -193,6 +196,7 @@ export function SettingsPage({
               <span className="m-row-icon">{i.icon}</span>
               <span className="m-row-text">
                 <span className="m-row-title">{i.label}</span>
+                {i.hint && <span className="m-row-sub">{i.hint}</span>}
               </span>
               {!i.danger && <ChevronRight size={18} className="m-row-go" />}
             </button>

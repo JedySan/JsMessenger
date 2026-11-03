@@ -14,14 +14,14 @@ const HIDDEN_ARG: &str = "--hidden";
 /// Системное уведомление. На macOS — через UNUserNotificationCenter;
 /// false означает «не получилось», и интерфейс использует запасной плагин.
 #[tauri::command]
-fn native_notify(title: String, body: String, room_id: String) -> bool {
+fn native_notify(title: String, body: String, room_id: String, sound: Option<bool>) -> bool {
     #[cfg(target_os = "macos")]
     {
-        notify_mac::show(&title, &body, &room_id).is_ok()
+        notify_mac::show(&title, &body, &room_id, sound.unwrap_or(true)).is_ok()
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (title, body, room_id);
+        let _ = (title, body, room_id, sound);
         false
     }
 }

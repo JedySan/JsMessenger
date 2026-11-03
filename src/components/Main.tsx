@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, UserEvent, type MatrixClient } from "matrix-js-sdk";
-import { ArrowLeftRight, Bell, Check, UserPlus, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
+import { ArrowLeftRight, Bell, Check, Layers, MessageSquare, UserPlus, VolumeX, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
 import { useClientUpdates, useNarrow } from "../hooks";
 import type { Account } from "../App";
 import { SettingsPage, SpacesPage, TabBar, type Tab } from "./MobileNav";
@@ -37,7 +37,8 @@ import {
   updaterEnabled,
 } from "../desktop";
 import { PopupMenu, type MenuItem } from "./ui";
-import { isDesktop } from "../platform";
+import { electron, isDesktop } from "../platform";
+import { setPref, usePrefs } from "../prefs";
 import { attachNotifications, onNotificationClick, testNotification, unreadTotal, updateBadge } from "../notifications";
 import { LANGS, lang, setLang, tr } from "../i18n";
 import { ask, notice } from "./Ask";
@@ -184,6 +185,9 @@ export default function Main({
       };
     });
   const othersUnread = others.reduce((n, a) => n + a.unread, 0);
+  const prefs = usePrefs();
+  // общий список: чаты готовых к работе других аккаунтов рядом с чатами этого
+  const unifiedOthers = prefs.unified ? others.flatMap((a) => (a.client ? [a.client] : [])) : [];
   const accountItems: MenuItem[] = [
     ...others.map((a) => ({
       label: a.name,
@@ -199,6 +203,26 @@ export default function Main({
             { label: tr("Сеансы и устройства"), icon: <MonitorSmartphone size={15} />, onClick: () => setShowSessions(true) },
             {
               sep: true,
+              label: tr("Звук уведомлений"),
+              icon: prefs.sound ? <Check size={15} /> : <VolumeX size={15} />,
+              hint: prefs.sound ? tr("вкл.") : tr("выкл."),
+              onClick: () => setPref("sound", !prefs.sound),
+            },
+            {
+              // Windows и Linux: свои всплывашки как в Telegram или уведомления системы
+              label: tr("Всплывающие уведомления"),
+              icon: prefs.notifyStyle === "popup" ? <Check size={15} /> : <MessageSquare size={15} />,
+              hint: prefs.notifyStyle === "popup" ? tr("как в Telegram") : tr("системные"),
+              hidden: !electron(),
+              onClick: () => setPref("notifyStyle", prefs.notifyStyle === "popup" ? "system" : "popup"),
+            },
+            {
+              label: tr("Все аккаунты в одном списке"),
+              icon: prefs.unified ? <Check size={15} /> : <Layers size={15} />,
+              hidden: accounts.length < 2,
+              onClick: () => setPref("unified", !prefs.unified),
+            },
+            {
               label: tr("Проверить уведомления"),
               icon: <Bell size={15} />,
               onClick: () => testNotification().then((msg) => notice(msg)),
@@ -332,6 +356,7 @@ export default function Main({
         {listSide && (
         <RoomList
           client={client}
+          others={unifiedOthers}
           scope={scope}
           selected={roomId}
           onSelect={openRoom}
@@ -347,7 +372,16 @@ export default function Main({
           }}
         />
         )}
-        {narrow && <TabBar client={client} tab={tab} onTab={onTab} settingsBadge={othersUnread} />}
+        {narrow && (
+          <TabBar
+            client={client}
+            tab={tab}
+            onTab={onTab}
+            // в общем списке непрочитанные других аккаунтов видны на «Чатах», иначе — на «Настройках»
+            chatsExtra={unifiedOthers.length ? othersUnread : 0}
+            settingsBadge={unifiedOthers.length ? 0 : othersUnread}
+          />
+        )}
       </aside>
 
       <main className="content">

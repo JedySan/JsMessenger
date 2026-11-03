@@ -15,6 +15,8 @@ import { plainText } from "./components/Message";
 import { electron, isTauri } from "./platform";
 import { tr } from "./i18n";
 import { isAppFocused, onAppFocus } from "./focus";
+import { getPrefs } from "./prefs";
+import { playMessageSound } from "./ringtone";
 
 // ---------- всплывающие карточки внутри приложения ----------
 // macOS не показывает баннеры активного приложения, поэтому, пока окно в фокусе,
@@ -76,15 +78,15 @@ async function show(title: string, body: string, roomId = "") {
   try {
     const el = electron();
     if (el) {
-      await el.notify(title, body, roomId);
+      await el.notify(title, body, roomId, getPrefs().notifyStyle);
     } else if (isTauri()) {
       // 1) современные уведомления macOS (UNUserNotificationCenter) из Rust-части
       const { invoke } = await import("@tauri-apps/api/core");
-      if (await invoke<boolean>("native_notify", { title, body, roomId })) return;
+      if (await invoke<boolean>("native_notify", { title, body, roomId, sound: getPrefs().sound })) return;
       // 2) запасной путь — плагин (режим разработки, другие ОС)
       if (!(await ensurePermission())) return;
       const n = await import("@tauri-apps/plugin-notification");
-      n.sendNotification({ title, body, sound: "Default" });
+      n.sendNotification({ title, body, ...(getPrefs().sound ? { sound: "Default" } : {}) });
     } else {
       if (!(await ensurePermission())) return;
       new Notification(title, { body });
@@ -200,6 +202,9 @@ export function attachNotifications(
     const base = isDirect(client, room) ? sender : tr("{0} в «{1}»", sender, room.name);
     const title = account ? `${base} · ${account}` : base;
     const body = ev.isDecryptionFailure() ? tr("Новое зашифрованное сообщение") : plainText(ev).slice(0, 200);
+    // звук: системные уведомления macOS и телефонов звучат сами; остальное озвучиваем сами
+    const soundByUs = isAppFocused() || !!electron() || !isTauri();
+    if (soundByUs && getPrefs().sound) playMessageSound();
     if (isAppFocused()) pushToast(me, room.roomId, title, body);
     else {
       show(title, body, room.roomId);

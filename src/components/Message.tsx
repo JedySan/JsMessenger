@@ -66,7 +66,7 @@ export async function togglePin(client: MatrixClient, room: Room, eventId: strin
   await client.sendStateEvent(room.roomId, PINNED as never, { pinned: next } as never, "");
 }
 
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀", "✅"];
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "👌", "🎉", "👀", "✅"];
 const MORE_REACTIONS = [
   "👍", "👎", "❤️", "🔥", "😂", "😮", "😢", "😡", "🎉", "🙏", "👏", "💪",
   "✅", "❌", "⚠️", "👀", "🤝", "🚀", "💯", "🤔", "😅", "😎", "🙈", "🥳",
@@ -96,6 +96,11 @@ export function plainText(ev: MatrixEvent): string {
   }
   if (c.format === "org.matrix.custom.html" && c.formatted_body) return htmlToText(c.formatted_body);
   return stripReplyFallback(String(c.body ?? ""));
+}
+
+/** Вложение, к которому можно добавить или поправить подпись. */
+export function isCaptionable(c: Record<string, any>): boolean {
+  return [MsgType.Image, MsgType.Video, MsgType.File, MsgType.Audio].includes(c.msgtype) && !!(c.url || c.file);
 }
 
 export default function Message({
@@ -140,7 +145,14 @@ export default function Message({
   const bubbleRef = useRef<HTMLDivElement>(null);
 
   const redacted = ev.isRedacted();
-  const canEdit = mine && !redacted && !ev.isSending() && (content.msgtype === MsgType.Text || content.msgtype === MsgType.Emote);
+  // текст правим всегда, у фото, видео и файлов — подпись (голосовые без подписи)
+  const canEdit =
+    mine &&
+    !redacted &&
+    !ev.isSending() &&
+    (content.msgtype === MsgType.Text ||
+      content.msgtype === MsgType.Emote ||
+      (isCaptionable(content) && !isVoice(content)));
   const canDelete = !redacted && !ev.isSending() && room.currentState.maySendRedactionForEvent(ev, me);
   const encryptedUnreadable = ev.isDecryptionFailure() || ev.getType() === EventType.RoomMessageEncrypted;
 
@@ -280,7 +292,7 @@ export default function Message({
         <div className="msg-actions" onClick={(e) => e.stopPropagation()}>
           {!encryptedUnreadable && (
             <>
-              {QUICK_REACTIONS.slice(0, 3).map((k) => (
+              {QUICK_REACTIONS.slice(0, 4).map((k) => (
                 <button key={k} className="act emoji" onClick={() => react(k)} title={tr("Реакция {0}", k)}>
                   {k}
                 </button>

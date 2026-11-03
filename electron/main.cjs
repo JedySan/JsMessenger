@@ -18,6 +18,7 @@ const {
   shell,
 } = require("electron");
 const fs = require("node:fs");
+const { showPopup, closeAllPopups } = require("./popups.cjs");
 const path = require("node:path");
 const os = require("node:os");
 
@@ -131,6 +132,8 @@ function createWindow(startHidden) {
   });
 
   // Крестик прячет окно: приложение продолжает получать сообщения (как на macOS)
+  // вернулись в окно — всплывашки больше не нужны
+  win.on("focus", () => closeAllPopups());
   win.on("close", (e) => {
     if (!quitting) {
       e.preventDefault();
@@ -258,9 +261,25 @@ function setupTray() {
 // ---------- уведомления ----------
 const liveNotifications = new Set(); // держим ссылки, иначе клик по уведомлению теряется
 
-ipcMain.handle("notify", (_e, { title, body, roomId }) => {
+let iconData = null;
+const appIconData = () => (iconData ??= nativeImage.createFromPath(ICON).resize({ width: 84, height: 84 }).toDataURL());
+
+ipcMain.handle("notify", (_e, { title, body, roomId, style }) => {
+  const open = () => {
+    showMain();
+    if (roomId) win?.webContents.send("notification-click", roomId);
+  };
+  // по умолчанию — свои всплывашки, как в Telegram (видны всегда); "system" — уведомления системы
+  if (style !== "system") {
+    try {
+      return showPopup({ title, body, icon: appIconData() }, open);
+    } catch (e) {
+      console.warn("popup", e);
+    }
+  }
   if (!Notification.isSupported()) return false;
-  const n = new Notification({ title, body, icon: ICON, silent: false });
+  // звук играет сам интерфейс — чтобы не звенело дважды
+  const n = new Notification({ title, body, icon: ICON, silent: true });
   liveNotifications.add(n);
   n.on("click", () => {
     showMain();

@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("jsmDesktop", {
   platform: process.platform,
 
-  notify: (title, body, roomId) => ipcRenderer.invoke("notify", { title, body, roomId }),
+  notify: (title, body, roomId, style) => ipcRenderer.invoke("notify", { title, body, roomId, style }),
   onNotificationClick: (cb) => {
     const h = (_e, roomId) => cb(roomId);
     ipcRenderer.on("notification-click", h);

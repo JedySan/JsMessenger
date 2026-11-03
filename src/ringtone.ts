@@ -62,3 +62,18 @@ export function stopRingtone() {
   window.clearInterval(timer);
   timer = undefined;
 }
+
+// ---------- новое сообщение ----------
+let lastPing = 0;
+/** Короткий мягкий «динь» о новом сообщении (не чаще раза в полторы секунды). */
+export function playMessageSound() {
+  const now = Date.now();
+  if (now - lastPing < 1500 || playing) return;
+  lastPing = now;
+  try {
+    tone(880, 0, 0.22, 0.12); // A5
+    tone(1318.5, 0.09, 0.32, 0.1); // E6
+  } catch {
+    /* нет звука — не страшно */
+  }
+}

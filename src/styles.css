@@ -1718,3 +1718,7 @@ html[data-platform="ios"] .titlebar { height: 0; }
 .login-note { margin: -6px 0 2px; color: var(--text-2); font-size: 13px; text-align: center; }
 .splash-sub { margin: -6px 0 0; color: var(--text-3); font-size: 13px; }
 .m-row-icon.muted { background: var(--hover); color: var(--text-3); }
+/* общий список: значок аккаунта на аватаре чата */
+.room-ava { position: relative; display: inline-flex; flex-shrink: 0; }
+.room-acc { position: absolute; right: -3px; bottom: -3px; display: inline-flex; border-radius: 50%; box-shadow: 0 0 0 2px var(--side); }
+@media (max-width: 720px) { .room-acc { box-shadow: 0 0 0 2px var(--bg); } }

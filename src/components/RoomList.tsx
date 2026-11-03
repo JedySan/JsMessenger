@@ -49,19 +49,27 @@ export default function RoomList({
   selected,
   onSelect,
   onOpenInfo,
+  others = [],
 }: {
   client: MatrixClient;
   scope: Scope;
   selected: string | null;
   onSelect: (id: string) => void;
   onOpenInfo: (id: string) => void;
+  /** общий список: клиенты других аккаунтов, их чаты показываем вместе с этими */
+  others?: MatrixClient[];
 }) {
   const narrow = useNarrow();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
   const me = client.getSafeUserId();
-  const directs = directRoomIds(client);
+  // чей это чат: в общем списке рядом лежат комнаты разных аккаунтов
+  const cOf = (r: Room) => r.client;
+  const sources = scope.kind === "space" ? [client] : [client, ...others];
+  const multi = sources.length > 1;
+  const directsOf = new Map(sources.map((c) => [c, directRoomIds(c)]));
+  const dmOf = (r: Room) => isDirect(cOf(r), r, directsOf.get(cOf(r)));
   const space = scope.kind === "space" ? client.getRoom(scope.id) : null;
   const inSpace = scope.kind === "space" ? roomIdsInSpace(client, scope.id) : null;
 
@@ -69,16 +77,16 @@ export default function RoomList({
   const inScope = (r: Room) => {
     // пространства живут в левой колонке; в списке показываем только приглашения в них
     if (r.isSpaceRoom()) return scope.kind === "all" && r.getMyMembership() === KnownMembership.Invite;
-    if (scope.kind === "dm") return isDirect(client, r, directs);
+    if (scope.kind === "dm") return dmOf(r);
     if (inSpace) return inSpace.has(r.roomId);
     return true;
   };
-  const rooms = client.getVisibleRooms().filter((r) => inScope(r) && (!f || matchesText(r.name, f)));
+  const rooms = sources.flatMap((c) => c.getVisibleRooms()).filter((r) => inScope(r) && (!f || matchesText(r.name, f)));
 
   const invites = rooms.filter((r) => r.getMyMembership() === KnownMembership.Invite);
   let joined = rooms
     .filter((r) => r.getMyMembership() === KnownMembership.Join)
-    .map((r) => ({ r, last: lastMessagePreview(r, me, isDirect(client, r, directs)) }))
+    .map((r) => ({ r, last: lastMessagePreview(r, cOf(r).getSafeUserId(), dmOf(r)) }))
     .sort((a, b) => (b.last?.ts ?? b.r.getLastActiveTimestamp()) - (a.last?.ts ?? a.r.getLastActiveTimestamp()));
   if (filter === "unread") joined = joined.filter(({ r }) => r.getUnreadNotificationCount(NotificationCountType.Total) > 0);
   if (filter === "fav") joined = joined.filter(({ r }) => isFavourite(r));
@@ -87,7 +95,7 @@ export default function RoomList({
 
   const accept = async (r: Room) => {
     try {
-      await client.joinRoom(r.roomId);
+      await cOf(r).joinRoom(r.roomId);
       onSelect(r.roomId);
     } catch (e) {
       notice(errText(e));
@@ -95,7 +103,7 @@ export default function RoomList({
   };
   const decline = async (r: Room) => {
     try {
-      await client.leave(r.roomId);
+      await cOf(r).leave(r.roomId);
     } catch (e) {
       notice(errText(e));
     }
@@ -106,22 +114,24 @@ export default function RoomList({
   const roomMenu = (r: Room, e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const c = cOf(r);
+    const own = c === client;
     const fav = isFavourite(r);
-    const muted = isMuted(client, r);
+    const muted = isMuted(c, r);
     setMenu({
       x: e.clientX,
       y: e.clientY,
       items: [
-        { label: fav ? tr("Убрать из избранного") : tr("В избранное"), icon: fav ? <StarOff size={15} /> : <Star size={15} />, onClick: () => run(() => toggleFavourite(client, r)) },
-        { label: muted ? tr("Включить уведомления") : tr("Без звука"), icon: muted ? <Bell size={15} /> : <BellOff size={15} />, onClick: () => run(() => toggleMute(client, r)) },
-        { label: tr("Пригласить"), icon: <UserPlus size={15} />, hidden: !r.canInvite(me), onClick: () => openDialog({ kind: "invite", roomId: r.roomId }) },
-        { label: tr("Участники и настройки"), icon: <Settings size={15} />, onClick: () => onOpenInfo(r.roomId) },
+        { label: fav ? tr("Убрать из избранного") : tr("В избранное"), icon: fav ? <StarOff size={15} /> : <Star size={15} />, onClick: () => run(() => toggleFavourite(c, r)) },
+        { label: muted ? tr("Включить уведомления") : tr("Без звука"), icon: muted ? <Bell size={15} /> : <BellOff size={15} />, onClick: () => run(() => toggleMute(c, r)) },
+        { label: tr("Пригласить"), icon: <UserPlus size={15} />, hidden: !own || !r.canInvite(me), onClick: () => openDialog({ kind: "invite", roomId: r.roomId }) },
+        { label: tr("Участники и настройки"), icon: <Settings size={15} />, hidden: !own, onClick: () => onOpenInfo(r.roomId) },
         {
           label: tr("Покинуть"),
           icon: <LogOut size={15} />,
           danger: true,
           onClick: () =>
-            void ask(tr("Покинуть «{0}»?", r.name), { ok: tr("Покинуть"), danger: true }).then((ok): unknown => ok && run(() => leaveRoom(client, r))),
+            void ask(tr("Покинуть «{0}»?", r.name), { ok: tr("Покинуть"), danger: true }).then((ok): unknown => ok && run(() => leaveRoom(c, r))),
         },
       ],
     });
@@ -158,12 +168,13 @@ export default function RoomList({
   const row = ({ r, last }: { r: Room; last: ReturnType<typeof lastMessagePreview> }) => {
     const unread = r.getUnreadNotificationCount(NotificationCountType.Total);
     const mention = r.getUnreadNotificationCount(NotificationCountType.Highlight) > 0;
-    const inCall = (client.matrixRTC.getActiveRoomSession(r)?.memberships.length ?? 0) > 0;
-    const muted = isMuted(client, r);
+    const c = cOf(r);
+    const inCall = (c.matrixRTC.getActiveRoomSession(r)?.memberships.length ?? 0) > 0;
+    const muted = isMuted(c, r);
     return (
       <div
-        key={r.roomId}
-        className={"room-item" + (r.roomId === selected ? " active" : "") + (unread > 0 && !muted ? " unread" : "")}
+        key={`${c.getSafeUserId()}|${r.roomId}`}
+        className={"room-item" + (r.roomId === selected && c === client ? " active" : "") + (unread > 0 && !muted ? " unread" : "")}
         onClick={() => onSelect(r.roomId)}
         onContextMenu={(e) => roomMenu(r, e)}
         {...(narrow ? longPressProps((x, y) => roomMenuAt(r, x, y)) : {})}
@@ -171,7 +182,10 @@ export default function RoomList({
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && onSelect(r.roomId)}
       >
-        <RoomAvatar client={client} room={r} size={narrow ? 54 : 40} />
+        <span className="room-ava">
+          <RoomAvatar client={c} room={r} size={narrow ? 54 : 40} />
+          {multi && <AccountMark client={c} />}
+        </span>
         <div className="room-main">
           <div className="room-top">
             <span className="room-name">{r.name}</span>
@@ -240,11 +254,14 @@ export default function RoomList({
       <nav className="room-list">
         {invites.length > 0 && <div className="list-heading">{tr("Приглашения")}</div>}
         {invites.map((r) => (
-          <div key={r.roomId} className="room-item invite">
-            <RoomAvatar client={client} room={r} size={40} />
+          <div key={`${cOf(r).getSafeUserId()}|${r.roomId}`} className="room-item invite">
+            <span className="room-ava">
+              <RoomAvatar client={cOf(r)} room={r} size={40} />
+              {multi && <AccountMark client={cOf(r)} />}
+            </span>
             <div className="room-main">
               <div className="room-name">{r.name}</div>
-              <div className="room-preview">{inviteText(r, me)}</div>
+              <div className="room-preview">{inviteText(r, cOf(r).getSafeUserId())}</div>
             </div>
             <div className="invite-actions">
               <button className="round-btn accept" onClick={() => accept(r)} title={tr("Принять")} aria-label={tr("Принять")}>
@@ -380,5 +397,17 @@ function PeopleResults({
         </div>
       ))}
     </>
+  );
+}
+
+/** Значок аккаунта на аватаре чата в общем списке — чтобы было видно, чей это чат. */
+function AccountMark({ client }: { client: MatrixClient }) {
+  const id = client.getSafeUserId();
+  const u = client.getUser(id);
+  const name = u?.displayName || id;
+  return (
+    <span className="room-acc" title={tr("Аккаунт: {0}", id)}>
+      <Avatar client={client} mxc={u?.avatarUrl ?? undefined} name={name} seed={id} size={18} />
+    </span>
   );
 }

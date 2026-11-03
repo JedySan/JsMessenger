@@ -15,7 +15,8 @@ export interface ScreenSource {
 
 export interface ElectronBridge {
   platform: string;
-  notify(title: string, body: string, roomId: string): Promise<boolean>;
+  /** style: "popup" — свои всплывашки (по умолчанию), "system" — уведомления системы */
+  notify(title: string, body: string, roomId: string, style?: "popup" | "system"): Promise<boolean>;
   onNotificationClick(cb: (roomId: string) => void): () => void;
   attention(): void;
   showWindow(): void;

@@ -7,10 +7,12 @@ import { MAX_VOICE_SECONDS, VoiceRecorder, formatDuration } from "../voice";
 import { PollDialog } from "./Poll";
 import { PopupMenu } from "./ui";
 import { textToContent } from "../richtext";
-import { effectiveContent, plainText } from "./Message";
+import { effectiveContent, isCaptionable, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
 import { isMobile } from "../platform";
 import { useNarrow } from "../hooks";
+import { draftKey, getDraft, setDraft } from "../drafts";
+import { captionOf, fileNameOf } from "../caption";
 import { tr } from "../i18n";
 import { notice } from "./Ask";
 import Avatar from "./Avatar";
@@ -131,7 +133,8 @@ export default function Composer({
   threadId?: string;
   placeholder?: string;
 }) {
-  const [text, setText] = useState("");
+  const dKey = draftKey(client.getSafeUserId(), room.roomId, threadId);
+  const [text, setText] = useState(() => getDraft(dKey));
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const typingSent = useRef(0);
@@ -195,6 +198,7 @@ export default function Composer({
   };
 
   const narrow = useNarrow();
+  const editCaption = mode.kind === "edit" && isCaptionable(effectiveContent(mode.ev));
   // на телефоне клавиатура при открытии чата только мешает — фокус ставим, лишь когда отвечаем или правим
   useEffect(() => {
     if (!isMobile() || mode.kind !== "normal") ref.current?.focus();
@@ -206,10 +210,23 @@ export default function Composer({
       draftBeforeEdit.current = text;
       const c = effectiveContent(mode.ev);
       picked.current = mentionsFromHtml(c.formatted_body as string | undefined);
-      setText(String(c.body ?? ""));
+      // у вложения правим подпись (её может и не быть — тогда поле пустое)
+      setText(isCaptionable(c) ? (captionOf(c)?.text ?? "") : String(c.body ?? ""));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+
+  // черновик: при смене чата подставляем его, при вводе — сохраняем (текст правки не сохраняем)
+  const loadedKey = useRef(dKey);
+  useEffect(() => {
+    if (loadedKey.current === dKey) return;
+    loadedKey.current = dKey;
+    setText(getDraft(dKey));
+  }, [dKey]);
+  useEffect(() => {
+    if (loadedKey.current !== dKey) return;
+    setDraft(dKey, mode.kind === "edit" ? draftBeforeEdit.current : text);
+  }, [text, dKey, mode.kind]);
 
   const stopTyping = () => {
     if (typingSent.current) {
@@ -237,8 +254,9 @@ export default function Composer({
 
   const send = async () => {
     const body = text.trim();
-    if (!body) return;
     const current = mode;
+    const editingMedia = current.kind === "edit" && isCaptionable(effectiveContent(current.ev));
+    if (!body && !editingMedia) return; // пустая подпись — убрать её; пустой текст — не отправляем
     setText(current.kind === "edit" ? draftBeforeEdit.current : "");
     setMode({ kind: "normal" });
     setMention(null);
@@ -250,7 +268,23 @@ export default function Composer({
       // в body — обычный текст с именами, в formatted_body — ссылки-«плашки» на людей
       const formatted = { ...textToContent(md), body };
       const mentions = { "m.mentions": { user_ids: userIds } };
-      if (current.kind === "edit") {
+      if (current.kind === "edit" && editingMedia) {
+        // подпись вложения (MSC2530): то же вложение, в body — подпись, имя файла — в filename
+        const old = effectiveContent(current.ev);
+        if ((captionOf(old)?.text ?? "") === body) return;
+        const { body: _b, format: _f, formatted_body: _fb, "m.mentions": _m, "m.relates_to": _r, "m.new_content": _n, ...media } = old;
+        const filename = fileNameOf(old);
+        const next: Record<string, any> = body
+          ? { ...media, filename, ...formatted, ...mentions }
+          : { ...media, filename, body: filename };
+        await client.sendMessage(room.roomId, {
+          ...next,
+          body: `* ${next.body}`,
+          ...(next.formatted_body ? { format: next.format, formatted_body: `* ${next.formatted_body}` } : {}),
+          "m.new_content": next,
+          "m.relates_to": { rel_type: "m.replace", event_id: current.ev.getId()! },
+        } as any);
+      } else if (current.kind === "edit") {
         const old = effectiveContent(current.ev);
         if (old.body === body) return;
         const msgtype = old.msgtype ?? MsgType.Text;
@@ -465,7 +499,7 @@ export default function Composer({
         <div className="composer-context">
           {mode.kind === "reply" ? <Reply size={15} /> : <Pencil size={14} />}
           <div className="ctx-text">
-            <div className="ctx-title">{mode.kind === "reply" ? tr("В ответ: {0}", targetName) : tr("Редактирование сообщения")}</div>
+            <div className="ctx-title">{mode.kind === "reply" ? tr("В ответ: {0}", targetName) : editCaption ? tr("Изменение подписи") : tr("Редактирование сообщения")}</div>
             <div className="ctx-body">{plainText(target)}</div>
           </div>
           <button className="icon-btn small" onClick={cancelMode} title={tr("Отменить (Esc)")} aria-label={tr("Отменить")}>
@@ -522,7 +556,7 @@ export default function Composer({
           ref={ref}
           rows={1}
           value={text}
-          placeholder={mode.kind === "edit" ? tr("Новый текст сообщения") : (placeholder ?? tr("Сообщение для «{0}»", room.name))}
+          placeholder={mode.kind === "edit" ? (editCaption ? tr("Подпись") : tr("Новый текст сообщения")) : (placeholder ?? tr("Сообщение для «{0}»", room.name))}
           onChange={(e) => onChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
           onSelect={(e) => updateMention(e.currentTarget.value, e.currentTarget.selectionStart ?? 0)}
           onKeyDown={onKey}
@@ -537,7 +571,7 @@ export default function Composer({
             <Mic size={18} />
           </button>
         ) : (
-          <button className="send-btn" onClick={send} disabled={!text.trim()} title={tr("Отправить (Enter)")} aria-label={tr("Отправить")}>
+          <button className="send-btn" onClick={send} disabled={!text.trim() && !editCaption} title={tr("Отправить (Enter)")} aria-label={tr("Отправить")}>
             <SendHorizontal size={18} />
           </button>
         )}

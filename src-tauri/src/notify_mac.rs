@@ -105,7 +105,7 @@ pub fn authorized() -> Option<bool> {
 }
 
 /// Показать уведомление. Уведомления одной комнаты группируются в Центре уведомлений.
-pub fn show(title: &str, body: &str, room_id: &str) -> Result<(), String> {
+pub fn show(title: &str, body: &str, room_id: &str, sound: bool) -> Result<(), String> {
     if !available() {
         return Err("уведомления macOS доступны только в собранном приложении".into());
     }
@@ -113,7 +113,9 @@ pub fn show(title: &str, body: &str, room_id: &str) -> Result<(), String> {
     content.setTitle(&NSString::from_str(title));
     content.setBody(&NSString::from_str(body));
     content.setThreadIdentifier(&NSString::from_str(room_id));
-    content.setSound(Some(&UNNotificationSound::defaultSound()));
+    if sound {
+        content.setSound(Some(&UNNotificationSound::defaultSound()));
+    }
 
     let id = format!(
         "jsm-{}",
