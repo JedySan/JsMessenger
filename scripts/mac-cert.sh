@@ -33,7 +33,7 @@ install_p12() { # файл, пароль, сертификат в PEM (для д
 if [[ ${1:-} == import ]]; then
   FILE=${2:?Укажите файл: ./scripts/mac-cert.sh import jsmessenger-codesign.p12}
   [[ -f $FILE ]] || die "Нет файла $FILE"
-  if have; then say "Сертификат «$NAME» уже установлен"; exit 0; fi
+  if have; then say "Сертификат «${NAME}» уже установлен"; exit 0; fi
   PASS=""
   [[ -f "$(dirname "$FILE")/jsmessenger-codesign.pass" ]] && PASS=$(cat "$(dirname "$FILE")/jsmessenger-codesign.pass")
   [[ -n $PASS ]] || read -r -s -p "Пароль от $FILE: " PASS && echo
@@ -43,17 +43,17 @@ if [[ ${1:-} == import ]]; then
   install_p12 "$FILE" "$PASS" "$TMP/cert.pem"
   mkdir -p "$DIR"
   [[ "$FILE" -ef "$P12" ]] || { cp "$FILE" "$P12"; printf '%s' "$PASS" >"$PASSFILE"; chmod 600 "$P12" "$PASSFILE"; }
-  say "Готово: сборки на этом Маке подписываются «$NAME»"
+  say "Готово: сборки на этом Маке подписываются «${NAME}»"
   exit 0
 fi
 
 if have; then
-  say "Сертификат «$NAME» уже есть в связке ключей"
+  say "Сертификат «${NAME}» уже есть в связке ключей"
   [[ -f $P12 ]] && echo "    Копия для второго Мака: $P12 (+ $PASSFILE)"
   exit 0
 fi
 
-say "Создаю сертификат «$NAME» (на 10 лет)"
+say "Создаю сертификат «${NAME}» (на 10 лет)"
 mkdir -p "$DIR"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
