@@ -157,7 +157,7 @@ export function attachIncomingCalls(client: MatrixClient): () => void {
     if (Date.now() >= expiresAt) return;
 
     const session = client.matrixRTC.getRoomSession(room);
-    if (meInCall(client, session) || call.state?.roomId === room.roomId) return;
+    if (meInCall(client, session) || call.isIn(client, room.roomId)) return;
 
     const direct = isDirect(client, room);
     const kind = content.notification_type ?? content.notify_type;

@@ -34,6 +34,8 @@ class MatrixKeyProvider extends BaseKeyProvider {
 
 export interface CallState {
   roomId: string;
+  /** аккаунт, из которого идёт звонок (можно переключиться на другой — звонок останется) */
+  client: MatrixClient;
   status: "connecting" | "connected" | "error" | "ended";
   error?: string;
   /** не удалось включить микрофон или камеру — показываем, что делать */
@@ -64,9 +66,14 @@ class CallController {
     for (const fn of this.listeners) fn();
   }
 
+  /** Звонок идёт в этой комнате этого аккаунта. */
+  isIn(client: MatrixClient, roomId: string): boolean {
+    return !!this.state && this.state.roomId === roomId && this.state.client === client;
+  }
+
   async join(client: MatrixClient, room: Room, withVideo: boolean) {
     if (this.state) {
-      if (this.state.roomId === room.roomId) return;
+      if (this.isIn(client, room.roomId)) return;
       await this.leave();
     }
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -83,7 +90,7 @@ class CallController {
       dynacast: true,
       e2ee: keyProvider ? { keyProvider, worker: new E2EEWorker() } : undefined,
     });
-    this.state = { roomId: room.roomId, status: "connecting", encrypted, lk };
+    this.state = { roomId: room.roomId, client, status: "connecting", encrypted, lk };
     this.emit();
 
     // любые изменения в LiveKit-комнате → перерисовка

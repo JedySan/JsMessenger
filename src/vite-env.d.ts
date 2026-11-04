@@ -4,4 +4,5 @@ interface ImportMetaEnv {
   readonly VITE_DEFAULT_SERVER?: string;
   /** Запасной адрес lk-jwt-service для звонков (необязательно) */
   readonly VITE_LIVEKIT_SERVICE_URL?: string;
+  readonly VITE_FEEDBACK_URL?: string;
 }

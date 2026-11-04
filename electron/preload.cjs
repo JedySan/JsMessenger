@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld("jsmDesktop", {
   attention: () => ipcRenderer.send("attention"),
   showWindow: () => ipcRenderer.send("show-window"),
   setLang: (lang) => ipcRenderer.send("lang", lang),
+  setMute: (until) => ipcRenderer.send("mute-state", until),
+  onMute: (cb) => {
+    const h = (_e, until) => cb(until);
+    ipcRenderer.on("mute-set", h);
+    return () => ipcRenderer.off("mute-set", h);
+  },
   setBadge: (count, image) => ipcRenderer.send("badge", count, image),
   onPickSource: (cb) => {
     const h = async (_e, id, sources) => ipcRenderer.send("pick-source-result", id, await cb(sources));

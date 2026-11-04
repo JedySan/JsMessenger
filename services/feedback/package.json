@@ -1,0 +1,17 @@
+{
+  "name": "jsmessenger-feedback",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Приём отзывов из JsMessenger: хранение, админка и письмо на почту",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
+  }
+}

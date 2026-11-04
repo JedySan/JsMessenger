@@ -1,0 +1,19 @@
+[Unit]
+Description=JsMessenger feedback (отзывы из приложения)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/jsmessenger-feedback.env
+WorkingDirectory=/opt/jsmessenger/services/feedback
+ExecStart=/usr/bin/env node server.mjs
+DynamicUser=yes
+StateDirectory=jsmessenger-feedback
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -86,8 +86,30 @@ function serveApp(request) {
 
 // Язык надписей оболочки (меню в трее и т. п.) — тот же, что выбран в интерфейсе
 const TEXT = {
-  ru: { open: "Открыть JsMessenger", quit: "Выйти", unread: (n) => `Непрочитанных: ${n}` },
-  en: { open: "Open JsMessenger", quit: "Quit", unread: (n) => `Unread: ${n}` },
+  ru: {
+    open: "Открыть JsMessenger",
+    quit: "Выйти",
+    unread: (n) => `Непрочитанных: ${n}`,
+    mute: "Не беспокоить",
+    muteOff: "Уведомления включены",
+    mute1h: "На 1 час",
+    mute8h: "На 8 часов",
+    muteForever: "Пока не включу",
+    muteUntil: (t) => `Не беспокоить до ${t}`,
+    muted: "Уведомления выключены",
+  },
+  en: {
+    open: "Open JsMessenger",
+    quit: "Quit",
+    unread: (n) => `Unread: ${n}`,
+    mute: "Do not disturb",
+    muteOff: "Notifications on",
+    mute1h: "For 1 hour",
+    mute8h: "For 8 hours",
+    muteForever: "Until I turn it off",
+    muteUntil: (t) => `Do not disturb until ${t}`,
+    muted: "Notifications off",
+  },
 };
 let lang = /^(ru|be|uk|kk)/i.test(app.getLocale?.() ?? "") ? "ru" : "en";
 const T = () => TEXT[lang] ?? TEXT.en;
@@ -227,15 +249,37 @@ ipcMain.on("pick-source-result", (_e, id, sourceId) => {
   done?.(sourceId ?? null);
 });
 
+// «Не беспокоить»: состояние хранит интерфейс (настройки), здесь — копия для меню
+let muteUntil = 0;
+const setMute = (until) => win?.webContents.send("mute-set", until);
+const hhmm = (ms) => new Date(ms).toLocaleTimeString(lang === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit" });
+
 function buildTrayMenu() {
+  const t = T();
+  const muted = muteUntil === -1 || muteUntil > Date.now();
   tray?.setContextMenu(
     Menu.buildFromTemplate([
-      { label: T().open, click: showMain },
+      { label: t.open, click: showMain },
       { type: "separator" },
-      { label: T().quit, click: quitApp },
+      {
+        label: muted ? (muteUntil === -1 ? t.muted : t.muteUntil(hhmm(muteUntil))) : t.mute,
+        submenu: [
+          { label: t.muteOff, type: "checkbox", checked: !muted, click: () => setMute(0) },
+          { label: t.mute1h, type: "checkbox", checked: false, click: () => setMute(Date.now() + 3600_000) },
+          { label: t.mute8h, type: "checkbox", checked: false, click: () => setMute(Date.now() + 8 * 3600_000) },
+          { label: t.muteForever, type: "checkbox", checked: muteUntil === -1, click: () => setMute(-1) },
+        ],
+      },
+      { type: "separator" },
+      { label: t.quit, click: quitApp },
     ]),
   );
 }
+
+ipcMain.on("mute-state", (_e, until) => {
+  muteUntil = Number(until) || 0;
+  buildTrayMenu();
+});
 
 // интерфейс сообщает выбранный язык
 ipcMain.on("lang", (_e, l) => {

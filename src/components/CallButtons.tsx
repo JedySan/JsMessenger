@@ -22,7 +22,7 @@ export default function CallButtons({ client, room }: { client: MatrixClient; ro
     };
   }, [session]);
 
-  const inThisCall = st?.roomId === room.roomId && st.status !== "error" && st.status !== "ended";
+  const inThisCall = !!st && st.roomId === room.roomId && st.client === client && st.status !== "error" && st.status !== "ended";
   const others = session.memberships.filter(
     (m) => !(m.sender === client.getSafeUserId() && m.deviceId === client.getDeviceId()),
   );
@@ -47,7 +47,7 @@ export default function CallButtons({ client, room }: { client: MatrixClient; ro
       ))}
       {!inThisCall &&
         (others.length > 0 ? (
-          <button className="pill join" disabled={busy} onClick={() => start(true)}>
+          <button className="pill join" disabled={busy} onClick={() => start(false)}>
             <PhoneIncoming size={15} />
             {tr("Присоединиться")}
             <span className="pill-count">{others.length}</span>

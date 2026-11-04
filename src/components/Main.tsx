@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, UserEvent, type MatrixClient } from "matrix-js-sdk";
-import { ArrowLeftRight, Bell, Check, Layers, MessageSquare, UserPlus, VolumeX, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
+import { ArrowLeftRight, Bell, BellOff, MessageSquareHeart, Check, Layers, MessageSquare, UserPlus, VolumeX, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
 import { useClientUpdates, useNarrow } from "../hooks";
 import type { Account } from "../App";
 import { SettingsPage, SpacesPage, TabBar, type Tab } from "./MobileNav";
@@ -18,8 +18,9 @@ import SessionsDialog from "./SessionsDialog";
 import SpaceBar from "./SpaceBar";
 import SpaceHome from "./SpaceHome";
 import DialogHost from "./DialogHost";
-import { CallAudio, useCallState } from "./CallPanel";
+import { useCallState } from "./CallPanel";
 import AboutDialog from "./AboutDialog";
+import FeedbackDialog from "./FeedbackDialog";
 import ProfileDialog from "./Profile";
 import Toasts from "./Toasts";
 import UpdateBanner from "./UpdateBanner";
@@ -38,7 +39,8 @@ import {
 } from "../desktop";
 import { PopupMenu, type MenuItem } from "./ui";
 import { electron, isDesktop } from "../platform";
-import { setPref, usePrefs } from "../prefs";
+import { isNotifyMuted, setPref, usePrefs } from "../prefs";
+import { timeHM } from "../format";
 import { attachNotifications, onNotificationClick, testNotification, unreadTotal, updateBadge } from "../notifications";
 import { LANGS, lang, setLang, tr } from "../i18n";
 import { ask, notice } from "./Ask";
@@ -75,6 +77,7 @@ export default function Main({
   const [showSessions, setShowSessions] = useState(false);
   const [verifyTick, setVerifyTick] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [, bumpProfile] = useState(0);
   const [meMenu, setMeMenu] = useState<{ x: number; y: number } | null>(null);
@@ -110,7 +113,15 @@ export default function Main({
 
   const callState = useCallState();
   const room = roomId ? client.getRoom(roomId) : null;
-  const callRoom = callState ? client.getRoom(callState.roomId) : null;
+  // звонок может идти из другого аккаунта — тогда показываем его мини-окно и полоску «Идёт звонок»
+  const callClient = callState?.client ?? null;
+  const callHere = callClient === client;
+  const callRoom = callState && callClient ? callClient.getRoom(callState.roomId) : null;
+  const openCall = () => {
+    if (!callState || !callClient) return;
+    if (callHere) openRoom(callState.roomId);
+    else onOpenInAccount(callClient.getSafeUserId(), callState.roomId);
+  };
   const me = client.getUser(client.getSafeUserId());
   // своё имя и аватар меняются — перерисовать строку профиля
   useEffect(() => {
@@ -137,9 +148,26 @@ export default function Main({
 
   // На телефоне видна одна колонка: список чатов или открытый чат/пространство
   const [mobileView, setMobileView] = useState<"list" | "content">("list");
-  const backToList = () => {
+  const closeContent = () => {
     setRoomId(null); // закрываем чат, чтобы не отмечать сообщения прочитанными «за кадром»
     setMobileView("list");
+  };
+  // Системная «Назад» (Android) и жест «назад»: открытый чат — это шаг в истории,
+  // поэтому «Назад» возвращает к списку чатов, а не закрывает приложение
+  useEffect(() => {
+    if (mobileView !== "content") return;
+    if (history.state?.jsmView !== "content") history.pushState({ jsmView: "content" }, "");
+    const onPop = () => closeContent();
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [mobileView]);
+  /** Ушли к списку своей кнопкой — убираем и шаг истории, иначе «Назад» сработает вхолостую. */
+  const dropHistory = () => {
+    if (history.state?.jsmView === "content") history.back();
+  };
+  const backToList = () => {
+    dropHistory();
+    closeContent();
   };
 
   /** Открыть комнату; для пространства — его страницу. */
@@ -165,6 +193,7 @@ export default function Main({
 
   const changeScope = (s: Scope) => {
     setScope(s);
+    dropHistory();
     setMobileView("list");
     // в пространстве сначала показываем его страницу
     if (s.kind === "space") setRoomId(null);
@@ -186,6 +215,7 @@ export default function Main({
     });
   const othersUnread = others.reduce((n, a) => n + a.unread, 0);
   const prefs = usePrefs();
+  const muted = isNotifyMuted();
   // общий список: чаты готовых к работе других аккаунтов рядом с чатами этого
   const unifiedOthers = prefs.unified ? others.flatMap((a) => (a.client ? [a.client] : [])) : [];
   const accountItems: MenuItem[] = [
@@ -207,6 +237,13 @@ export default function Main({
               icon: prefs.sound ? <Check size={15} /> : <VolumeX size={15} />,
               hint: prefs.sound ? tr("вкл.") : tr("выкл."),
               onClick: () => setPref("sound", !prefs.sound),
+            },
+            {
+              // «Не беспокоить»: из меню — до включения; на 1 и 8 часов — в меню значка в трее
+              label: tr("Не беспокоить"),
+              icon: muted ? <BellOff size={15} /> : <Bell size={15} />,
+              hint: !muted ? tr("выкл.") : prefs.muteUntil === -1 ? tr("вкл.") : tr("до {0}", timeHM(prefs.muteUntil)),
+              onClick: () => setPref("muteUntil", muted ? 0 : -1),
             },
             {
               // Windows и Linux: свои всплывашки как в Telegram или уведомления системы
@@ -248,7 +285,8 @@ export default function Main({
               icon: <Languages size={15} />,
               onClick: () => setLang(LANGS[(LANGS.findIndex((l) => l.id === lang) + 1) % LANGS.length].id),
             },
-            { sep: true, label: tr("О программе"), icon: <Info size={15} />, onClick: () => setShowAbout(true) },
+            { sep: true, label: tr("Написать разработчику"), icon: <MessageSquareHeart size={15} />, onClick: () => setShowFeedback(true) },
+            { label: tr("О программе"), icon: <Info size={15} />, onClick: () => setShowAbout(true) },
             {
               label: tr("Закрыть JsMessenger полностью"),
               icon: <Power size={15} />,
@@ -277,7 +315,13 @@ export default function Main({
 
   return (
     <div className={"layout " + (mobileView === "content" && (room || space) ? "show-content" : "show-list")}>
-      <SpaceBar client={client} scope={scope} onScope={changeScope} />
+      <SpaceBar
+        client={client}
+        scope={scope}
+        onScope={changeScope}
+        others={unifiedOthers}
+        onForeignSpace={(c, id) => onOpenInAccount(c.getSafeUserId(), id)}
+      />
       <aside className="sidebar">
         <div className="titlebar" data-tauri-drag-region />
         <div className="me-row">
@@ -315,9 +359,9 @@ export default function Main({
           </button>
         )}
 
-        {callState && callRoom && callState.roomId !== roomId && (callState.status === "connecting" || callState.status === "connected") && (
+        {callState && callRoom && (!callHere || callState.roomId !== roomId) && (callState.status === "connecting" || callState.status === "connected") && (
           <div className="call-bar">
-            <button className="call-bar-room" onClick={() => openRoom(callState.roomId)}>
+            <button className="call-bar-room" onClick={openCall}>
               <PhoneCall size={15} />
               <span>
                 {tr("Идёт звонок")}
@@ -347,7 +391,12 @@ export default function Main({
             onAddAccount={onAddAccount}
           />
         )}
-        {narrow && tab === "spaces" && scope.kind !== "space" && <SpacesPage client={client} onOpen={(id) => setScope({ kind: "space", id })} />}
+        {narrow && tab === "spaces" && scope.kind !== "space" && <SpacesPage
+            client={client}
+            others={unifiedOthers}
+            onOpen={(id) => setScope({ kind: "space", id })}
+            onForeign={(c, id) => onOpenInAccount(c.getSafeUserId(), id)}
+          />}
         {narrow && tab === "spaces" && scope.kind === "space" && (
           <button className="m-back" onClick={() => setScope({ kind: "all" })}>
             <ChevronLeft size={18} /> {tr("Пространства")}
@@ -402,7 +451,10 @@ export default function Main({
             space={space}
             onOpenRoom={openRoom}
             onOpenSpace={(id) => changeScope({ kind: "space", id })}
-            onBack={() => setMobileView("list")}
+            onBack={() => {
+              dropHistory();
+              setMobileView("list");
+            }}
           />
         ) : (
           <div className="empty">
@@ -414,17 +466,17 @@ export default function Main({
           </div>
         )}
       </main>
-      <CallAudio />
       <Lightbox />
       <Toasts onOpen={(id, account) => (account === client.getSafeUserId() ? openRoom(id) : onOpenInAccount(account, id))} />
       <IncomingCall client={client} onOpenRoom={openRoom} />
       <ScreenPicker />
-      <CallMini client={client} visible={!!callState && callState.roomId !== roomId} onOpen={openRoom} />
+      {callClient && <CallMini client={callClient} visible={!callHere || callState!.roomId !== roomId} onOpen={openCall} />}
       <DialogHost client={client} onOpenRoom={openRoom} />
       {showVerify && <VerifyDialog client={client} onClose={() => setShowVerify(false)} />}
       {showSessions && <SessionsDialog client={client} onClose={() => setShowSessions(false)} />}
       <VerificationDialog client={client} onVerified={() => setVerifyTick((t) => t + 1)} />
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+      {showFeedback && <FeedbackDialog client={client} onClose={() => setShowFeedback(false)} />}
       {showProfile && <ProfileDialog client={client} onClose={() => setShowProfile(false)} />}
       {meMenu && (
         <PopupMenu

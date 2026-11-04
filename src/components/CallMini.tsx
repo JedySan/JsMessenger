@@ -74,19 +74,25 @@ export default function CallMini({
   const view = connected && lk ? pickView(lk.localParticipant, [...lk.remoteParticipants.values()]) : null;
   const track = view?.pub?.track;
 
-  // Видео: один и тот же <video>, меняется только дорожка — так «картинка в картинке» не закрывается
+  // Видео: дорожку подключаем к <video>, как только он появился (окно показали после возврата
+  // из чата звонка) или сменилась дорожка. Раньше следили только за дорожкой — и окно,
+  // открывшееся при уже идущей демонстрации экрана, оставалось чёрным.
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const setVideo = (el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+    setVideoEl(el);
+  };
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !track) return;
-    track.attach(el);
+    if (!videoEl || !track) return;
+    track.attach(videoEl);
     return () => {
-      track.detach(el);
+      track.detach(videoEl);
     };
-  }, [track]);
+  }, [track, videoEl]);
 
   // Системная «картинка в картинке»: следим, когда пользователь закрыл её сам
   useEffect(() => {
-    const el = videoRef.current;
+    const el = videoEl;
     if (!el) return;
     const on = () => setPip(true);
     const off = () => setPip(false);
@@ -96,7 +102,7 @@ export default function CallMini({
       el.removeEventListener("enterpictureinpicture", on);
       el.removeEventListener("leavepictureinpicture", off);
     };
-  }, [connected]);
+  }, [videoEl]);
 
   // Звонок закончился — закрываем и системное окно
   useEffect(() => {
@@ -169,10 +175,10 @@ export default function CallMini({
     >
       <div className="call-mini-video" style={{ height: h }}>
         {view.pub ? (
-          <video ref={videoRef} autoPlay playsInline muted className={view.screen ? "contain" : undefined} />
+          <video ref={setVideo} autoPlay playsInline muted className={view.screen ? "contain" : undefined} />
         ) : (
           <>
-            <video ref={videoRef} hidden />
+            <video ref={setVideo} hidden />
             <Avatar client={client} mxc={member?.getMxcAvatarUrl()} name={name} seed={userIdFromIdentity(view.p.identity)} size={size === "s" ? 56 : 80} />
           </>
         )}

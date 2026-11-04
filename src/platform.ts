@@ -22,6 +22,10 @@ export interface ElectronBridge {
   showWindow(): void;
   /** язык надписей оболочки (меню в трее) */
   setLang?(lang: string): void;
+  /** «Не беспокоить» для меню в трее: 0 — выкл., -1 — до включения, иначе — до этого времени */
+  setMute?(until: number): void;
+  /** в трее выбрали «Не беспокоить» */
+  onMute?(cb: (until: number) => void): () => void;
   setBadge(count: number, image?: string): void;
   /** Выбор экрана/окна для показа: вернуть id источника или null (отмена). */
   onPickSource(cb: (sources: ScreenSource[]) => Promise<string | null>): () => void;

@@ -8,9 +8,11 @@ export interface Prefs {
   notifyStyle: "popup" | "system";
   /** чаты всех аккаунтов в одном списке */
   unified: boolean;
+  /** «Не беспокоить»: 0 — уведомления включены, -1 — выключены до включения, иначе — до этого времени (мс) */
+  muteUntil: number;
 }
 const KEY = "jsm.prefs";
-const DEFAULTS: Prefs = { sound: true, notifyStyle: "popup", unified: true };
+const DEFAULTS: Prefs = { sound: true, notifyStyle: "popup", unified: true, muteUntil: 0 };
 
 let prefs: Prefs = (() => {
   try {
@@ -40,3 +42,21 @@ export function usePrefs(): Prefs {
     () => prefs,
   );
 }
+
+/** Уведомления о сообщениях выключены («Не беспокоить»). Звонки звонят всё равно. */
+export function isNotifyMuted(): boolean {
+  const u = prefs.muteUntil;
+  return u === -1 || u > Date.now();
+}
+
+// Оболочка Electron: пункт «Не беспокоить» в меню значка в трее
+let expiry: number | undefined;
+function syncMute() {
+  window.jsmDesktop?.setMute?.(isNotifyMuted() ? prefs.muteUntil : 0);
+  window.clearTimeout(expiry);
+  // время вышло — снова включаем (и меню в трее, и подписи в интерфейсе)
+  if (prefs.muteUntil > Date.now()) expiry = window.setTimeout(() => setPref("muteUntil", 0), Math.min(prefs.muteUntil - Date.now(), 2 ** 31 - 1));
+}
+listeners.add(syncMute);
+syncMute();
+window.jsmDesktop?.onMute?.((until) => setPref("muteUntil", until));

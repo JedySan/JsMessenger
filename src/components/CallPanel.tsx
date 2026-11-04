@@ -53,11 +53,12 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
     return () => window.removeEventListener("keydown", onKey);
   }, [full]);
   // Звонок закончился — вернуть окно из полноэкранного режима
-  const live = !!st && st.roomId === room.roomId && st.status === "connected";
+  const here = !!st && st.roomId === room.roomId && st.client === client;
+  const live = here && st.status === "connected";
   useEffect(() => {
     if (!live && full) close();
   }, [live, full]);
-  if (!st || st.roomId !== room.roomId) return null;
+  if (!st || !here) return null;
 
   if (st.status === "ended") {
     return (

@@ -1814,3 +1814,15 @@ html[data-platform="ios"] .titlebar { height: 0; }
 }
 .vn-btn.send { background: var(--accent); color: var(--accent-fg); }
 .vn-btn:disabled { opacity: 0.5; }
+
+/* пространства других аккаунтов в общем списке — со значком аккаунта */
+.space-avatar { position: relative; display: inline-flex; }
+.space-avatar .room-acc { right: -4px; bottom: -4px; }
+.space-avatar .room-acc .avatar { border-radius: 50%; }
+.space-btn.active .space-avatar .room-acc .avatar, .space-btn:hover .space-avatar .room-acc .avatar { box-shadow: none; border-radius: 50%; }
+
+/* поиск по сообщениям в списке чатов */
+.list-empty.small { padding: 10px 12px; font-size: 13px; }
+.room-item.msg-hit { width: 100%; text-align: left; font: inherit; color: inherit; }
+.room-item.msg-hit .room-preview { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.room-item.msg-hit mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); border-radius: 3px; padding: 0 1px; }

@@ -15,7 +15,7 @@ import { plainText } from "./components/Message";
 import { electron, isTauri } from "./platform";
 import { tr } from "./i18n";
 import { isAppFocused, onAppFocus } from "./focus";
-import { getPrefs } from "./prefs";
+import { getPrefs, isNotifyMuted } from "./prefs";
 import { playMessageSound } from "./ringtone";
 
 // ---------- всплывающие карточки внутри приложения ----------
@@ -191,7 +191,7 @@ export function attachNotifications(
     if (!room || toStartOfTimeline || !data?.liveEvent) return;
     if (ev.getSender() === me || ev.getTs() < startedAt - 5_000) return;
     if (room.getMyMembership() !== KnownMembership.Join) return;
-    if (isMuted(client, room)) return;
+    if (isMuted(client, room) || isNotifyMuted()) return;
     if (ev.isEncrypted()) await client.decryptEventIfNeeded(ev).catch(() => {});
     if (!NOTIFY_TYPES.has(ev.getType()) || ev.isRelation("m.replace")) return;
     const actions = client.getPushActionsForEvent(ev, true);

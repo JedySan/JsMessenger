@@ -6,6 +6,7 @@ import {
   Check,
   Hash,
   LayoutGrid,
+  LoaderCircle,
   LogOut,
   MessageSquarePlus,
   MoreHorizontal,
@@ -20,6 +21,10 @@ import {
 } from "lucide-react";
 import { errText } from "../App";
 import { lastMessagePreview, listTime } from "../format";
+import { searchAll, type Hit } from "../search";
+import { requestJump } from "../jump";
+import { highlight } from "./Panels";
+import { plainText } from "./Message";
 import {
   directRoomIds,
   isDirect,
@@ -62,6 +67,7 @@ export default function RoomList({
   const narrow = useNarrow();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [msgHits, setMsgHits] = useState(0);
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
   const me = client.getSafeUserId();
   // чей это чат: в общем списке рядом лежат комнаты разных аккаунтов
@@ -284,10 +290,12 @@ export default function RoomList({
             client={client}
             term={search}
             shownRoomIds={new Set(joined.map(({ r }) => r.roomId))}
-            chatsFound={joined.length + invites.length > 0}
+            chatsFound={joined.length + invites.length + msgHits > 0}
             onOpen={onSelect}
           />
         )}
+
+        {f.length >= 2 && <MessageResults clients={scope.kind === "space" ? [client] : sources} term={search} multi={multi} onOpen={onSelect} onCount={setMsgHits} />}
 
         {!f && joined.length === 0 && invites.length === 0 && (
           <div className="list-empty">
@@ -401,7 +409,7 @@ function PeopleResults({
 }
 
 /** Значок аккаунта на аватаре чата в общем списке — чтобы было видно, чей это чат. */
-function AccountMark({ client }: { client: MatrixClient }) {
+export function AccountMark({ client }: { client: MatrixClient }) {
   const id = client.getSafeUserId();
   const u = client.getUser(id);
   const name = u?.displayName || id;
@@ -409,5 +417,88 @@ function AccountMark({ client }: { client: MatrixClient }) {
     <span className="room-acc" title={tr("Аккаунт: {0}", id)}>
       <Avatar client={client} mxc={u?.avatarUrl ?? undefined} name={name} seed={id} size={18} />
     </span>
+  );
+}
+
+/** Сообщения по запросу — во всех чатах (в общем списке — во всех аккаунтах). */
+function MessageResults({
+  clients,
+  term,
+  multi,
+  onOpen,
+  onCount,
+}: {
+  clients: MatrixClient[];
+  term: string;
+  multi: boolean;
+  onOpen: (roomId: string) => void;
+  /** сколько нашлось — чтобы не писать «Ничего не нашлось» над найденными сообщениями */
+  onCount: (n: number) => void;
+}) {
+  const [hits, setHits] = useState<Hit[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const t = term.trim();
+  const key = clients.map((c) => c.getSafeUserId()).join(",");
+  useEffect(() => {
+    setHits(null);
+    setError(null);
+    let alive = true;
+    // ждём паузы в наборе — не дёргаем сервер на каждую букву
+    const timer = window.setTimeout(() => {
+      searchAll(clients, t, 50).then(
+        (h) => {
+          if (!alive) return;
+          setHits(h);
+          onCount(h.length);
+        },
+        (e) => alive && setError(errText(e)),
+      );
+    }, 450);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, key]);
+  useEffect(() => () => onCount(0), [onCount]);
+
+  const open = (h: Hit) => {
+    requestJump(h.room.roomId, h.ev.getId()!);
+    onOpen(h.room.roomId);
+  };
+
+  return (
+    <>
+      <div className="list-heading">{tr("Сообщения")}</div>
+      {error && <div className="list-empty small">{error}</div>}
+      {!error && !hits && (
+        <div className="list-empty small">
+          <LoaderCircle size={16} className="spin" />
+        </div>
+      )}
+      {hits && hits.length === 0 && <div className="list-empty small">{tr("В сообщениях не найдено")}</div>}
+      {hits?.map((h) => {
+        const sender = h.room.getMember(h.ev.getSender() ?? "")?.name ?? h.ev.getSender() ?? "";
+        return (
+          <button key={h.client.getSafeUserId() + h.ev.getId()} className="room-item msg-hit" onClick={() => open(h)}>
+            <span className="room-ava">
+              <RoomAvatar client={h.client} room={h.room} size={40} />
+              {multi && <AccountMark client={h.client} />}
+            </span>
+            <span className="room-main">
+              <span className="room-top">
+                <span className="room-name">{h.room.name}</span>
+                <span className="room-time">{listTime(h.ev.getTs())}</span>
+              </span>
+              <span className="room-bottom">
+                <span className="room-preview">
+                  {sender}: {highlight(plainText(h.ev), t)}
+                </span>
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </>
   );
 }

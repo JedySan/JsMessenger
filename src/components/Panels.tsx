@@ -5,6 +5,7 @@ import { errText } from "../App";
 import { dayLabel, isVisibleMessage, listTime, sameDay, timeHM } from "../format";
 import { linkCaptions } from "../caption";
 import { requestJump } from "../jump";
+import { searchMessages, type Hit } from "../search";
 import Avatar from "./Avatar";
 import Composer, { type ComposerMode } from "./Composer";
 import Message, { pinnedIds, plainText, PINNED, togglePin, type MessageActions } from "./Message";
@@ -252,31 +253,6 @@ export function ThreadsPanel({
 }
 
 // ---------- поиск ----------
-interface Hit {
-  ev: MatrixEvent;
-  room: Room;
-}
-
-/** Поиск по загруженным сообщениям — единственный способ для зашифрованных комнат. */
-function localSearch(rooms: Room[], term: string): Hit[] {
-  const t = term.toLowerCase();
-  const out: Hit[] = [];
-  for (const room of rooms) {
-    const evs = [
-      ...room.getLiveTimeline().getEvents(),
-      ...room.getThreads().flatMap((th) => th.events),
-    ];
-    const seen = new Set<string>();
-    for (const ev of evs) {
-      const id = ev.getId();
-      if (!id || seen.has(id) || !isVisibleMessage(ev) || ev.isRedacted() || ev.isDecryptionFailure()) continue;
-      seen.add(id);
-      if (plainText(ev).toLowerCase().includes(t)) out.push({ ev, room });
-    }
-  }
-  return out;
-}
-
 export function SearchPanel({
   client,
   room,
@@ -304,22 +280,7 @@ export function SearchPanel({
     setBusy(true);
     setError(null);
     try {
-      const rooms = scope === "room" ? [room] : client.getRooms().filter((r) => r.getMyMembership() === "join");
-      // зашифрованные — ищем у себя, остальные — на сервере
-      const local = localSearch(rooms.filter((r) => r.hasEncryptionStateEvent()), t);
-      let server: Hit[] = [];
-      const plainRooms = rooms.filter((r) => !r.hasEncryptionStateEvent());
-      if (plainRooms.length) {
-        const res = await client.searchRoomEvents({
-          term: t,
-          filter: scope === "room" ? { rooms: [room.roomId] } : undefined,
-        });
-        server = res.results
-          .map((r) => r.context.getEvent())
-          .map((ev) => ({ ev, room: client.getRoom(ev.getRoomId() ?? "")! }))
-          .filter((h) => h.room);
-      }
-      const all = [...server, ...local];
+      const all = scope === "room" ? await searchMessages(client, t, room) : await searchMessages(client, t);
       const uniq = new Map(all.map((h) => [h.ev.getId(), h]));
       setHits([...uniq.values()].sort((a, b) => b.ev.getTs() - a.ev.getTs()).slice(0, 200));
     } catch (e) {
@@ -422,7 +383,7 @@ export function SearchPanel({
   );
 }
 
-function highlight(text: string, term: string) {
+export function highlight(text: string, term: string) {
   if (!term) return text;
   const i = text.toLowerCase().indexOf(term.toLowerCase());
   if (i < 0) return text.length > 160 ? text.slice(0, 160) + "…" : text;

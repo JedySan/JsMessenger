@@ -4,6 +4,7 @@ import { NotificationCountType, type MatrixClient } from "matrix-js-sdk";
 import { ChevronRight, LayoutGrid, MessagesSquare, Plus, Settings, ShieldAlert, ShieldCheck, User, UserPlus } from "lucide-react";
 import { directRoomIds, roomIdsInSpace, topLevelSpaces } from "../rooms";
 import Avatar, { RoomAvatar } from "./Avatar";
+import { AccountMark } from "./RoomList";
 import { openDialog } from "./DialogHost";
 import type { MenuItem } from "./ui";
 import { plural, tr } from "../i18n";
@@ -61,8 +62,20 @@ export function TabBar({
 }
 
 /** Список пространств — вместо колонки значков слева. */
-export function SpacesPage({ client, onOpen }: { client: MatrixClient; onOpen: (id: string) => void }) {
-  const spaces = topLevelSpaces(client);
+export function SpacesPage({
+  client,
+  onOpen,
+  others = [],
+  onForeign,
+}: {
+  client: MatrixClient;
+  onOpen: (id: string) => void;
+  /** общий список: пространства других аккаунтов тоже здесь */
+  others?: MatrixClient[];
+  onForeign?: (client: MatrixClient, id: string) => void;
+}) {
+  const all = [client, ...others].flatMap((c) => topLevelSpaces(c).map((s) => ({ c, s })));
+  const multi = others.length > 0;
   return (
     <div className="m-page">
       <div className="list-head">
@@ -71,7 +84,7 @@ export function SpacesPage({ client, onOpen }: { client: MatrixClient; onOpen: (
           <Plus size={17} />
         </button>
       </div>
-      {spaces.length === 0 ? (
+      {all.length === 0 ? (
         <div className="m-empty">
           <LayoutGrid size={34} />
           <p>{tr("Пространства собирают чаты команды или сообщества в одном месте.")}</p>
@@ -81,13 +94,20 @@ export function SpacesPage({ client, onOpen }: { client: MatrixClient; onOpen: (
         </div>
       ) : (
         <div className="m-group">
-          {spaces.map((s) => {
-            const ids = roomIdsInSpace(client, s.roomId);
-            const u = unreadIn(client, ids);
-            const rooms = [...ids].filter((id) => !client.getRoom(id)?.isSpaceRoom()).length;
+          {all.map(({ c, s }) => {
+            const ids = roomIdsInSpace(c, s.roomId);
+            const u = unreadIn(c, ids);
+            const rooms = [...ids].filter((id) => !c.getRoom(id)?.isSpaceRoom()).length;
             return (
-              <button key={s.roomId} className="m-row" onClick={() => onOpen(s.roomId)}>
-                <RoomAvatar client={client} room={s} size={44} />
+              <button
+                key={c.getSafeUserId() + s.roomId}
+                className="m-row"
+                onClick={() => (c === client ? onOpen(s.roomId) : onForeign?.(c, s.roomId))}
+              >
+                <span className="room-ava">
+                  <RoomAvatar client={c} room={s} size={44} />
+                  {multi && <AccountMark client={c} />}
+                </span>
                 <span className="m-row-text">
                   <span className="m-row-title">{s.name}</span>
                   <span className="m-row-sub">

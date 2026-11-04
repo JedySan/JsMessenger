@@ -12,7 +12,7 @@ import {
 import Login from "./components/Login";
 import Main from "./components/Main";
 import Logo from "./components/Logo";
-import { ask } from "./components/Ask";
+import { CallAudio } from "./components/CallPanel";
 import { call } from "./call";
 import { attachNotifications, forgetBadge, updateBadge } from "./notifications";
 import { tr } from "./i18n";
@@ -84,12 +84,7 @@ export default function App() {
 
   const switchTo = async (userId: string, roomId?: string) => {
     if (userId === active) return;
-    // звонок привязан к аккаунту — при переключении его придётся завершить
-    const st = call.state;
-    if (st && (st.status === "connecting" || st.status === "connected")) {
-      if (!(await ask(tr("Идёт звонок. Завершить его и переключить аккаунт?"), { ok: tr("Переключить"), danger: true }))) return;
-      await call.leave();
-    }
+    // звонок не завершаем: он продолжается в мини-окне, вернуться в него можно оттуда
     setPendingRoom(roomId ?? null);
     setActive(userId);
     setActiveUserId(userId);
@@ -105,6 +100,7 @@ export default function App() {
   };
 
   const doLogout = async (userId: string) => {
+    if (call.state?.client.getSafeUserId() === userId) await call.leave();
     await logout(userId);
     forgetBadge(userId);
     const rest = accounts.filter((a) => a.session.userId !== userId);
@@ -158,6 +154,9 @@ export default function App() {
   if (!current.client) return <Splash />;
 
   return (
+    <>
+    {/* звук звонка — вне Main: при переключении аккаунта не прерывается */}
+    <CallAudio />
     <Main
       key={current.session.userId}
       client={current.client}
@@ -169,6 +168,7 @@ export default function App() {
       onOpenInAccount={(id, roomId) => void switchTo(id, roomId)}
       onLogout={() => doLogout(current.session.userId)}
     />
+    </>
   );
 }
 
