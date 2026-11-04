@@ -9,9 +9,9 @@
     "start": "node server.mjs"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^10.3.1"
   }
 }
