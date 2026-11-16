@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EventType, KnownMembership, type MatrixClient, type Room, type RoomMember } from "matrix-js-sdk";
+import { EventType, KnownMembership, RoomStateEvent, type MatrixClient, type Room, type RoomMember } from "matrix-js-sdk";
 import {
   Ban,
   Camera,
@@ -13,6 +13,7 @@ import {
   UserMinus,
   UserPlus,
   X,
+  LoaderCircle,
 } from "lucide-react";
 import { errText } from "../App";
 import { leaveRoom, openDirectChat, powerLevelOf, requiredLevel, roleName } from "../rooms";
@@ -68,6 +69,29 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
   const me = client.getSafeUserId();
   const [filter, setFilter] = useState("");
   const [menu, setMenu] = useState<{ x: number; y: number; m: RoomMember } | null>(null);
+  // Сервер присылает участников «лениво» (только тех, кто писал недавно) — полный список догружаем
+  const [loading, setLoading] = useState(false);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    room
+      .loadMembersIfNeeded()
+      .catch(() => {})
+      .finally(() => {
+        if (!alive) return;
+        setLoading(false);
+        setTick((t) => t + 1);
+      });
+    const bump = () => alive && setTick((t) => t + 1);
+    room.currentState.on(RoomStateEvent.Members, bump);
+    room.currentState.on(RoomStateEvent.NewMember, bump);
+    return () => {
+      alive = false;
+      room.currentState.off(RoomStateEvent.Members, bump);
+      room.currentState.off(RoomStateEvent.NewMember, bump);
+    };
+  }, [room]);
   const myLevel = powerLevelOf(room, me);
   const f = filter.trim().toLowerCase();
   const match = (m: RoomMember) => !f || m.name.toLowerCase().includes(f) || m.userId.toLowerCase().includes(f);
@@ -200,7 +224,10 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
           </button>
         )}
       </div>
-      <div className="info-section">{tr("Участники ({0})", joined.length)}</div>
+      <div className="info-section">
+        {tr("Участники ({0})", f ? joined.length : Math.max(joined.length, room.getJoinedMemberCount()))}
+        {loading && <LoaderCircle size={13} className="spin inline-spin" />}
+      </div>
       {joined.map(row)}
       {invited.length > 0 && <div className="info-section">{tr("Приглашены ({0})", invited.length)}</div>}
       {invited.map(row)}

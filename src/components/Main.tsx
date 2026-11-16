@@ -6,6 +6,7 @@ import type { Account } from "../App";
 import { SettingsPage, SpacesPage, TabBar, type Tab } from "./MobileNav";
 import { ChevronLeft } from "lucide-react";
 import { isThisDeviceVerified } from "../matrix";
+import { CryptoEvent } from "matrix-js-sdk/lib/crypto-api";
 import { call } from "../call";
 import { roomIdsInSpace, type Scope } from "../rooms";
 import RoomList from "./RoomList";
@@ -109,7 +110,20 @@ export default function Main({
   useEffect(() => updateBadge(client));
 
   useEffect(() => {
-    isThisDeviceVerified(client).then(setVerified, () => setVerified(false));
+    let alive = true;
+    const check = () => void isThisDeviceVerified(client).then((v) => alive && setVerified(v), () => alive && setVerified(false));
+    check();
+    // подпись этого сеанса приходит не сразу после смайликов: другое устройство отправляет её на сервер,
+    // и мы узнаём о ней из обновления списка устройств — поэтому перепроверяем по событиям шифрования
+    // и ещё несколько раз в первые секунды после подтверждения
+    const events = [CryptoEvent.UserTrustStatusChanged, CryptoEvent.DevicesUpdated, CryptoEvent.KeysChanged, CryptoEvent.KeyBackupStatus] as const;
+    events.forEach((e) => client.on(e as never, check as never));
+    const timers = verifyTick ? [1500, 4000, 10000, 20000].map((ms) => window.setTimeout(check, ms)) : [];
+    return () => {
+      alive = false;
+      events.forEach((e) => client.off(e as never, check as never));
+      timers.forEach((t) => window.clearTimeout(t));
+    };
   }, [client, showVerify, showSessions, verifyTick]);
 
   const callState = useCallState();

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MatrixClient, MatrixEvent, Room } from "matrix-js-sdk";
-import { FileText, LockKeyhole, X } from "lucide-react";
+import { FileText, LockKeyhole, PenLine, X } from "lucide-react";
+import ImageEditor, { isEditableImage } from "./ImageEditor";
 import { formatSize, sendFile } from "../attachments";
 import { errText } from "../App";
 import { captionFields, sendCaption } from "../caption";
@@ -10,7 +11,7 @@ import { tr } from "../i18n";
 export default function UploadDialog({
   client,
   room,
-  files,
+  files: picked,
   replyTo,
   threadId,
   onClose,
@@ -29,6 +30,10 @@ export default function UploadDialog({
   const [error, setError] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const captionRef = useRef<HTMLTextAreaElement>(null);
+  // картинки после редактора (обрезка, рисунок): исходный файл → изменённый
+  const [edited, setEdited] = useState<Map<File, File>>(new Map());
+  const [editing, setEditing] = useState<number | null>(null);
+  const files = picked.map((f) => edited.get(f) ?? f);
 
   // ссылки на превью создаём и освобождаем в одном эффекте (иначе в StrictMode они «умирают» сразу)
   const [previews, setPreviews] = useState<Array<string | null>>([]);
@@ -36,10 +41,12 @@ export default function UploadDialog({
     const urls = files.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null));
     setPreviews(urls);
     return () => urls.forEach((u) => u && URL.revokeObjectURL(u));
-  }, [files]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picked, edited]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (editing !== null) return; // клавиши — редактору картинки
       if (e.key === "Escape" && !busy) onClose(false);
       // Enter — отправить, Shift+Enter — новая строка в подписи
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !busy) {
@@ -89,7 +96,7 @@ export default function UploadDialog({
           {files.map((f, i) => (
             <div key={i} className="upload-item">
               {previews[i] ? (
-                <img src={previews[i]!} alt="" />
+                <img src={previews[i]!} alt="" onClick={() => !busy && isEditableImage(f) && setEditing(i)} className={isEditableImage(f) ? "editable" : ""} />
               ) : (
                 <span className="upload-icon">
                   <FileText size={20} />
@@ -110,6 +117,11 @@ export default function UploadDialog({
                   </div>
                 )}
               </div>
+              {!busy && previews[i] && isEditableImage(f) && (
+                <button className="icon-btn small" onClick={() => setEditing(i)} title={tr("Обрезать или нарисовать")} aria-label={tr("Обрезать или нарисовать")}>
+                  <PenLine size={16} />
+                </button>
+              )}
               {!busy && (
                 <button className="icon-btn small" onClick={() => onRemove(i)} title={tr("Убрать")} aria-label={tr("Убрать")}>
                   <X size={16} />
@@ -149,6 +161,18 @@ export default function UploadDialog({
           </button>
         </div>
       </div>
+      {editing !== null && picked[editing] && (
+        <ImageEditor
+          file={files[editing]}
+          onCancel={() => setEditing(null)}
+          onDone={(f) => {
+            const orig = picked[editing];
+            setEdited((m) => new Map(m).set(orig, f));
+            setEditing(null);
+            requestAnimationFrame(() => captionRef.current?.focus());
+          }}
+        />
+      )}
     </div>
   );
 }

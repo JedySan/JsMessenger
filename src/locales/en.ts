@@ -726,6 +726,16 @@ const en: Record<string, string> = {
   "Микрофон {0}": "Microphone {0}",
   "Камера {0}": "Camera {0}",
   "Динамики {0}": "Speakers {0}",
+  "Редактор картинки": "Image editor",
+  "Обрезка": "Crop",
+  "Рисование": "Draw",
+  "Рисовать": "Draw",
+  "Обрезать": "Crop",
+  "Толщина {0}": "Size {0}",
+  "Повернуть влево": "Rotate left",
+  "Повернуть вправо": "Rotate right",
+  "Переслано от": "Forwarded from",
+  "Обрезать или нарисовать": "Crop or draw",
 };
 
 export default en;

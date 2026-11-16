@@ -214,7 +214,7 @@ function adminList(url) {
   return page(
     "Отзывы — JsMessenger",
     `<main><h1>Отзывы JsMessenger</h1>
-<nav>${tab("new", `Новые${fresh ? ` <b>${fresh}</b>` : ""}`)}${tab("done", "Обработанные")}${tab("all", "Все")}</nav>
+<nav>${tab("new", `Новые${fresh ? ` <b>${fresh}</b>` : ""}`)}${tab("done", "Обработанные")}${tab("all", "Все")}<a class="tab" href="/admin/downloads">Скачивания</a></nav>
 ${list.length ? list.map(card).join("") : `<p class="empty">Пусто</p>`}</main>`,
   );
 }
@@ -233,7 +233,93 @@ nav{display:flex;gap:6px;margin-bottom:16px}.tab{padding:6px 12px;border-radius:
 .text{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 10px}
 dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:0 0 10px;font-size:13px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.ua{color:var(--muted)}
 form{display:flex;gap:8px}button{font:inherit;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);cursor:pointer}
-button.danger{color:#d9534f}.empty{color:var(--muted)}`;
+button.danger{color:#d9534f}.empty{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}.stat-n{font-size:26px;font-weight:700}
+.stat-l{font-weight:600}.stat-s{color:var(--muted);font-size:12.5px}.note{color:var(--muted);font-size:13px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13.5px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:600}
+main{overflow-x:auto}`;
+
+// ---------- скачивания: счётчики релизов GitHub ----------
+const REPO = env.GITHUB_REPO || "JedySan/JsMessenger";
+let relCache = { at: 0, data: null, error: null };
+
+async function releases() {
+  if (relCache.data && Date.now() - relCache.at < 10 * 60_000) return relCache.data;
+  const all = [];
+  for (let page = 1; page <= 5; page++) {
+    const r = await fetch(`${env.GITHUB_API || "https://api.github.com"}/repos/${REPO}/releases?per_page=100&page=${page}`, {
+      headers: { Accept: "application/vnd.github+json", "User-Agent": "jsmessenger-feedback", ...(env.GITHUB_TOKEN ? { Authorization: `Bearer ${env.GITHUB_TOKEN}` } : {}) },
+    });
+    if (!r.ok) throw new Error(`GitHub ответил ${r.status}`);
+    const list = await r.json();
+    all.push(...list);
+    if (list.length < 100) break;
+  }
+  relCache = { at: Date.now(), data: all, error: null };
+  return all;
+}
+
+/** Что это за файл: платформа и «установка» (скачали руками) или «обновление» (скачало приложение само). */
+function classify(name) {
+  if (/\.app\.tar\.gz$/i.test(name)) return ["macOS", "upd"];
+  if (/macOS\.zip$/i.test(name) || /\.dmg$/i.test(name)) return ["macOS", "inst"];
+  if (/Setup\.exe$/i.test(name)) return ["Windows", "both"];
+  if (/\.AppImage$/i.test(name)) return ["Linux", "both"];
+  if (/\.deb$/i.test(name)) return ["Linux", "inst"];
+  if (/\.apk$/i.test(name)) return ["Android", "inst"];
+  return null; // latest.json, .blockmap, .yml — служебные
+}
+
+async function adminDownloads() {
+  let list;
+  try {
+    list = await releases();
+  } catch (e) {
+    return page("Скачивания — JsMessenger", `<main><h1>Скачивания</h1><p class="empty">Не удалось получить данные с GitHub: ${esc(e.message)}</p><p><a href="/admin/">← К отзывам</a></p></main>`);
+  }
+  const PLAT = ["macOS", "Windows", "Linux", "Android"];
+  const total = Object.fromEntries(PLAT.map((p) => [p, { inst: 0, upd: 0, both: 0 }]));
+  const rows = [];
+  for (const r of list.filter((r) => !r.draft)) {
+    const per = Object.fromEntries(PLAT.map((p) => [p, { inst: 0, upd: 0, both: 0 }]));
+    for (const a of r.assets ?? []) {
+      const c = classify(a.name);
+      if (!c) continue;
+      per[c[0]][c[1]] += a.download_count;
+      total[c[0]][c[1]] += a.download_count;
+    }
+    rows.push({ tag: r.tag_name, date: r.published_at, per });
+  }
+  const cell = (x) => {
+    const parts = [];
+    if (x.inst) parts.push(`${x.inst} уст.`);
+    if (x.upd) parts.push(`${x.upd} обн.`);
+    if (x.both) parts.push(`${x.both}`);
+    return parts.join(" · ") || "—";
+  };
+  const sum = (x) => x.inst + x.upd + x.both;
+  const card = (p) => `<div class="stat"><div class="stat-n">${sum(total[p])}</div><div class="stat-l">${p}</div><div class="stat-s">${esc(cell(total[p]))}</div></div>`;
+  const installs = PLAT.reduce((n, p) => n + total[p].inst, 0);
+  return page(
+    "Скачивания — JsMessenger",
+    `<main><h1>Скачивания JsMessenger</h1>
+<nav><a class="tab" href="/admin/">Отзывы</a><a class="tab on" href="/admin/downloads">Скачивания</a></nav>
+<div class="stats">${PLAT.map(card).join("")}</div>
+<p class="note">Скачали вручную (установки macOS, .deb и Android): <b>${installs}</b>.
+«обн.» — приложение скачало обновление само. Для Windows и AppImage GitHub не различает установку и обновление — там общее число.
+Счётчики GitHub считают каждое скачивание, а не людей; обновляются раз в 10 минут.</p>
+<table><thead><tr><th>Версия</th><th>Дата</th>${PLAT.map((p) => `<th>${p}</th>`).join("")}</tr></thead><tbody>
+${rows
+  .map(
+    (r) =>
+      `<tr><td>${esc(r.tag)}</td><td>${esc(new Date(r.date).toLocaleDateString("ru-RU"))}</td>${PLAT.map((p) => `<td>${esc(cell(r.per[p]))}</td>`).join("")}</tr>`,
+  )
+  .join("")}
+</tbody></table></main>`,
+  );
+}
 
 async function adminAction(req, res) {
   // защита от подделки запроса с чужого сайта: действие — только со страницы админки
@@ -263,6 +349,8 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === "/admin/admin.css") return send(res, 200, ADMIN_CSS, { "Content-Type": "text/css; charset=utf-8" });
       if (!authorized(req))
         return send(res, 401, "Нужен вход", { "WWW-Authenticate": 'Basic realm="JsMessenger feedback", charset="UTF-8"', "Content-Type": "text/plain; charset=utf-8" });
+      if (url.pathname === "/admin/downloads" && req.method === "GET")
+        return send(res, 200, await adminDownloads(), { "Content-Type": "text/html; charset=utf-8", "X-Frame-Options": "DENY" });
       if (url.pathname === "/admin/" && req.method === "GET")
         return send(res, 200, adminList(url), { "Content-Type": "text/html; charset=utf-8", "X-Frame-Options": "DENY" });
       if (url.pathname === "/admin/action" && req.method === "POST") return await adminAction(req, res);

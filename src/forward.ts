@@ -3,6 +3,14 @@ import { EventType, type MatrixClient, type MatrixEvent, type Room } from "matri
 import { stripReplyFallback } from "./format";
 import { CAPTION_FOR, captionEventOf, sendCaption } from "./caption";
 
+/** Пометка «переслано от»: { sender, name } автора исходного сообщения. Видна в JsMessenger. */
+export const FORWARDED = "jsm.forwarded";
+
+export function forwardedFrom(content: Record<string, any>): { sender: string; name: string } | null {
+  const f = content?.[FORWARDED];
+  return f && typeof f.sender === "string" ? { sender: f.sender, name: typeof f.name === "string" && f.name ? f.name : f.sender } : null;
+}
+
 /** Что можно переслать: обычные сообщения и стикеры (не удалённые и расшифрованные). */
 export function canForward(ev: MatrixEvent): boolean {
   if (ev.isRedacted() || ev.isDecryptionFailure() || ev.isSending()) return false;
@@ -28,11 +36,14 @@ export function forwardContent(ev: MatrixEvent): Record<string, any> {
 export async function forwardTo(client: MatrixClient, ev: MatrixEvent, room: Room, comment?: string) {
   const text = comment?.trim();
   if (text) await client.sendMessage(room.roomId, { msgtype: "m.text", body: text } as never);
-  const res = await client.sendEvent(room.roomId, ev.getType() as never, forwardContent(ev) as never);
+  const content = forwardContent(ev);
+  // автор исходного сообщения; при повторной пересылке остаётся самый первый
+  if (!forwardedFrom(content)) content[FORWARDED] = { sender: ev.getSender(), name: ev.sender?.name ?? ev.getSender() };
+  const res = await client.sendEvent(room.roomId, ev.getType() as never, content as never);
   // подпись отдельным сообщением — пересылаем следом, привязав к новой копии
   const cap = captionEventOf(ev);
   if (cap) {
-    const { [CAPTION_FOR]: _c, msgtype: _t, ...fields } = forwardContent(cap);
+    const { [CAPTION_FOR]: _c, msgtype: _t, [FORWARDED]: _f, ...fields } = forwardContent(cap);
     await sendCaption(client, room.roomId, res.event_id, fields);
   }
 }

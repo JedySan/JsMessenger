@@ -39,7 +39,7 @@ import type { SendStatus } from "../receipts";
 import { openDialog } from "./DialogHost";
 import { AudioMessage, FileMessage, ImageMessage, VideoMessage, VoiceMessage, openSaved, openViewer, revealSaved, saveContent } from "./Media";
 import { PopupMenu, SheetMenu, type MenuItem } from "./ui";
-import { canForward } from "../forward";
+import { canForward, forwardedFrom } from "../forward";
 import { isVoice } from "../voice";
 import { isPollStart, pollPreview } from "../polls";
 import { PollCard } from "./Poll";
@@ -141,6 +141,7 @@ export default function Message({
   const mine = sender === me;
   const grouped = !!prev && prev.getSender() === sender && ev.getTs() - prev.getTs() < 5 * 60_000 && !prev.isRedacted();
   const content = effectiveContent(ev);
+  const fwd = forwardedFrom(content);
   const member = room.getMember(sender);
   const name = member?.name ?? sender;
   const time = timeHM(ev.getTs());
@@ -265,6 +266,11 @@ export default function Message({
               </button>
               {!bubbles && <span className="msg-time">{time}</span>}
             </div>
+          )}
+          {fwd && !redacted && (
+            <button className="msg-fwd" onClick={() => openDialog({ kind: "user", userId: fwd.sender })} title={fwd.sender}>
+              <Forward size={13} /> {tr("Переслано от")} <b>{room.getMember(fwd.sender)?.name ?? fwd.name}</b>
+            </button>
           )}
           {replyId && !redacted && <ReplyQuote client={client} room={room} eventId={replyId} />}
           <div className="msg-body">
