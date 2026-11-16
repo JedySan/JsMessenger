@@ -10,9 +10,11 @@ export interface Prefs {
   unified: boolean;
   /** «Не беспокоить»: 0 — уведомления включены, -1 — выключены до включения, иначе — до этого времени (мс) */
   muteUntil: number;
+  /** окно перед входом в звонок: проверить и выключить камеру/микрофон */
+  callLobby: boolean;
 }
 const KEY = "jsm.prefs";
-const DEFAULTS: Prefs = { sound: true, notifyStyle: "popup", unified: true, muteUntil: 0 };
+const DEFAULTS: Prefs = { sound: true, notifyStyle: "popup", unified: true, muteUntil: 0, callLobby: true };
 
 let prefs: Prefs = (() => {
   try {

@@ -18,6 +18,7 @@ import { Track, type Participant, type TrackPublication } from "livekit-client";
 import { call, userIdFromIdentity } from "../call";
 import { setWindowFullscreen } from "../desktop";
 import { plural, tr } from "../i18n";
+import { CallSettingsButton } from "./CallDevices";
 import { notice } from "./Ask";
 
 export function useCallState() {
@@ -166,6 +167,7 @@ export default function CallPanel({ client, room }: { client: MatrixClient; room
           icon={<MonitorUp size={20} />}
         />
         )}
+        <CallSettingsButton disabled={!ready} />
         <button className="ctrl hangup" onClick={() => call.leave()} title={tr("Завершить звонок")} aria-label={tr("Завершить звонок")}>
           <PhoneOff size={20} />
         </button>

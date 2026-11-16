@@ -66,15 +66,18 @@ export function SpacesPage({
   client,
   onOpen,
   others = [],
+  order,
   onForeign,
 }: {
   client: MatrixClient;
   onOpen: (id: string) => void;
+  order?: MatrixClient[];
   /** общий список: пространства других аккаунтов тоже здесь */
   others?: MatrixClient[];
   onForeign?: (client: MatrixClient, id: string) => void;
 }) {
-  const all = [client, ...others].flatMap((c) => topLevelSpaces(c).map((s) => ({ c, s })));
+  const accs = others.length ? (order?.filter((c) => c === client || others.includes(c)) ?? [client, ...others]) : [client];
+  const all = accs.flatMap((c) => topLevelSpaces(c).map((s) => ({ c, s })));
   const multi = others.length > 0;
   return (
     <div className="m-page">

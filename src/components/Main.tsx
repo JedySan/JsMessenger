@@ -21,6 +21,7 @@ import DialogHost from "./DialogHost";
 import { useCallState } from "./CallPanel";
 import AboutDialog from "./AboutDialog";
 import FeedbackDialog from "./FeedbackDialog";
+import { LobbyHost } from "./CallDevices";
 import ProfileDialog from "./Profile";
 import Toasts from "./Toasts";
 import UpdateBanner from "./UpdateBanner";
@@ -218,6 +219,8 @@ export default function Main({
   const muted = isNotifyMuted();
   // общий список: чаты готовых к работе других аккаунтов рядом с чатами этого
   const unifiedOthers = prefs.unified ? others.flatMap((a) => (a.client ? [a.client] : [])) : [];
+  // все аккаунты в порядке добавления — один и тот же, какой бы аккаунт ни был открыт
+  const accountOrder = accounts.flatMap((a) => (a.session.userId === client.getSafeUserId() ? [client] : a.client ? [a.client] : []));
   const accountItems: MenuItem[] = [
     ...others.map((a) => ({
       label: a.name,
@@ -320,6 +323,7 @@ export default function Main({
         scope={scope}
         onScope={changeScope}
         others={unifiedOthers}
+        order={accountOrder}
         onForeignSpace={(c, id) => onOpenInAccount(c.getSafeUserId(), id)}
       />
       <aside className="sidebar">
@@ -394,6 +398,7 @@ export default function Main({
         {narrow && tab === "spaces" && scope.kind !== "space" && <SpacesPage
             client={client}
             others={unifiedOthers}
+            order={accountOrder}
             onOpen={(id) => setScope({ kind: "space", id })}
             onForeign={(c, id) => onOpenInAccount(c.getSafeUserId(), id)}
           />}
@@ -476,6 +481,7 @@ export default function Main({
       {showSessions && <SessionsDialog client={client} onClose={() => setShowSessions(false)} />}
       <VerificationDialog client={client} onVerified={() => setVerifyTick((t) => t + 1)} />
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+      <LobbyHost />
       {showFeedback && <FeedbackDialog client={client} onClose={() => setShowFeedback(false)} />}
       {showProfile && <ProfileDialog client={client} onClose={() => setShowProfile(false)} />}
       {meMenu && (

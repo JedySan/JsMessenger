@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent, useRef } from "react";
 import { KnownMembership, NotificationCountType, type MatrixClient, type Room } from "matrix-js-sdk";
 import {
   Bell,
@@ -6,6 +6,7 @@ import {
   Check,
   Hash,
   LayoutGrid,
+  History,
   LoaderCircle,
   LogOut,
   MessageSquarePlus,
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import { errText } from "../App";
 import { lastMessagePreview, listTime } from "../format";
-import { searchAll, type Hit } from "../search";
+import { deepLoad, deepPending, localAll, mergeHits, searchAll, type DeepProgress, type Hit } from "../search";
 import { requestJump } from "../jump";
 import { highlight } from "./Panels";
 import { plainText } from "./Message";
@@ -437,15 +438,24 @@ function MessageResults({
 }) {
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deep, setDeep] = useState<DeepProgress | null>(null);
+  const deepSignal = useRef<{ cancelled: boolean } | null>(null);
   const t = term.trim();
   const key = clients.map((c) => c.getSafeUserId()).join(",");
+  const stopDeep = () => {
+    if (deepSignal.current) deepSignal.current.cancelled = true;
+    deepSignal.current = null;
+    setDeep(null);
+  };
+  useEffect(() => stopDeep, []);
   useEffect(() => {
     setHits(null);
     setError(null);
+    stopDeep();
     let alive = true;
     // ждём паузы в наборе — не дёргаем сервер на каждую букву
     const timer = window.setTimeout(() => {
-      searchAll(clients, t, 50).then(
+      searchAll(clients, t, 100).then(
         (h) => {
           if (!alive) return;
           setHits(h);
@@ -467,6 +477,36 @@ function MessageResults({
     onOpen(h.room.roomId);
   };
 
+  // Зашифрованные чаты сервер не ищет: по кнопке подгружаем их историю и ищем у себя
+  const pending = hits ? deepPending(clients) : 0;
+  const goDeep = () => {
+    const sig = { cancelled: false };
+    deepSignal.current = sig;
+    const refresh = () => {
+      if (sig.cancelled) return;
+      const local = localAll(clients, t);
+      setHits((h) => {
+        const merged = mergeHits(h ?? [], local, 300);
+        onCount(merged.length);
+        return merged;
+      });
+    };
+    void deepLoad(
+      clients,
+      (p) => {
+        if (sig.cancelled) return;
+        setDeep(p);
+        refresh();
+      },
+      sig,
+    ).finally(() => {
+      if (sig.cancelled) return;
+      refresh();
+      deepSignal.current = null;
+      setDeep(null);
+    });
+  };
+
   return (
     <>
       <div className="list-heading">{tr("Сообщения")}</div>
@@ -476,7 +516,23 @@ function MessageResults({
           <LoaderCircle size={16} className="spin" />
         </div>
       )}
-      {hits && hits.length === 0 && <div className="list-empty small">{tr("В сообщениях не найдено")}</div>}
+      {hits && hits.length === 0 && !deep && <div className="list-empty small">{tr("В сообщениях не найдено")}</div>}
+      {deep ? (
+        <div className="deep-search">
+          <LoaderCircle size={15} className="spin" />
+          <span>{tr("Загружаю историю зашифрованных чатов: {0} из {1}", deep.done, deep.total)}</span>
+          <button className="link-btn" onClick={stopDeep}>
+            {tr("Остановить")}
+          </button>
+        </div>
+      ) : (
+        pending > 0 && (
+          <button className="deep-search action" onClick={goDeep}>
+            <History size={15} />
+            <span>{tr("Искать и в старых сообщениях зашифрованных чатов ({0})", pending)}</span>
+          </button>
+        )
+      )}
       {hits?.map((h) => {
         const sender = h.room.getMember(h.ev.getSender() ?? "")?.name ?? h.ev.getSender() ?? "";
         return (

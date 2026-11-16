@@ -12,6 +12,7 @@ export default function SpaceBar({
   scope,
   onScope,
   others = [],
+  order,
   onForeignSpace,
 }: {
   client: MatrixClient;
@@ -19,12 +20,15 @@ export default function SpaceBar({
   onScope: (s: Scope) => void;
   /** общий список: пространства других аккаунтов тоже здесь (со значком аккаунта) */
   others?: MatrixClient[];
+  /** все аккаунты в постоянном порядке — чтобы плитки не переставлялись при переключении аккаунта */
+  order?: MatrixClient[];
   /** открыть пространство другого аккаунта (переключает аккаунт) */
   onForeignSpace?: (client: MatrixClient, spaceId: string) => void;
 }) {
-  const spaces = topLevelSpaces(client);
   const multi = others.length > 0;
-  const foreign = others.flatMap((c) => topLevelSpaces(c).map((s) => ({ c, s })));
+  // порядок аккаунтов не зависит от того, какой сейчас открыт: пространства стоят на своих местах
+  const accs = multi ? (order?.filter((c) => c === client || others.includes(c)) ?? [client, ...others]) : [client];
+  const all = accs.flatMap((c) => topLevelSpaces(c).map((s) => ({ c, s })));
   const unreadIn = (ids: Iterable<string>, c: MatrixClient = client) => {
     let total = 0;
     let mention = false;
@@ -62,40 +66,23 @@ export default function SpaceBar({
           <User size={20} />
         </span>
       </SpaceButton>
-      {spaces.length + foreign.length > 0 && <div className="space-sep" />}
+      {all.length > 0 && <div className="space-sep" />}
       <div className="space-list">
-        {spaces.map((s) => {
-          const u = unreadIn(roomIdsInSpace(client, s.roomId));
-          return (
-            <SpaceButton
-              key={s.roomId}
-              active={scope.kind === "space" && scope.id === s.roomId}
-              title={s.name}
-              onClick={() => onScope({ kind: "space", id: s.roomId })}
-              unread={u.total}
-              mention={u.mention}
-            >
-              <span className="space-avatar">
-                <RoomAvatar client={client} room={s} size={40} />
-                {multi && <AccountMark client={client} />}
-              </span>
-            </SpaceButton>
-          );
-        })}
-        {foreign.map(({ c, s }) => {
+        {all.map(({ c, s }) => {
+          const own = c === client;
           const u = unreadIn(roomIdsInSpace(c, s.roomId), c);
           return (
             <SpaceButton
               key={c.getSafeUserId() + s.roomId}
-              active={false}
-              title={tr("{0} — аккаунт {1}", s.name, c.getSafeUserId())}
-              onClick={() => onForeignSpace?.(c, s.roomId)}
+              active={own && scope.kind === "space" && scope.id === s.roomId}
+              title={own ? s.name : tr("{0} — аккаунт {1}", s.name, c.getSafeUserId())}
+              onClick={() => (own ? onScope({ kind: "space", id: s.roomId }) : onForeignSpace?.(c, s.roomId))}
               unread={u.total}
               mention={u.mention}
             >
               <span className="space-avatar">
                 <RoomAvatar client={c} room={s} size={40} />
-                <AccountMark client={c} />
+                {multi && <AccountMark client={c} />}
               </span>
             </SpaceButton>
           );

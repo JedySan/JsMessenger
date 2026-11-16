@@ -16,6 +16,7 @@ import {
 } from "livekit-client";
 import E2EEWorker from "livekit-client/e2ee-worker?worker";
 import { tr } from "./i18n";
+import { canPickSpeaker, saveDevice, savedDevice, type DeviceKind } from "./devices";
 
 // Запасной адрес lk-jwt-service, если сервер не отдал транспорт ни через API, ни через .well-known.
 // Задаётся при сборке: VITE_LIVEKIT_SERVICE_URL=https://livekit.example.com/livekit/jwt
@@ -71,7 +72,13 @@ class CallController {
     return !!this.state && this.state.roomId === roomId && this.state.client === client;
   }
 
-  async join(client: MatrixClient, room: Room, withVideo: boolean) {
+  /**
+   * Войти в звонок. media — что включить сразу: true/false — «с видео / без видео» (микрофон включён),
+   * или { mic, cam } с экрана перед входом.
+   */
+  async join(client: MatrixClient, room: Room, media: boolean | { mic: boolean; cam: boolean }) {
+    const { mic, cam } = typeof media === "boolean" ? { mic: true, cam: media } : media;
+    const withVideo = cam;
     if (this.state) {
       if (this.isIn(client, room.roomId)) return;
       await this.leave();
@@ -88,6 +95,10 @@ class CallController {
     const lk = new LkRoom({
       adaptiveStream: true,
       dynacast: true,
+      // выбранные в настройках звонка устройства
+      audioCaptureDefaults: { deviceId: savedDevice("audioinput") },
+      videoCaptureDefaults: { deviceId: savedDevice("videoinput") },
+      audioOutput: canPickSpeaker && savedDevice("audiooutput") ? { deviceId: savedDevice("audiooutput") } : undefined,
       e2ee: keyProvider ? { keyProvider, worker: new E2EEWorker() } : undefined,
     });
     this.state = { roomId: room.roomId, client, status: "connecting", encrypted, lk };
@@ -150,7 +161,7 @@ class CallController {
       this.state.status = "connected";
       this.emit();
 
-      await lk.localParticipant.setMicrophoneEnabled(true).catch((e) => this.mediaFailed(lk, "mic", e));
+      if (mic) await lk.localParticipant.setMicrophoneEnabled(true).catch((e) => this.mediaFailed(lk, "mic", e));
       if (withVideo) await lk.localParticipant.setCameraEnabled(true).catch((e) => this.mediaFailed(lk, "cam", e));
       this.emit();
     } catch (e) {
@@ -230,6 +241,24 @@ class CallController {
             ? tr("Не удалось включить {0}: устройство занято другой программой.", dev)
             : tr("Не удалось включить {0}: {1}", dev, e instanceof Error ? e.message : String(e));
     this.emit();
+  }
+
+  /** Сменить микрофон, камеру или динамики — сразу в звонке и на будущее. */
+  async switchDevice(kind: DeviceKind, deviceId: string) {
+    saveDevice(kind, deviceId);
+    const lk = this.state?.lk;
+    if (!lk) return;
+    try {
+      await lk.switchActiveDevice(kind, deviceId);
+    } catch (e) {
+      this.mediaFailed(lk, kind === "videoinput" ? "cam" : "mic", e);
+    }
+    this.emit();
+  }
+
+  /** Устройство, которое сейчас используется в звонке. */
+  activeDevice(kind: DeviceKind): string | undefined {
+    return this.state?.lk.getActiveDevice(kind) ?? savedDevice(kind);
   }
 
   clearMediaError() {

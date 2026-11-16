@@ -2,10 +2,10 @@ import { useEffect, useReducer, useState } from "react";
 import type { MatrixClient, Room } from "matrix-js-sdk";
 import { MatrixRTCSessionEvent } from "matrix-js-sdk/lib/matrixrtc";
 import { Phone, PhoneIncoming, Video, Presentation } from "lucide-react";
-import { call } from "../call";
 import { getJitsiWidgets, openExternal } from "../widgets";
 import { useCallState } from "./CallPanel";
 import { tr } from "../i18n";
+import { startCall } from "./CallDevices";
 
 /** Кнопки звонка в шапке комнаты: MatrixRTC/LiveKit и закреплённые Jitsi-конференции. */
 export default function CallButtons({ client, room }: { client: MatrixClient; room: Room }) {
@@ -29,9 +29,10 @@ export default function CallButtons({ client, room }: { client: MatrixClient; ro
   const jitsi = getJitsiWidgets(room);
 
   const start = async (video: boolean) => {
+    // если включено — сначала окно с камерой и микрофоном, их можно выключить до входа
     setBusy(true);
     try {
-      await call.join(client, room, video);
+      await startCall(client, room, video);
     } finally {
       setBusy(false);
     }

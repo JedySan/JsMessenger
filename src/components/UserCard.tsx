@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { Check, Copy, MessageSquare, Phone, Video } from "lucide-react";
 import { openDirectChat } from "../rooms";
-import { call } from "../call";
+import { startCall } from "./CallDevices";
 import { errText } from "../App";
 import Avatar from "./Avatar";
 import { Modal } from "./ui";
@@ -51,7 +51,7 @@ export default function UserCard({
       onClose();
       if (what !== "chat") {
         const room = client.getRoom(roomId);
-        if (room) await call.join(client, room, what === "video");
+        if (room) await startCall(client, room, what === "video");
       }
     } catch (e) {
       setError(errText(e));
