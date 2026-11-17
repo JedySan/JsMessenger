@@ -116,6 +116,9 @@ export function SheetMenu({
   const top = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const [y, setY] = useState(rect.top);
+  // высокий пузырь (картинка) не помещается вместе со списком — показываем его верх, а список целиком
+  const [bubbleH, setBubbleH] = useState(rect.height);
+  const [listMax, setListMax] = useState<number | undefined>(undefined);
   const [shown, setShown] = useState(false);
 
   useLayoutEffect(() => {
@@ -124,11 +127,17 @@ export function SheetMenu({
     holder.current?.replaceChildren(clone);
     const vh = window.visualViewport?.height ?? window.innerHeight;
     const safeTop = parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+    const safeBottom = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
     const hTop = (top.current?.offsetHeight ?? 0) + 8;
     const hList = (list.current?.offsetHeight ?? 0) + 8;
     const min = safeTop + 12 + hTop;
-    const max = vh - 12 - hList - rect.height;
-    setY(Math.max(min, Math.min(rect.top, max)));
+    const bottom = vh - 12 - safeBottom;
+    const room = bottom - hList - min; // сколько места остаётся пузырю
+    const h = rect.height <= room ? rect.height : Math.max(Math.min(rect.height, 96), room);
+    setBubbleH(h);
+    setY(Math.max(min, Math.min(rect.top, bottom - hList - h)));
+    // совсем тесно (горизонтальный телефон) — список прокручивается
+    if (min + h + hList > bottom) setListMax(Math.max(120, bottom - (min + h) - 8));
     requestAnimationFrame(() => setShown(true));
   }, [source, rect]);
 
@@ -150,13 +159,17 @@ export function SheetMenu({
             {header}
           </div>
         )}
-        <div className={wrapClass + " sheet-clone"} ref={holder} />
+        <div
+          className={wrapClass + " sheet-clone" + (bubbleH < rect.height ? " clipped" : "")}
+          ref={holder}
+          style={bubbleH < rect.height ? { maxHeight: bubbleH, overflow: "hidden" } : undefined}
+        />
       </div>
       <div
         className="sheet-list"
         ref={list}
         role="menu"
-        style={{ ...side, top: (shown ? y : rect.top) + rect.height + 8 }}
+        style={{ ...side, top: (shown ? y : rect.top) + bubbleH + 8, ...(listMax ? { maxHeight: listMax, overflowY: "auto" } : {}) }}
         onClick={(e) => e.stopPropagation()}
       >
         {visible.map((i, n) => (

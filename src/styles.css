@@ -1919,3 +1919,5 @@ html[data-platform="ios"] .titlebar { height: 0; }
 .pen-size { width: 30px; height: 30px; border-radius: 8px; border: 0; background: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .pen-size.on { background: #2f363e; }
 .pen-size span { border-radius: 50%; display: block; }
+/* высокий пузырь в меню сообщения на телефоне: видна верхняя часть, внизу мягкий обрез */
+.sheet-clone.clipped { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
