@@ -739,6 +739,11 @@ const en: Record<string, string> = {
   "Как этот чат будет называться у вас": "What this chat will be called for you",
   "Сейчас у чата общее название — его видит и собеседник. После сохранения название станет только вашим.": "This chat currently has a shared name that the other person sees too. After saving, the name will be visible only to you.",
   "Название личного чата видно только вам.": "The name of a direct chat is visible only to you.",
+  "Картинка «{0}» слишком большая (больше 4 МБ)": "Image “{0}” is too large (over 4 MB)",
+  "Можно приложить не больше {0} картинок": "You can attach up to {0} images",
+  "Картинки слишком большие — уберите одну-две и отправьте ещё раз": "The images are too large — remove one or two and try again",
+  "Картинка или скриншот": "Image or screenshot",
+  "Можно вставить скриншот из буфера (Ctrl+V) или перетащить картинку сюда": "You can paste a screenshot (Ctrl+V) or drop an image here",
 };
 
 export default en;

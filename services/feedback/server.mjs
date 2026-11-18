@@ -21,6 +21,20 @@ const MAIL_TO = env.MAIL_TO || "";
 const MAIL_FROM = env.MAIL_FROM || env.SMTP_USER || "";
 
 const MAX_BODY = 32 * 1024;
+/** с картинками: до 5 штук, каждая до 4 МБ (в base64 — примерно на треть больше) */
+const MAX_FEEDBACK_BODY = 30 * 1024 * 1024;
+const MAX_FILES = 5;
+const MAX_FILE = 4 * 1024 * 1024;
+const FILES_DIR = path.join(DATA_DIR, "files");
+const IMAGE_TYPES = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" };
+/** сверяем начало файла с заявленным типом — чтобы под видом картинки не положили что-то другое */
+function looksLike(type, b) {
+  if (type === "image/png") return b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+  if (type === "image/jpeg") return b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+  if (type === "image/gif") return b.length > 6 && b.toString("ascii", 0, 3) === "GIF";
+  if (type === "image/webp") return b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP";
+  return false;
+}
 const MAX_TEXT = 5000;
 const KINDS = { bug: "Ошибка", idea: "Предложение", other: "Другое" };
 
@@ -78,6 +92,7 @@ async function mail(it) {
       replyTo: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(it.contact) ? it.contact : undefined,
       subject: `JsMessenger: ${KINDS[it.kind] ?? "отзыв"} — ${it.text.replace(/\s+/g, " ").slice(0, 60)}`,
       text: lines.filter((l, i) => l !== "" || lines[i - 1] !== "").join("\n"),
+      attachments: (it.files ?? []).map((f) => ({ filename: f.name, contentType: f.type, path: path.join(FILES_DIR, it.id, f.file) })),
     });
   } catch (e) {
     console.error("mail", e?.message ?? e);
@@ -106,13 +121,13 @@ function send(res, status, body, headers = {}) {
 }
 const json = (res, status, obj, headers = {}) => send(res, status, JSON.stringify(obj), { "Content-Type": "application/json; charset=utf-8", ...headers });
 
-function readBody(req) {
+function readBody(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on("data", (c) => {
       size += c.length;
-      if (size > MAX_BODY) {
+      if (size > max) {
         reject(Object.assign(new Error("too large"), { status: 413 }));
         req.destroy();
       } else chunks.push(c);
@@ -141,12 +156,21 @@ async function postFeedback(req, res) {
   const ip = clientIp(req);
   let data;
   try {
-    data = JSON.parse(await readBody(req));
+    data = JSON.parse(await readBody(req, MAX_FEEDBACK_BODY));
   } catch (e) {
-    return json(res, e.status ?? 400, { error: "bad request" }, CORS);
+    return json(res, e.status ?? 400, { error: e.status === 413 ? "too large" : "bad request" }, CORS);
   }
   const text = clip(data?.text, MAX_TEXT);
   if (!text) return json(res, 400, { error: "empty" }, CORS);
+  // картинки и скриншоты: [{ name, type, data: base64 }]
+  const files = [];
+  for (const f of Array.isArray(data?.attachments) ? data.attachments.slice(0, MAX_FILES) : []) {
+    const ext = IMAGE_TYPES[f?.type];
+    if (!ext || typeof f.data !== "string") continue;
+    const buf = Buffer.from(f.data, "base64");
+    if (!buf.length || buf.length > MAX_FILE || !looksLike(f.type, buf)) continue;
+    files.push({ name: clip(f.name, 120).replace(/[\\/\x00-\x1f]/g, "_") || `image.${ext}`, type: f.type, ext, buf });
+  }
   if (limited(ip)) return json(res, 429, { error: "too many" }, CORS);
   const app = data?.app && typeof data.app === "object" ? data.app : null;
   const it = {
@@ -160,7 +184,13 @@ async function postFeedback(req, res) {
       : null,
     ip,
     done: false,
+    files: files.map((f, i) => ({ name: f.name, type: f.type, size: f.buf.length, file: `${i}.${f.ext}` })),
   };
+  if (files.length) {
+    const dir = path.join(FILES_DIR, it.id);
+    await fs.mkdir(dir, { recursive: true });
+    await Promise.all(files.map((f, i) => fs.writeFile(path.join(dir, `${i}.${f.ext}`), f.buf, { mode: 0o600 })));
+  }
   items.unshift(it);
   await save();
   void mail(it);
@@ -204,6 +234,7 @@ function adminList(url) {
     ${it.app ? `<dt>Приложение</dt><dd>${esc([it.app.version, it.app.platform, it.app.server].filter(Boolean).join(" · "))}</dd>` : ""}
     ${it.app?.ua ? `<dt>Устройство</dt><dd class="ua">${esc(it.app.ua)}</dd>` : ""}
   </dl>
+  ${(it.files ?? []).length ? `<div class="shots">${it.files.map((f) => `<a href="/admin/file/${esc(it.id)}/${esc(f.file)}" target="_blank" rel="noopener"><img src="/admin/file/${esc(it.id)}/${esc(f.file)}" alt="${esc(f.name)}" loading="lazy"></a>`).join("")}</div>` : ""}
   <form method="post" action="/admin/action">
     <input type="hidden" name="id" value="${esc(it.id)}">
     <input type="hidden" name="show" value="${esc(show)}">
@@ -239,7 +270,8 @@ button.danger{color:#d9534f}.empty{color:var(--muted)}
 .stat-l{font-weight:600}.stat-s{color:var(--muted);font-size:12.5px}.note{color:var(--muted);font-size:13px}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13.5px}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:600}
-main{overflow-x:auto}`;
+main{overflow-x:auto}
+.shots{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}.shots img{width:120px;height:90px;object-fit:cover;border-radius:9px;border:1px solid var(--line);display:block}`;
 
 // ---------- скачивания: счётчики релизов GitHub ----------
 const REPO = env.GITHUB_REPO || "JedySan/JsMessenger";
@@ -330,7 +362,10 @@ async function adminAction(req, res) {
   const act = form.get("do");
   if (it && act === "done") it.done = true;
   if (it && act === "undone") it.done = false;
-  if (it && act === "delete") items = items.filter((x) => x !== it);
+  if (it && act === "delete") {
+    items = items.filter((x) => x !== it);
+    await fs.rm(path.join(FILES_DIR, it.id), { recursive: true, force: true }).catch(() => {});
+  }
   if (it) await save();
   const show = ["new", "done", "all"].includes(form.get("show")) ? form.get("show") : "new";
   send(res, 303, "", { Location: `/admin/?show=${show}` });
@@ -349,6 +384,15 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === "/admin/admin.css") return send(res, 200, ADMIN_CSS, { "Content-Type": "text/css; charset=utf-8" });
       if (!authorized(req))
         return send(res, 401, "Нужен вход", { "WWW-Authenticate": 'Basic realm="JsMessenger feedback", charset="UTF-8"', "Content-Type": "text/plain; charset=utf-8" });
+      const fm = /^\/admin\/file\/([0-9a-f-]{36})\/(\d+\.(png|jpg|webp|gif))$/.exec(url.pathname);
+      if (fm && req.method === "GET") {
+        const it = items.find((x) => x.id === fm[1]);
+        const f = it?.files?.find((x) => x.file === fm[2]);
+        if (!f) return send(res, 404, "Not found");
+        const body = await fs.readFile(path.join(FILES_DIR, it.id, f.file)).catch(() => null);
+        if (!body) return send(res, 404, "Not found");
+        return send(res, 200, body, { "Content-Type": f.type, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" });
+      }
       if (url.pathname === "/admin/downloads" && req.method === "GET")
         return send(res, 200, await adminDownloads(), { "Content-Type": "text/html; charset=utf-8", "X-Frame-Options": "DENY" });
       if (url.pathname === "/admin/" && req.method === "GET")

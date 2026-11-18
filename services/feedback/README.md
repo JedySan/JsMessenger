@@ -3,7 +3,7 @@
 Маленький сервис на сайте: принимает отзывы из приложения (меню «…» → «Написать разработчику»),
 хранит их, показывает в админке `https://jsmassenger.ru/admin/` и присылает письмо на почту.
 
-- `POST /api/feedback` — JSON `{ kind: "bug"|"idea"|"other", text, contact?, app? }`; не больше 5 отзывов с адреса за 10 минут.
+- `POST /api/feedback` — JSON `{ kind: "bug"|"idea"|"other", text, contact?, app?, attachments?: [{ name, type, data }] }` (до 5 картинок по 4 МБ, nginx: `client_max_body_size 30m`); не больше 5 отзывов с адреса за 10 минут.
 - `/admin/` — список (новые / обработанные / все), «Обработано», «Удалить». Вход — логин и пароль из настроек.
 - Хранение — `feedback.json` в `DATA_DIR`. Почта — через SMTP или локальный sendmail.
 
