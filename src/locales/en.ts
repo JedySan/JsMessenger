@@ -736,6 +736,9 @@ const en: Record<string, string> = {
   "Повернуть вправо": "Rotate right",
   "Переслано от": "Forwarded from",
   "Обрезать или нарисовать": "Crop or draw",
+  "Как этот чат будет называться у вас": "What this chat will be called for you",
+  "Сейчас у чата общее название — его видит и собеседник. После сохранения название станет только вашим.": "This chat currently has a shared name that the other person sees too. After saving, the name will be visible only to you.",
+  "Название личного чата видно только вам.": "The name of a direct chat is visible only to you.",
 };
 
 export default en;

@@ -1921,3 +1921,16 @@ html[data-platform="ios"] .titlebar { height: 0; }
 .pen-size span { border-radius: 50%; display: block; }
 /* высокий пузырь в меню сообщения на телефоне: видна верхняя часть, внизу мягкий обрез */
 .sheet-clone.clipped { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
+
+/* ---------- телефон: окна и карточки не вылезают за экран (0.18.2) ---------- */
+.modal { box-sizing: border-box; max-width: calc(100vw - 24px); max-height: calc(var(--app-height, 100dvh) - 24px); overflow-y: auto; }
+@media (max-width: 720px) {
+  .modal, .modal.upload, .modal.wide, .modal.sessions, .modal.ask { width: calc(100vw - 24px); max-width: calc(100vw - 24px); padding: 18px 16px; }
+  .modal .modal-actions { flex-wrap: wrap; }
+  .modal .modal-actions .spacer { display: none; }
+  .modal .modal-actions button { flex: 1 1 auto; justify-content: center; }
+  .upload-list { max-height: 38vh; }
+  .modal textarea.upload-caption { font-size: 16px; }
+}
+.toast-main > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.toast-main span span { overflow-wrap: anywhere; word-break: break-word; }

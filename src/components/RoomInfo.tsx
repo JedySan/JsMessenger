@@ -16,7 +16,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { errText } from "../App";
-import { leaveRoom, openDirectChat, powerLevelOf, requiredLevel, roleName } from "../rooms";
+import { isDirect, leaveRoom, openDirectChat, powerLevelOf, requiredLevel, roleName } from "../rooms";
+import { privateName, setPrivateName } from "../roomNames";
 import Avatar, { RoomAvatar } from "./Avatar";
 import { openDialog } from "./DialogHost";
 import { PopupMenu, Toggle, type MenuItem } from "./ui";
@@ -242,6 +243,9 @@ function Members({ client, room, onOpenRoom }: { client: MatrixClient; room: Roo
 function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; onLeft: () => void }) {
   const me = client.getSafeUserId();
   const may = (type: string) => room.currentState.maySendStateEvent(type, me);
+  // личный чат переименовываем только у себя: общее название увидел бы и собеседник
+  const dm = isDirect(client, room);
+  const sharedName: string = room.currentState.getStateEvents(EventType.RoomName, "")?.getContent().name ?? "";
   const [name, setName] = useState(room.name);
   const [topic, setTopic] = useState(room.currentState.getStateEvents(EventType.RoomTopic, "")?.getContent().topic ?? "");
   const [saving, setSaving] = useState(false);
@@ -270,7 +274,11 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
   const saveText = async () => {
     setSaving(true);
     try {
-      if (name.trim() && name.trim() !== room.name) await client.setRoomName(room.roomId, name.trim());
+      if (dm) {
+        if (name.trim() !== (privateName(client, room.roomId) ?? "")) await setPrivateName(client, room.roomId, name.trim());
+        // раньше переименовали «для всех» — убираем общее название, чтобы собеседник снова видел ваше имя
+        if (sharedName && may(EventType.RoomName)) await client.setRoomName(room.roomId, "");
+      } else if (name.trim() && name.trim() !== room.name) await client.setRoomName(room.roomId, name.trim());
       const oldTopic = room.currentState.getStateEvents(EventType.RoomTopic, "")?.getContent().topic ?? "";
       if (topic !== oldTopic) await client.setRoomTopic(room.roomId, topic);
       setSaved(true);
@@ -329,7 +337,20 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
 
       <label className="field">
         <span>{tr("Название")}</span>
-        <input className="text-input" value={name} onChange={(e) => setName(e.target.value)} disabled={!may(EventType.RoomName)} />
+        <input
+          className="text-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={!dm && !may(EventType.RoomName)}
+          placeholder={dm ? tr("Как этот чат будет называться у вас") : undefined}
+        />
+        {dm && (
+          <small>
+            {sharedName
+              ? tr("Сейчас у чата общее название — его видит и собеседник. После сохранения название станет только вашим.")
+              : tr("Название личного чата видно только вам.")}
+          </small>
+        )}
       </label>
       <label className="field">
         <span>{tr("Тема")}</span>
@@ -341,7 +362,7 @@ function Settings({ client, room, onLeft }: { client: MatrixClient; room: Room; 
           disabled={!may(EventType.RoomTopic)}
         />
       </label>
-      {(may(EventType.RoomName) || may(EventType.RoomTopic)) && (
+      {(dm || may(EventType.RoomName) || may(EventType.RoomTopic)) && (
         <div className="row-end">
           {saved && <span className="saved-note">{tr("Сохранено")}</span>}
           <button className="primary" onClick={saveText} disabled={saving || !changed}>

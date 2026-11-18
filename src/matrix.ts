@@ -1,4 +1,5 @@
 // Работа с Matrix: вход, хранение сессии, шифрование, ключ восстановления.
+import { attachPrivateNames } from "./roomNames";
 import {
   AutoDiscovery,
   ClientEvent,
@@ -176,6 +177,7 @@ export function startClient(session: Session): Promise<MatrixClient> {
     await init;
     // threadSupport: ответы в тредах живут отдельно от основной ленты, как в Element
     await client.startClient({ initialSyncLimit: 30, lazyLoadMembers: true, threadSupport: true });
+    attachPrivateNames(client); // свои названия личных чатов
     return client;
   })();
   starting.catch(() => clients.delete(session.userId));
