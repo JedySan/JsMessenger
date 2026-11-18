@@ -77,16 +77,26 @@ else
 fi
 
 say "Собираю универсальное приложение (первый раз — 5–10 минут)"
+# DMG собираем сами (ниже): сборщик Tauri оформляет окно DMG через Finder и AppleScript,
+# а это ломается («Не удается установить statusbar visible…»), если Finder занят или нет разрешения
 if [[ $UPDATER -eq 1 ]]; then
-  npm run tauri build -- --target "$TARGET" --bundles app dmg --config "$CONF"
+  npm run tauri build -- --target "$TARGET" --bundles app --config "$CONF"
 else
-  npm run tauri build -- --target "$TARGET" --bundles app dmg
+  npm run tauri build -- --target "$TARGET" --bundles app
 fi
 
 APP="${BUNDLE}/macos/${NAME}.app"
-DMG=$(ls -t "${BUNDLE}"/dmg/*.dmg 2>/dev/null | head -1 || true)
 [[ -d "$APP" ]] || die "не найдено ${APP}"
-[[ -n "$DMG" ]] || die "DMG не создан (см. вывод выше: если macOS спрашивала доступ Терминала к Finder — разрешите и запустите снова)"
+
+say "Собираю DMG"
+DMG_SRC=$(mktemp -d /tmp/jsm-dmg.XXXXXX)
+DMG="${BUNDLE}/${NAME}_${VERSION}_universal.dmg"
+ditto "$APP" "${DMG_SRC}/${NAME}.app"
+ln -s /Applications "${DMG_SRC}/Applications"
+rm -f "$DMG"
+hdiutil create -quiet -volname "$NAME" -srcfolder "$DMG_SRC" -fs HFS+ -format UDZO -ov "$DMG" 2>/dev/null \
+  || die "не удалось создать DMG"
+rm -rf "$DMG_SRC"
 
 say "Проверяю сборку"
 EXE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "${APP}/Contents/Info.plist")
