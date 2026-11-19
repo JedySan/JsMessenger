@@ -7,6 +7,7 @@ import { downloadMedia, formatSize } from "../attachments";
 import { canOpenFiles, canSaveAs, download, fileName, openDownloaded, revealDownloaded, useDownload } from "../downloads";
 import { captionOf } from "../caption";
 import { tr } from "../i18n";
+import { isMobile } from "../platform";
 import { notice } from "./Ask";
 
 // ---------- общая загрузка с кэшем ----------
@@ -49,7 +50,10 @@ export function useBlobUrl(client: MatrixClient, content: Record<string, any>, e
 /** Скачать в «Загрузки» (или выбрать место); ошибки — сообщением. */
 export async function saveContent(client: MatrixClient, content: Record<string, any>, saveAs = false) {
   try {
-    return await download(client, content, saveAs);
+    const path = await download(client, content, saveAs);
+    // на телефоне файл не открыть из приложения — хотя бы подтверждаем, что сохранили
+    if (path && isMobile()) notice(tr("Сохранено"));
+    return path;
   } catch (e) {
     notice(tr("Не удалось скачать: {0}", e instanceof Error ? e.message : String(e)));
     return undefined;

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { MsgType, type MatrixClient, type MatrixEvent, type Room } from "matrix-js-sdk";
-import { BarChart3, Bold, CircleDot, Smile, Code, ImagePlus, Italic, Link, LoaderCircle, Mic, Paperclip, Pencil, Plus, Quote, Reply, SendHorizontal, Strikethrough, Trash2, X } from "lucide-react";
+import { BarChart3, Bold, CalendarClock, CircleDot, Smile, Code, ImagePlus, Italic, Link, LoaderCircle, Mic, Paperclip, Pencil, Plus, Quote, Reply, SendHorizontal, Strikethrough, Trash2, X } from "lucide-react";
 import { errText } from "../App";
 import { nameForPasted, sendFile } from "../attachments";
 import { MAX_VOICE_SECONDS, VoiceRecorder, formatDuration } from "../voice";
 import { PollDialog } from "./Poll";
 import { PopupMenu } from "./ui";
 import { textToContent } from "../richtext";
+import { scheduleMessage } from "../scheduled";
+import { ScheduleDialog, ScheduledBar } from "./Scheduled";
+import { longPressProps } from "../touch";
 import { baseContent, effectiveContent, isCaptionable, plainText } from "./Message";
 import { relationFor } from "./UploadDialog";
 import { isMobile } from "../platform";
@@ -337,6 +340,34 @@ export default function Composer({
     }
   };
 
+  // ---------- отложенное сообщение: сервер отправит в назначенное время ----------
+  const [schedOpen, setSchedOpen] = useState(false);
+  const openSchedule = () => {
+    if (mode.kind === "edit") return;
+    if (!text.trim()) return notice(tr("Сначала напишите сообщение — потом выберите, когда его отправить"));
+    setSchedOpen(true);
+  };
+  const scheduleSend = async (at: Date) => {
+    const body = text.trim();
+    if (!body) return;
+    const current = mode;
+    const { md, userIds } = withMentions(body, picked.current);
+    const content: Record<string, any> = { msgtype: MsgType.Text, ...textToContent(md), body, "m.mentions": { user_ids: userIds } };
+    const rel = relationFor(
+      current.kind === "reply" ? current.ev.getId()! : undefined,
+      threadId,
+      threadId ? (room.getThread(threadId)?.lastReply()?.getId() ?? undefined) : undefined,
+    );
+    if (rel) content["m.relates_to"] = rel;
+    await scheduleMessage(client, room, content, at); // ошибку покажет окно выбора времени
+    picked.current = new Map();
+    setText("");
+    setMode({ kind: "normal" });
+    setMention(null);
+    stopTyping();
+    // подтверждение — полоска «Запланировано на …» над полем ввода
+  };
+
   // ---------- голосовое: нажать микрофон → говорить → «Отправить» (или корзина / Esc) ----------
   const [voice, setVoice] = useState<{ rec: VoiceRecorder; sec: number; levels: number[]; sending?: boolean } | null>(null);
   const voiceRef = useRef(voice);
@@ -537,6 +568,8 @@ export default function Composer({
 
   return (
     <div className="composer">
+      {!threadId && <ScheduledBar client={client} room={room} />}
+      {schedOpen && <ScheduleDialog text={text.trim()} onPick={scheduleSend} onClose={() => setSchedOpen(false)} />}
       {mention && options.length > 0 && (
         <div className="mention-pop" role="listbox" aria-label={tr("Упомянуть")}>
           {options.map((p, i) => (
@@ -652,7 +685,19 @@ export default function Composer({
             <Mic size={18} />
           </button>
         ) : (
-          <button className="send-btn" onClick={send} disabled={!text.trim() && !editCaption} title={tr("Отправить (Enter)")} aria-label={tr("Отправить")}>
+          <button
+            className="send-btn"
+            onClick={send}
+            onContextMenu={(e) => {
+              // правый клик / долгое нажатие — «Отправить позже»
+              e.preventDefault();
+              openSchedule();
+            }}
+            {...longPressProps(openSchedule)}
+            disabled={!text.trim() && !editCaption}
+            title={tr("Отправить (Enter). Правый клик — отправить позже")}
+            aria-label={tr("Отправить")}
+          >
             <SendHorizontal size={18} />
           </button>
         )}
@@ -664,6 +709,7 @@ export default function Composer({
           onClose={() => setAttachMenu(null)}
           onFile={() => fileInput.current?.click()}
           onPoll={() => setPollOpen(true)}
+          onSchedule={mode.kind === "edit" ? undefined : openSchedule}
           onNote={canRecordVideoNote() ? () => setNoteOpen(true) : undefined}
         />
       )}
@@ -700,23 +746,26 @@ function AttachMenu({
   onFile,
   onPoll,
   onNote,
+  onSchedule,
 }: {
   at: { x: number; y: number };
   onClose: () => void;
   onFile: () => void;
   onPoll: () => void;
   onNote?: () => void;
+  onSchedule?: () => void;
 }) {
   // PopupMenu ставит меню левым верхним углом в точку — поднимаем его над кнопкой (примерная высота)
   return (
     <PopupMenu
       x={at.x}
-      y={Math.max(8, at.y - (onNote ? 132 : 92))}
+      y={Math.max(8, at.y - 52 - 40 * [onNote, onSchedule].filter(Boolean).length)}
       onClose={onClose}
       items={[
         { label: tr("Фото или файл"), icon: <ImagePlus size={15} />, onClick: onFile },
         { label: tr("Видеосообщение"), icon: <CircleDot size={15} />, onClick: () => onNote?.(), hidden: !onNote },
         { label: tr("Опрос"), icon: <BarChart3 size={15} />, onClick: onPoll },
+        { label: tr("Отправить позже"), icon: <CalendarClock size={15} />, onClick: () => onSchedule?.(), hidden: !onSchedule },
       ]}
     />
   );

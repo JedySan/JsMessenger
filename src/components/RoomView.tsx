@@ -11,6 +11,7 @@ import Composer, { type ComposerMode } from "./Composer";
 import Message, { effectiveContent } from "./Message";
 import { readInfo } from "../receipts";
 import { linkCaptions } from "../caption";
+import { isMarkedUnread, setMarkedUnread } from "../unread";
 import UploadDialog from "./UploadDialog";
 import RoomInfo from "./RoomInfo";
 import { isDirect } from "../rooms";
@@ -108,10 +109,17 @@ export default function RoomView({
 
   // Отметка о прочтении последнего сообщения — сразу, если окно активно, иначе когда к нему вернутся
   const sentFor = useRef("");
+  const unmarking = useRef(false);
   useEffect(() => {
     const send = () => {
       const last = room.getLiveTimeline().getEvents().at(-1);
-      if (!last || last.isSending() || !isAppFocused()) return;
+      if (!isAppFocused()) return;
+      // открыли чат, отмеченный непрочитанным, — пометку снимаем
+      if (isMarkedUnread(room) && !unmarking.current) {
+        unmarking.current = true;
+        void setMarkedUnread(client, room, false).finally(() => (unmarking.current = false));
+      }
+      if (!last || last.isSending()) return;
       if (room.getEventReadUpTo(client.getSafeUserId(), true) === last.getId() && sentFor.current === last.getId()) return; // уже отмечено
       sentFor.current = last.getId()!;
       // Отметка без привязки к треду (как у Element X) + маркер «прочитано до сюда»:

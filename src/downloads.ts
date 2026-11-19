@@ -4,7 +4,7 @@
 import { useSyncExternalStore } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { decryptAttachment, type EncryptedFile } from "./attachments";
-import { electron, isIOSApp, isMobile, isTauri } from "./platform";
+import { electron, isAndroidApp, isIOSApp, isMobile, isTauri } from "./platform";
 import { tr } from "./i18n";
 
 export interface DlState {
@@ -158,6 +158,15 @@ async function writeBlob(name: string, blob: Blob, saveAs: boolean): Promise<str
     return undefined;
   }
   const { writeFile } = await import("@tauri-apps/plugin-fs");
+  if (isAndroidApp()) {
+    // Android: в общие «Загрузки» приложение писать не может (у него своя закрытая папка, которую
+    // пользователь не видит) — спрашиваем место у системы; файл появится в «Файлах» / «Галерее»
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const uri = await save({ defaultPath: safe, title: tr("Сохранить как") });
+    if (!uri) return null;
+    await writeFile(uri, new Uint8Array(await blob.arrayBuffer()));
+    return uri;
+  }
   const { downloadDir, join } = await import("@tauri-apps/api/path");
   if (saveAs && desktopTauri()) {
     const { save } = await import("@tauri-apps/plugin-dialog");

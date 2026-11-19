@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, UserEvent, type MatrixClient } from "matrix-js-sdk";
-import { ArrowLeftRight, Bell, BellOff, MessageSquareHeart, Check, Layers, MessageSquare, UserPlus, VolumeX, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
+import { ArrowLeftRight, Bell, BellOff, MessageSquareHeart, SmilePlus, Check, Layers, MessageSquare, UserPlus, VolumeX, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
 import { useClientUpdates, useNarrow } from "../hooks";
 import type { Account } from "../App";
 import { SettingsPage, SpacesPage, TabBar, type Tab } from "./MobileNav";
@@ -23,6 +23,8 @@ import { useCallState } from "./CallPanel";
 import AboutDialog from "./AboutDialog";
 import FeedbackDialog from "./FeedbackDialog";
 import { LobbyHost } from "./CallDevices";
+import ReactionsDialog from "./ReactionsDialog";
+import { useQuickReactions } from "../reactions";
 import ProfileDialog from "./Profile";
 import Toasts from "./Toasts";
 import UpdateBanner from "./UpdateBanner";
@@ -80,6 +82,8 @@ export default function Main({
   const [verifyTick, setVerifyTick] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showReactions, setShowReactions] = useState(false);
+  const quickReactions = useQuickReactions();
   const [showProfile, setShowProfile] = useState(false);
   const [, bumpProfile] = useState(0);
   const [meMenu, setMeMenu] = useState<{ x: number; y: number } | null>(null);
@@ -257,6 +261,12 @@ export default function Main({
             },
             {
               // «Не беспокоить»: из меню — до включения; на 1 и 8 часов — в меню значка в трее
+              label: tr("Быстрые реакции"),
+              icon: <SmilePlus size={15} />,
+              hint: quickReactions.slice(0, 3).join(""),
+              onClick: () => setShowReactions(true),
+            },
+            {
               label: tr("Не беспокоить"),
               icon: muted ? <BellOff size={15} /> : <Bell size={15} />,
               hint: !muted ? tr("выкл.") : prefs.muteUntil === -1 ? tr("вкл.") : tr("до {0}", timeHM(prefs.muteUntil)),
@@ -496,6 +506,7 @@ export default function Main({
       <VerificationDialog client={client} onVerified={() => setVerifyTick((t) => t + 1)} />
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
       <LobbyHost />
+      {showReactions && <ReactionsDialog onClose={() => setShowReactions(false)} />}
       {showFeedback && <FeedbackDialog client={client} onClose={() => setShowFeedback(false)} />}
       {showProfile && <ProfileDialog client={client} onClose={() => setShowProfile(false)} />}
       {meMenu && (

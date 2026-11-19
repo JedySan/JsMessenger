@@ -41,6 +41,7 @@ export function useClientUpdates(client: MatrixClient): void {
       ClientEvent.Sync,
       ClientEvent.AccountData,
       RoomEvent.Tags,
+      RoomEvent.AccountData,
       RoomStateEvent.Events,
       RoomMemberEvent.PowerLevel,
       RoomMemberEvent.Membership,

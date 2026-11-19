@@ -16,6 +16,7 @@ import { electron, isTauri } from "./platform";
 import { tr } from "./i18n";
 import { isAppFocused, onAppFocus } from "./focus";
 import { getPrefs, isNotifyMuted } from "./prefs";
+import { isMarkedUnread } from "./unread";
 import { playMessageSound } from "./ringtone";
 
 // ---------- всплывающие карточки внутри приложения ----------
@@ -260,7 +261,8 @@ export function unreadTotal(client: MatrixClient): number {
       continue;
     }
     if (r.getMyMembership() !== KnownMembership.Join || isMuted(client, r)) continue;
-    total += r.getUnreadNotificationCount(NotificationCountType.Total);
+    const n = r.getUnreadNotificationCount(NotificationCountType.Total);
+    total += n || (isMarkedUnread(r) ? 1 : 0); // отмеченный непрочитанным считается за один
   }
   return total;
 }

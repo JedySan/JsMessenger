@@ -8,6 +8,8 @@ import {
   LayoutGrid,
   History,
   LoaderCircle,
+  Mail,
+  MailOpen,
   LogOut,
   MessageSquarePlus,
   MoreHorizontal,
@@ -24,6 +26,7 @@ import { errText } from "../App";
 import { lastMessagePreview, listTime } from "../format";
 import { deepLoad, deepPending, localAll, mergeHits, searchAll, type DeepProgress, type Hit } from "../search";
 import { requestJump } from "../jump";
+import { isMarkedUnread, markRoomRead, setMarkedUnread } from "../unread";
 import { highlight } from "./Panels";
 import { plainText } from "./Message";
 import {
@@ -95,7 +98,7 @@ export default function RoomList({
     .filter((r) => r.getMyMembership() === KnownMembership.Join)
     .map((r) => ({ r, last: lastMessagePreview(r, cOf(r).getSafeUserId(), dmOf(r)) }))
     .sort((a, b) => (b.last?.ts ?? b.r.getLastActiveTimestamp()) - (a.last?.ts ?? a.r.getLastActiveTimestamp()));
-  if (filter === "unread") joined = joined.filter(({ r }) => r.getUnreadNotificationCount(NotificationCountType.Total) > 0);
+  if (filter === "unread") joined = joined.filter(({ r }) => r.getUnreadNotificationCount(NotificationCountType.Total) > 0 || isMarkedUnread(r));
   if (filter === "fav") joined = joined.filter(({ r }) => isFavourite(r));
   const favs = filter === "all" ? joined.filter(({ r }) => isFavourite(r)) : [];
   const rest = filter === "all" ? joined.filter(({ r }) => !isFavourite(r)) : joined;
@@ -125,10 +128,17 @@ export default function RoomList({
     const own = c === client;
     const fav = isFavourite(r);
     const muted = isMuted(c, r);
+    const isUnread = r.getUnreadNotificationCount(NotificationCountType.Total) > 0 || isMarkedUnread(r);
     setMenu({
       x: e.clientX,
       y: e.clientY,
       items: [
+        {
+          label: isUnread ? tr("Отметить прочитанным") : tr("Отметить непрочитанным"),
+          icon: isUnread ? <MailOpen size={15} /> : <Mail size={15} />,
+          hidden: r.getMyMembership() !== KnownMembership.Join,
+          onClick: () => run(() => (isUnread ? markRoomRead(c, r) : setMarkedUnread(c, r, true))),
+        },
         { label: fav ? tr("Убрать из избранного") : tr("В избранное"), icon: fav ? <StarOff size={15} /> : <Star size={15} />, onClick: () => run(() => toggleFavourite(c, r)) },
         { label: muted ? tr("Включить уведомления") : tr("Без звука"), icon: muted ? <Bell size={15} /> : <BellOff size={15} />, onClick: () => run(() => toggleMute(c, r)) },
         { label: tr("Пригласить"), icon: <UserPlus size={15} />, hidden: !own || !r.canInvite(me), onClick: () => openDialog({ kind: "invite", roomId: r.roomId }) },
@@ -175,13 +185,14 @@ export default function RoomList({
   const row = ({ r, last }: { r: Room; last: ReturnType<typeof lastMessagePreview> }) => {
     const unread = r.getUnreadNotificationCount(NotificationCountType.Total);
     const mention = r.getUnreadNotificationCount(NotificationCountType.Highlight) > 0;
+    const marked = unread === 0 && isMarkedUnread(r);
     const c = cOf(r);
     const inCall = (c.matrixRTC.getActiveRoomSession(r)?.memberships.length ?? 0) > 0;
     const muted = isMuted(c, r);
     return (
       <div
         key={`${c.getSafeUserId()}|${r.roomId}`}
-        className={"room-item" + (r.roomId === selected && c === client ? " active" : "") + (unread > 0 && !muted ? " unread" : "")}
+        className={"room-item" + (r.roomId === selected && c === client ? " active" : "") + ((unread > 0 && !muted) || marked ? " unread" : "")}
         onClick={() => onSelect(r.roomId)}
         onContextMenu={(e) => roomMenu(r, e)}
         {...(narrow ? longPressProps((x, y) => roomMenuAt(r, x, y)) : {})}
@@ -209,6 +220,7 @@ export default function RoomList({
             {unread > 0 && (
               <span className={"badge" + (mention ? " mention" : muted ? " quiet" : "")}>{unread > 99 ? "99+" : unread}</span>
             )}
+            {marked && <span className={"badge dot" + (muted ? " quiet" : "")} title={tr("Отмечен непрочитанным")} />}
           </div>
         </div>
         <button className="room-more" onClick={(e) => roomMenu(r, e)} aria-label={tr("Действия с чатом")}>

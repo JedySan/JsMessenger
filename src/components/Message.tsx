@@ -44,6 +44,7 @@ import { isVoice } from "../voice";
 import { isPollStart, pollPreview } from "../polls";
 import { PollCard } from "./Poll";
 import EmojiPanel from "./EmojiPanel";
+import { getQuickReactions, useQuickReactions } from "../reactions";
 import { VideoNoteMessage } from "./VideoNote";
 import { isVideoNote } from "../videonote";
 import { addToMyStickers } from "../stickers";
@@ -71,7 +72,6 @@ export async function togglePin(client: MatrixClient, room: Room, eventId: strin
   await client.sendStateEvent(room.roomId, PINNED as never, { pinned: next } as never, "");
 }
 
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "👌", "🎉", "👀", "✅"];
 
 /** Текущее содержимое с учётом правок. */
 /** Содержимое сообщения как есть (с учётом правок), без подписи из отдельного сообщения. */
@@ -166,6 +166,7 @@ export default function Message({
   const encryptedUnreadable = ev.isDecryptionFailure() || ev.getType() === EventType.RoomMessageEncrypted;
 
   const react = (key: string) => toggleReaction(client, room, ev, key);
+  const quick = useQuickReactions();
   const thread = actions.onThread ? ev.getThread() : undefined;
   const threadCount = thread && ev.isThreadRoot ? thread.length : 0;
   const pinned = pinnedIds(room).includes(ev.getId() ?? "");
@@ -317,7 +318,7 @@ export default function Message({
         <div className="msg-actions" onClick={(e) => e.stopPropagation()}>
           {!encryptedUnreadable && (
             <>
-              {QUICK_REACTIONS.slice(0, 4).map((k) => (
+              {quick.slice(0, 4).map((k) => (
                 <button key={k} className="act emoji" onClick={() => react(k)} title={tr("Реакция {0}", k)}>
                   {k}
                 </button>
@@ -539,10 +540,11 @@ function MessageMenu({
     prevSep = false;
   }
 
+  const quick = getQuickReactions();
   const header =
     can.readable && !sending ? (
       <div className="popup-reacts">
-        {QUICK_REACTIONS.map((k) => (
+        {quick.map((k) => (
           <button
             key={k}
             onClick={() => {
