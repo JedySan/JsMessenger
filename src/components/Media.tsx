@@ -2,13 +2,15 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSPro
 import type React from "react";
 import { canPlayOgg, formatDuration, oggToWav, waveFromContent } from "../voice";
 import type { MatrixClient } from "matrix-js-sdk";
-import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, FolderInput, FolderOpen, ImageOff, LoaderCircle, Pause, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CornerUpLeft, Download, FileText, FolderInput, FolderOpen, ImageOff, LoaderCircle, Pause, Play, Speech, X } from "lucide-react";
 import { downloadMedia, formatSize } from "../attachments";
 import { canOpenFiles, canSaveAs, download, fileName, openDownloaded, revealDownloaded, useDownload } from "../downloads";
 import { captionOf } from "../caption";
 import { tr } from "../i18n";
 import { isMobile } from "../platform";
-import { notice } from "./Ask";
+import { ask, notice } from "./Ask";
+import { savedTranscript, transcribe, transcribeError } from "../transcribe";
+import { hasPlus, openPlus } from "../plus";
 
 // ---------- общая загрузка с кэшем ----------
 const blobCache = new Map<string, Promise<string>>();
@@ -261,8 +263,25 @@ export function VoiceMessage({ client, content }: { client: MatrixClient; conten
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(total);
   const [rate, setRate] = useState(1);
+  const [tx, setTx] = useState<TxState>(() => ({ text: savedTranscript(content), busy: false, queue: 0, open: false }));
 
   useEffect(() => () => audio.current?.pause(), []);
+
+  const runTranscribe = async () => {
+    if (tx.text !== undefined) return setTx((t) => ({ ...t, open: !t.open }));
+    if (!hasPlus(client)) {
+      if (await ask(tr("Расшифровка голосовых сообщений входит в JsMessenger Plus."), { ok: tr("Подробнее о Plus") })) openPlus();
+      return;
+    }
+    setTx((t) => ({ ...t, busy: true, open: true, queue: 0 }));
+    try {
+      const text = await transcribe(client, content, (queue) => setTx((t) => ({ ...t, queue })));
+      setTx({ text, busy: false, queue: 0, open: true });
+    } catch (e) {
+      setTx((t) => ({ ...t, busy: false, open: false }));
+      notice(transcribeError(e));
+    }
+  };
 
   const ensure = async (): Promise<HTMLAudioElement | null> => {
     if (audio.current) return audio.current;
@@ -331,6 +350,7 @@ export function VoiceMessage({ client, content }: { client: MatrixClient; conten
   const progress = dur ? pos / dur : 0;
   if (state === "error") return <FileMessage client={client} content={content} />;
   return (
+    <div className="voice-wrap">
     <div className={"voice-msg" + (state === "playing" ? " playing" : "")}>
       <button className="voice-play" onClick={() => void toggle()} aria-label={state === "playing" ? tr("Пауза") : tr("Слушать")}>
         {state === "loading" ? <LoaderCircle size={18} className="spin" /> : state === "playing" ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
@@ -344,7 +364,33 @@ export function VoiceMessage({ client, content }: { client: MatrixClient; conten
       <button className="voice-rate" onClick={nextRate} title={tr("Скорость")}>
         {rate === 1.5 ? "1,5×" : `${rate}×`}
       </button>
+      <TranscribeButton tr_={tx} onClick={() => void runTranscribe()} />
     </div>
+    {tx.open && (tx.text !== undefined || tx.busy) && (
+      <div className="voice-text">
+        {tx.busy ? (
+          <span className="voice-text-wait">
+            <LoaderCircle size={13} className="spin" /> {tx.queue > 1 ? tr("В очереди: {0}", tx.queue) : tr("Расшифровываю…")}
+          </span>
+        ) : tx.text ? (
+          tx.text
+        ) : (
+          <span className="voice-text-wait">{tr("Речь не распознана")}</span>
+        )}
+      </div>
+    )}
+    </div>
+  );
+}
+
+type TxState = { text?: string; busy: boolean; queue: number; open: boolean };
+
+function TranscribeButton({ tr_: t, onClick }: { tr_: TxState; onClick: () => void }) {
+  const label = t.text !== undefined ? (t.open ? tr("Скрыть текст") : tr("Показать текст")) : tr("Расшифровать");
+  return (
+    <button className={"voice-tx" + (t.open && t.text !== undefined ? " on" : "")} onClick={onClick} title={label} aria-label={label} disabled={t.busy}>
+      {t.busy ? <LoaderCircle size={15} className="spin" /> : <Speech size={15} />}
+    </button>
   );
 }
 

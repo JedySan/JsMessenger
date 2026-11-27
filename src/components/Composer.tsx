@@ -7,7 +7,7 @@ import { MAX_VOICE_SECONDS, VoiceRecorder, formatDuration } from "../voice";
 import { PollDialog } from "./Poll";
 import { PopupMenu } from "./ui";
 import { textToContent } from "../richtext";
-import { scheduleMessage } from "../scheduled";
+import { scheduleMessage, type ScheduleVia } from "../scheduled";
 import { ScheduleDialog, ScheduledBar } from "./Scheduled";
 import { longPressProps } from "../touch";
 import { baseContent, effectiveContent, isCaptionable, plainText } from "./Message";
@@ -347,7 +347,7 @@ export default function Composer({
     if (!text.trim()) return notice(tr("Сначала напишите сообщение — потом выберите, когда его отправить"));
     setSchedOpen(true);
   };
-  const scheduleSend = async (at: Date) => {
+  const scheduleSend = async (at: Date, via: ScheduleVia) => {
     const body = text.trim();
     if (!body) return;
     const current = mode;
@@ -359,7 +359,7 @@ export default function Composer({
       threadId ? (room.getThread(threadId)?.lastReply()?.getId() ?? undefined) : undefined,
     );
     if (rel) content["m.relates_to"] = rel;
-    await scheduleMessage(client, room, content, at); // ошибку покажет окно выбора времени
+    await scheduleMessage(client, room, content, at, via); // ошибку покажет окно выбора времени
     picked.current = new Map();
     setText("");
     setMode({ kind: "normal" });
@@ -569,7 +569,7 @@ export default function Composer({
   return (
     <div className="composer">
       {!threadId && <ScheduledBar client={client} room={room} />}
-      {schedOpen && <ScheduleDialog text={text.trim()} onPick={scheduleSend} onClose={() => setSchedOpen(false)} />}
+      {schedOpen && <ScheduleDialog client={client} text={text.trim()} onPick={scheduleSend} onClose={() => setSchedOpen(false)} />}
       {mention && options.length > 0 && (
         <div className="mention-pop" role="listbox" aria-label={tr("Упомянуть")}>
           {options.map((p, i) => (

@@ -1,5 +1,5 @@
 // «JsMessenger Plus»: что входит, до какого числа действует, ввод кода активации.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 import { BadgeCheck, Gem, KeyRound, RefreshCw } from "lucide-react";
 import { Modal } from "./ui";
@@ -7,6 +7,11 @@ import { PlusError, redeemCode, refreshPlus, usePlus } from "../plus";
 import { tr } from "../i18n";
 
 const dateRu = (ms: number) => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+
+const FEATURES: Record<string, () => string> = {
+  scheduled: () => tr("Отложенные сообщения через сервер JsMessenger"),
+  transcribe: () => tr("Расшифровка голосовых сообщений"),
+};
 
 function errorText(e: unknown): string {
   const code = e instanceof PlusError ? e.code : "";
@@ -25,6 +30,8 @@ export default function PlusDialog({ client, onClose }: { client: MatrixClient; 
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const active = !!st?.plus && st.plus.until > Date.now();
+  // открыли окно — тихо уточним тариф и список функций
+  useEffect(() => void refreshPlus(client).catch(() => {}), [client]);
 
   const redeem = async () => {
     setBusy(true);
@@ -68,7 +75,7 @@ export default function PlusDialog({ client, onClose }: { client: MatrixClient; 
         {(st?.features ?? []).map((f) => (
           <div key={f.id} className="plus-feature">
             <BadgeCheck size={16} />
-            <span>{f.title}</span>
+            <span>{FEATURES[f.id]?.() ?? f.title}</span>
             {f.soon && <em>{tr("скоро")}</em>}
           </div>
         ))}

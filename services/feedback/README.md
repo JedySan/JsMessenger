@@ -5,6 +5,8 @@
 
 - `POST /api/feedback` — JSON `{ kind: "bug"|"idea"|"other", text, contact?, app?, attachments?: [{ name, type, data }] }` (до 5 картинок по 4 МБ, nginx: `client_max_body_size 30m`); не больше 5 отзывов с адреса за 10 минут.
 - `/api/plus/*` — JsMessenger Plus: вход через Matrix (OpenID-токен проверяется у Matrix-сервера пользователя по federation API), тариф, коды активации (`plus.mjs`).
+- `/api/plus/scheduled` — отложенная отправка через этот сервер (`scheduled.mjs`): приложение присылает уже зашифрованное событие и токен устройства; токен проверяется у Matrix-сервера (whoami, тот же Matrix ID), хранится зашифрованным (AES-GCM, `RELAY_KEY` или `relay.key`) и стирается сразу после отправки. Адреса из частных сетей не принимаются.
+- `/api/plus/transcribe` — расшифровка голосовых (`transcribe.mjs`): звук → ffmpeg → whisper.cpp (`WHISPER_URL`) или сервис с API OpenAI (`WHISPER_API_URL`). Очередь по одному, текст хранится в памяти 10 минут. Установка whisper.cpp — `services/whisper/setup.sh`.
 - `/admin/plus` — подписчики (выдать, продлить, отключить) и выпуск кодов `JSM-XXXX-XXXX-XXXX`.
 - `/admin/` — список (новые / обработанные / все), «Обработано», «Удалить». Вход — логин и пароль из настроек.
 - Хранение — `feedback.json` в `DATA_DIR`. Почта — через SMTP или локальный sendmail.

@@ -86,6 +86,11 @@ export default function Main({
   const [showFeedback, setShowFeedback] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [showPlus, setShowPlus] = useState(false);
+  useEffect(() => {
+    const open = () => setShowPlus(true);
+    window.addEventListener("jsm-open-plus", open);
+    return () => window.removeEventListener("jsm-open-plus", open);
+  }, []);
   const plus = usePlus(client);
   const quickReactions = useQuickReactions();
   const [showProfile, setShowProfile] = useState(false);

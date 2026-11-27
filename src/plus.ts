@@ -46,12 +46,12 @@ export class PlusError extends Error {
   }
 }
 
-async function call(path: string, init: RequestInit & { session?: string } = {}): Promise<any> {
+async function call(path: string, init: RequestInit & { session?: string; contentType?: string } = {}): Promise<any> {
   let res: Response;
   try {
     res = await fetch(BASE + path, {
       ...init,
-      headers: { "Content-Type": "application/json", ...(init.session ? { Authorization: `Bearer ${init.session}` } : {}) },
+      headers: { "Content-Type": init.contentType ?? "application/json", ...(init.session ? { Authorization: `Bearer ${init.session}` } : {}) },
     });
   } catch {
     throw new PlusError("network", "network");
@@ -82,6 +82,21 @@ async function withSession<T>(client: MatrixClient, fn: (s: string) => Promise<T
     if (e instanceof PlusError && e.code === "session") return fn(await session(client, true));
     throw e;
   }
+}
+
+/** Запрос к API Plus от имени пользователя (вход — сам, если нужно). */
+export function plusApi(client: MatrixClient, path: string, init: RequestInit & { contentType?: string } = {}): Promise<any> {
+  return withSession(client, (s) => call(path, { ...init, session: s }));
+}
+
+/** Plus закончился, а приложение думало, что он есть, — обновим состояние. */
+export function plusLapsed(client: MatrixClient) {
+  void refreshPlus(client).catch(() => {});
+}
+
+/** Открыть окно JsMessenger Plus (его показывает Main). */
+export function openPlus() {
+  window.dispatchEvent(new Event("jsm-open-plus"));
 }
 
 /** Обновить тариф с сервера. */

@@ -9,13 +9,15 @@ import path from "node:path";
 import crypto from "node:crypto";
 import https from "node:https";
 import dns from "node:dns/promises";
+import { handleScheduled, initScheduled, scheduledStats } from "./scheduled.mjs";
+import { handleTranscribe, initTranscribe, transcribeReady, transcribeStats } from "./transcribe.mjs";
 
 const DAY = 86_400_000;
 const SESSION_DAYS = 60;
 /** Что входит в Plus — приложение показывает этот список (и включает функции). */
-export const PLUS_FEATURES = [
-  { id: "scheduled", title: "Отложенные сообщения через сервер JsMessenger", soon: true },
-  { id: "transcribe", title: "Расшифровка голосовых сообщений", soon: true },
+export const plusFeatures = () => [
+  { id: "scheduled", title: "Отложенные сообщения через сервер JsMessenger" },
+  { id: "transcribe", title: "Расшифровка голосовых сообщений", soon: !transcribeReady() },
 ];
 
 let FILE;
@@ -34,6 +36,8 @@ export async function initPlus(dataDir, env) {
   // просроченные сессии — прочь
   const now = Date.now();
   for (const [k, s] of Object.entries(db.sessions)) if (s.exp < now) delete db.sessions[k];
+  await initScheduled(dataDir, env);
+  initTranscribe(env);
 }
 
 function save() {
@@ -137,13 +141,13 @@ function tooMany(key, max = 10, windowMs = 10 * 60_000) {
 /** Обработать /api/plus/*; вернуть true, если запрос наш. */
 export async function handlePlusApi(req, res, url, h) {
   if (!url.pathname.startsWith("/api/plus/")) return false;
-  const CORS = { ...h.CORS, "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization" };
+  const CORS = { ...h.CORS, "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization" };
   if (req.method === "OPTIONS") return h.send(res, 204, "", CORS), true;
   const ip = h.clientIp(req);
   const reply = (status, obj) => (h.json(res, status, obj, CORS), true);
-  const body = async () => {
+  const body = async (max) => {
     try {
-      return JSON.parse((await h.readBody(req)) || "{}");
+      return JSON.parse((await h.readBody(req, max)) || "{}");
     } catch {
       return null;
     }
@@ -153,7 +157,7 @@ export async function handlePlusApi(req, res, url, h) {
     const s = m && db.sessions[sha(m[1])];
     return s && s.exp > Date.now() ? s : null;
   };
-  const view = (mxid) => ({ mxid, plus: plusOf(mxid), features: PLUS_FEATURES });
+  const view = (mxid) => ({ mxid, plus: plusOf(mxid), features: plusFeatures() });
 
   if (url.pathname === "/api/plus/auth" && req.method === "POST") {
     if (tooMany("auth:" + ip, 30)) return reply(429, { error: "too many" });
@@ -174,6 +178,9 @@ export async function handlePlusApi(req, res, url, h) {
   if (!s) return reply(401, { error: "session" });
 
   if (url.pathname === "/api/plus/me" && req.method === "GET") return reply(200, view(s.mxid));
+  const ctx = { req, url, s, plusOf, reply, body };
+  if (url.pathname === "/api/plus/scheduled" || url.pathname.startsWith("/api/plus/scheduled/")) return handleScheduled(ctx);
+  if (url.pathname === "/api/plus/transcribe" || url.pathname.startsWith("/api/plus/transcribe/")) return handleTranscribe(ctx);
 
   if (url.pathname === "/api/plus/redeem" && req.method === "POST") {
     if (tooMany("redeem:" + ip) || tooMany("redeem:" + s.mxid)) return reply(429, { error: "too many" });
@@ -216,10 +223,16 @@ export function adminPlusPage(url, h) {
   const codes = Object.entries(db.codes).sort((a, b) => b[1].created - a[1].created);
   const fresh = new Set((url.searchParams.get("new") ?? "").split(",").filter(Boolean));
   const esc = h.esc;
+  const sched = scheduledStats();
+  const tr = transcribeStats();
   return h.page(
     "Plus — JsMessenger",
     `<main><h1>JsMessenger Plus</h1>
 <nav><a class="tab" href="/admin/">Отзывы</a><a class="tab" href="/admin/downloads">Скачивания</a><a class="tab on" href="/admin/plus">Plus</a></nav>
+
+<section class="card"><h2>Сервисы</h2>
+<p>Отложенные: ждут отправки — ${sched.pending}, отправлено за сутки — ${sched.sent}, не ушло (7 дней) — ${sched.failed}</p>
+<p>Расшифровка: ${tr.ready ? `работает (${esc(tr.backend)}), в очереди — ${tr.queue}, за сутки — ${tr.today}` : "не настроена (WHISPER_URL или WHISPER_API_URL)"}</p></section>
 
 <section class="card"><h2>Выдать или продлить</h2>
 <form method="post" action="/admin/plus/action" class="row">
