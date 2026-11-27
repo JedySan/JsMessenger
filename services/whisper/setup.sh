@@ -8,8 +8,10 @@ MODEL="${1:-small-q5_1}"
 DIR=/opt/whisper.cpp
 TAG=v1.9.6
 
+# без вопросов: иначе apt (needrestart, debconf) ждёт ответа в невидимом окне
+export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 apt-get update -qq
-apt-get install -y -qq build-essential cmake git ffmpeg curl >/dev/null
+apt-get install -y -qq -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold build-essential cmake git ffmpeg curl
 
 if [ ! -d "${DIR}/.git" ]; then
   git clone --depth 1 --branch "${TAG}" https://github.com/ggml-org/whisper.cpp "${DIR}"
