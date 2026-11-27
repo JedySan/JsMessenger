@@ -253,6 +253,7 @@ ${list.length ? list.map(card).join("") : `<p class="empty">Пусто</p>`}</ma
 }
 
 const ADMIN_CSS = `
+.bad { color: #e5534b; }
 :root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--text:#1c2024;--muted:#6b7280;--line:#e3e5e8;--accent:#1f8f7a}
 @media(prefers-color-scheme:dark){:root{--bg:#16191d;--card:#1f2328;--text:#e7eaee;--muted:#9aa3ad;--line:#2e343b;--accent:#3bb39b}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}

@@ -32,10 +32,25 @@ export function initTranscribe(env) {
     ffmpeg: env.FFMPEG || "ffmpeg",
     timeout: Number(env.WHISPER_TIMEOUT || 15 * 60) * 1000,
   };
+  if (cfg.whisperUrl) {
+    void ping();
+    setInterval(ping, 60_000).unref();
+  }
   setInterval(() => {
     const now = Date.now();
     for (const [id, j] of jobs) if ((j.status === "done" || j.status === "error") && now - j.finished > KEEP) jobs.delete(id);
   }, 60_000).unref();
+}
+
+/** Отвечает ли whisper.cpp (проверяем раз в минуту — для админки). */
+let alive = null;
+async function ping() {
+  try {
+    const r = await fetch(new URL("/", cfg.whisperUrl), { signal: AbortSignal.timeout(5000) });
+    alive = r.status > 0; // ответил хоть что-то — процесс жив
+  } catch {
+    alive = false;
+  }
 }
 
 /** Настроена ли расшифровка (иначе в Plus она помечена «скоро»). */
@@ -179,5 +194,5 @@ export async function handleTranscribe(ctx) {
 
 /** Для админки. */
 export function transcribeStats() {
-  return { ready: transcribeReady(), backend: cfg.whisperUrl ? "whisper.cpp" : cfg.apiUrl ? "API" : "—", queue: queue.length, today: [...daily.values()].reduce((n, l) => n + l.filter((t) => Date.now() - t < 86_400_000).length, 0) };
+  return { ready: transcribeReady(), alive: cfg.whisperUrl ? alive : true, backend: cfg.whisperUrl ? "whisper.cpp" : cfg.apiUrl ? "API" : "—", queue: queue.length, today: [...daily.values()].reduce((n, l) => n + l.filter((t) => Date.now() - t < 86_400_000).length, 0) };
 }

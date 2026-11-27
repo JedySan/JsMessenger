@@ -232,7 +232,13 @@ export function adminPlusPage(url, h) {
 
 <section class="card"><h2>Сервисы</h2>
 <p>Отложенные: ждут отправки — ${sched.pending}, отправлено за сутки — ${sched.sent}, не ушло (7 дней) — ${sched.failed}</p>
-<p>Расшифровка: ${tr.ready ? `работает (${esc(tr.backend)}), в очереди — ${tr.queue}, за сутки — ${tr.today}` : "не настроена (WHISPER_URL или WHISPER_API_URL)"}</p></section>
+<p>Расшифровка: ${
+    !tr.ready
+      ? "не настроена (WHISPER_URL или WHISPER_API_URL)"
+      : tr.alive === false
+        ? `<b class="bad">${esc(tr.backend)} не отвечает</b> — systemctl status whisper`
+        : `${tr.alive === null ? "проверяю…" : "работает"} (${esc(tr.backend)}), в очереди — ${tr.queue}, за сутки — ${tr.today}`
+  }</p></section>
 
 <section class="card"><h2>Выдать или продлить</h2>
 <form method="post" action="/admin/plus/action" class="row">
