@@ -7,6 +7,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import nodemailer from "nodemailer";
+import { adminPlusAction, adminPlusPage, handlePlusApi, initPlus } from "./plus.mjs";
 
 const env = process.env;
 const PORT = Number(env.PORT || 8787);
@@ -48,6 +49,7 @@ try {
   if (e.code !== "ENOENT") throw e;
 }
 await fs.mkdir(DATA_DIR, { recursive: true });
+await initPlus(DATA_DIR, env);
 let saving = Promise.resolve();
 function save() {
   saving = saving.then(async () => {
@@ -245,7 +247,7 @@ function adminList(url) {
   return page(
     "Отзывы — JsMessenger",
     `<main><h1>Отзывы JsMessenger</h1>
-<nav>${tab("new", `Новые${fresh ? ` <b>${fresh}</b>` : ""}`)}${tab("done", "Обработанные")}${tab("all", "Все")}<a class="tab" href="/admin/downloads">Скачивания</a></nav>
+<nav>${tab("new", `Новые${fresh ? ` <b>${fresh}</b>` : ""}`)}${tab("done", "Обработанные")}${tab("all", "Все")}<a class="tab" href="/admin/downloads">Скачивания</a><a class="tab" href="/admin/plus">Plus</a></nav>
 ${list.length ? list.map(card).join("") : `<p class="empty">Пусто</p>`}</main>`,
   );
 }
@@ -271,7 +273,11 @@ button.danger{color:#d9534f}.empty{color:var(--muted)}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13.5px}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:600}
 main{overflow-x:auto}
-.shots{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}.shots img{width:120px;height:90px;object-fit:cover;border-radius:9px;border:1px solid var(--line);display:block}`;
+.card h2{font-size:16px;margin:0 0 10px}.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.row input,.row select{font:inherit;font-size:14px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+.row input{flex:1;min-width:160px}form.inline{display:inline-flex;gap:6px}tr.expired td{color:var(--muted)}
+tr.fresh td{background:color-mix(in srgb,var(--accent) 14%,transparent)}td.code{font-family:ui-monospace,Menlo,monospace;letter-spacing:.5px}
+.card table{border:0;border-radius:0}.shots{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}.shots img{width:120px;height:90px;object-fit:cover;border-radius:9px;border:1px solid var(--line);display:block}`;
 
 // ---------- скачивания: счётчики релизов GitHub ----------
 const REPO = env.GITHUB_REPO || "JedySan/JsMessenger";
@@ -337,7 +343,7 @@ async function adminDownloads() {
   return page(
     "Скачивания — JsMessenger",
     `<main><h1>Скачивания JsMessenger</h1>
-<nav><a class="tab" href="/admin/">Отзывы</a><a class="tab on" href="/admin/downloads">Скачивания</a></nav>
+<nav><a class="tab" href="/admin/">Отзывы</a><a class="tab on" href="/admin/downloads">Скачивания</a><a class="tab" href="/admin/plus">Plus</a></nav>
 <div class="stats">${PLAT.map(card).join("")}</div>
 <p class="note">Скачали вручную (установки macOS, .deb и Android): <b>${installs}</b>.
 «обн.» — приложение скачало обновление само. Для Windows и AppImage GitHub не различает установку и обновление — там общее число.
@@ -374,6 +380,7 @@ async function adminAction(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", "http://x");
+    if (await handlePlusApi(req, res, url, { CORS, send, json, readBody, clientIp })) return;
     if (url.pathname === "/api/feedback") {
       if (req.method === "OPTIONS") return send(res, 204, "", CORS);
       if (req.method === "POST") return await postFeedback(req, res);
@@ -392,6 +399,14 @@ const server = http.createServer(async (req, res) => {
         const body = await fs.readFile(path.join(FILES_DIR, it.id, f.file)).catch(() => null);
         if (!body) return send(res, 404, "Not found");
         return send(res, 200, body, { "Content-Type": f.type, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" });
+      }
+      if (url.pathname === "/admin/plus" && req.method === "GET")
+        return send(res, 200, adminPlusPage(url, { esc, page, tz: env.TZ }), { "Content-Type": "text/html; charset=utf-8", "X-Frame-Options": "DENY" });
+      if (url.pathname === "/admin/plus/action" && req.method === "POST") {
+        const origin = req.headers.origin;
+        if (origin && origin !== SITE && origin !== `http://${req.headers.host}`) return send(res, 403, "Forbidden");
+        const to = await adminPlusAction(new URLSearchParams(await readBody(req)));
+        return send(res, 303, "", { Location: to });
       }
       if (url.pathname === "/admin/downloads" && req.method === "GET")
         return send(res, 200, await adminDownloads(), { "Content-Type": "text/html; charset=utf-8", "X-Frame-Options": "DENY" });

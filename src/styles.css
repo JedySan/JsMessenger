@@ -1967,3 +1967,15 @@ html[data-platform="ios"] .titlebar { height: 0; }
 .sched-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .sched-when { font-size: 12px; color: var(--text-2); }
 .sched-body { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- JsMessenger Plus ---------- */
+.plus-status { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--hover); margin-bottom: 12px; color: var(--text-2); }
+.plus-status.on { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.plus-status > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.plus-status b { color: var(--text); font-size: 15px; }
+.plus-status span { font-size: 13px; color: var(--text-2); }
+.plus-features { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.plus-feature { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.plus-feature svg { color: var(--accent); flex-shrink: 0; }
+.plus-feature em { font-style: normal; font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--hover); color: var(--text-2); }
+.plus-ok { color: var(--accent); font-size: 13.5px; margin: -4px 0 8px; }

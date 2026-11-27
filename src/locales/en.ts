@@ -772,6 +772,22 @@ const en: Record<string, string> = {
   "Отправить сейчас": "Send now",
   "Сначала напишите сообщение — потом выберите, когда его отправить": "Write the message first, then choose when to send it",
   "Отправить (Enter). Правый клик — отправить позже": "Send (Enter). Right-click to send later",
+  "подключён": "active",
+  "Такого кода нет. Проверьте, что ввели его правильно.": "No such code. Check that you typed it correctly.",
+  "Этот код уже использован.": "This code has already been used.",
+  "Слишком много попыток — подождите несколько минут.": "Too many attempts — wait a few minutes.",
+  "Нет связи с сервером JsMessenger. Проверьте интернет.": "Can't reach the JsMessenger server. Check your connection.",
+  "Не удалось подтвердить ваш аккаунт у Matrix-сервера.": "Couldn't confirm your account with your Matrix server.",
+  "Plus подключён": "Plus is active",
+  "Plus не подключён": "Plus is not active",
+  "Действует до {0}": "Valid until {0}",
+  "Дополнительные возможности за небольшую плату": "Extra features for a small fee",
+  "скоро": "soon",
+  "Продлить кодом": "Extend with a code",
+  "Код активации": "Activation code",
+  "Активировать": "Activate",
+  "Готово! Plus действует до {0}": "Done! Plus is valid until {0}",
+  "Plus привязан к аккаунту {0} и работает на всех ваших устройствах. Код можно получить у разработчика.": "Plus is tied to the account {0} and works on all your devices. You can get a code from the developer.",
 };
 
 export default en;

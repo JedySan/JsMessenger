@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { KnownMembership, UserEvent, type MatrixClient } from "matrix-js-sdk";
-import { ArrowLeftRight, Bell, BellOff, MessageSquareHeart, SmilePlus, Check, Layers, MessageSquare, UserPlus, VolumeX, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
+import { ArrowLeftRight, Bell, BellOff, Gem, MessageSquareHeart, SmilePlus, Check, Layers, MessageSquare, UserPlus, VolumeX, Download, Info, LogOut, MonitorSmartphone, MoreHorizontal, PhoneCall, Power, ShieldAlert, Languages, UserRound } from "lucide-react";
 import { useClientUpdates, useNarrow } from "../hooks";
 import type { Account } from "../App";
 import { SettingsPage, SpacesPage, TabBar, type Tab } from "./MobileNav";
@@ -24,6 +24,8 @@ import AboutDialog from "./AboutDialog";
 import FeedbackDialog from "./FeedbackDialog";
 import { LobbyHost } from "./CallDevices";
 import ReactionsDialog from "./ReactionsDialog";
+import PlusDialog from "./PlusDialog";
+import { usePlus } from "../plus";
 import { useQuickReactions } from "../reactions";
 import ProfileDialog from "./Profile";
 import Toasts from "./Toasts";
@@ -83,6 +85,8 @@ export default function Main({
   const [showAbout, setShowAbout] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
+  const [showPlus, setShowPlus] = useState(false);
+  const plus = usePlus(client);
   const quickReactions = useQuickReactions();
   const [showProfile, setShowProfile] = useState(false);
   const [, bumpProfile] = useState(0);
@@ -312,7 +316,14 @@ export default function Main({
               icon: <Languages size={15} />,
               onClick: () => setLang(LANGS[(LANGS.findIndex((l) => l.id === lang) + 1) % LANGS.length].id),
             },
-            { sep: true, label: tr("Написать разработчику"), icon: <MessageSquareHeart size={15} />, onClick: () => setShowFeedback(true) },
+            {
+              sep: true,
+              label: "JsMessenger Plus",
+              icon: <Gem size={15} />,
+              hint: plus?.plus && plus.plus.until > Date.now() ? tr("подключён") : undefined,
+              onClick: () => setShowPlus(true),
+            },
+            { label: tr("Написать разработчику"), icon: <MessageSquareHeart size={15} />, onClick: () => setShowFeedback(true) },
             { label: tr("О программе"), icon: <Info size={15} />, onClick: () => setShowAbout(true) },
             {
               label: tr("Закрыть JsMessenger полностью"),
@@ -506,6 +517,7 @@ export default function Main({
       <VerificationDialog client={client} onVerified={() => setVerifyTick((t) => t + 1)} />
       {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
       <LobbyHost />
+      {showPlus && <PlusDialog client={client} onClose={() => setShowPlus(false)} />}
       {showReactions && <ReactionsDialog onClose={() => setShowReactions(false)} />}
       {showFeedback && <FeedbackDialog client={client} onClose={() => setShowFeedback(false)} />}
       {showProfile && <ProfileDialog client={client} onClose={() => setShowProfile(false)} />}
