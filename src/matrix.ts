@@ -152,29 +152,81 @@ const clients = new Map<string, Promise<MatrixClient>>();
 // шифрование поднимаем по очереди: одновременная инициализация двух хранилищ ключей падает в js-sdk
 let cryptoQueue: Promise<unknown> = Promise.resolve();
 
+// ---------- где лежат ключи шифрования ----------
+// Раньше хранилище называлось только по пользователю (jsm-crypto-@user:server), и выход его не стирал:
+// после повторного входа новое устройство натыкалось на ключи старого («the account in the store doesn't
+// match…»). Теперь у каждого устройства своё хранилище, а какое — помним отдельно.
+const dbKey = (userId: string) => `jsm.cryptoDb:${userId}`;
+const legacyPrefix = (userId: string) => `jsm-crypto-${userId}`;
+const devicePrefix = (s: Pick<Session, "userId" | "deviceId">) => `jsm-crypto-${s.userId}-${s.deviceId}`;
+
+function cryptoPrefix(s: Session): string {
+  try {
+    return localStorage.getItem(dbKey(s.userId)) ?? legacyPrefix(s.userId);
+  } catch {
+    return legacyPrefix(s.userId);
+  }
+}
+function setCryptoPrefix(userId: string, prefix: string | null) {
+  try {
+    if (prefix) localStorage.setItem(dbKey(userId), prefix);
+    else localStorage.removeItem(dbKey(userId));
+  } catch {
+    /* без хранилища — в следующий раз сработает самопочинка */
+  }
+}
+/** Стереть хранилище ключей (если оно никем не открыто — иначе браузер сотрёт его, когда закроют). */
+function deleteCryptoDb(prefix: string): Promise<void> {
+  const one = (name: string) =>
+    new Promise<void>((resolve) => {
+      try {
+        const r = indexedDB.deleteDatabase(name);
+        r.onsuccess = r.onerror = () => resolve();
+        r.onblocked = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  return Promise.all([one(`${prefix}::matrix-sdk-crypto`), one(`${prefix}::matrix-sdk-crypto-meta`)]).then(() => {});
+}
+const isStoreMismatch = (e: unknown) => /doesn't match the account in the constructor/i.test(String((e as Error)?.message ?? e));
+
 /** Создаёт клиент, поднимает шифрование и запускает синхронизацию (один раз на аккаунт). */
 export function startClient(session: Session): Promise<MatrixClient> {
   const existing = clients.get(session.userId);
   if (existing) return existing;
   let ref: MatrixClient | null = null;
-  const starting = (async () => {
-    const client = createClient({
+  const make = () =>
+    (ref = createClient({
       baseUrl: session.baseUrl,
       userId: session.userId,
       deviceId: session.deviceId,
       accessToken: session.accessToken,
       cryptoCallbacks: cryptoCallbacksFor(() => ref),
-    });
-    ref = client;
-    // Хранилище ключей шифрования — IndexedDB, отдельное на каждого пользователя
-    const init = cryptoQueue.then(() =>
-      client.initRustCrypto({
-        useIndexedDB: true,
-        cryptoDatabasePrefix: `jsm-crypto-${session.userId}`,
-      }),
-    );
+    }));
+  const initCrypto = (client: MatrixClient, prefix: string) => {
+    const init = cryptoQueue.then(() => client.initRustCrypto({ useIndexedDB: true, cryptoDatabasePrefix: prefix }));
     cryptoQueue = init.catch(() => {});
-    await init;
+    return init;
+  };
+  const starting = (async () => {
+    let client = make();
+    // Хранилище ключей шифрования — IndexedDB, отдельное на каждое устройство
+    const prefix = cryptoPrefix(session);
+    try {
+      await initCrypto(client, prefix);
+      setCryptoPrefix(session.userId, prefix);
+    } catch (e) {
+      if (!isStoreMismatch(e)) throw e;
+      // в хранилище ключи прежнего устройства этого аккаунта: заводим своё, старое убираем
+      console.warn("[crypto] хранилище от другого устройства — создаю новое", e);
+      client.stopClient();
+      const fresh = devicePrefix(session);
+      void deleteCryptoDb(prefix);
+      client = make();
+      await initCrypto(client, fresh);
+      setCryptoPrefix(session.userId, fresh);
+    }
     // threadSupport: ответы в тредах живут отдельно от основной ленты, как в Element
     await client.startClient({ initialSyncLimit: 30, lazyLoadMembers: true, threadSupport: true });
     attachPrivateNames(client); // свои названия личных чатов
@@ -207,6 +259,8 @@ export async function login(server: string, user: string, password: string): Pro
     await createClient({ baseUrl: session.baseUrl, accessToken: session.accessToken }).logout(true).catch(() => {});
     throw new Error(tr("Этот аккаунт уже добавлен"));
   }
+  // новое устройство — новое хранилище ключей (старое от прежнего входа могло остаться)
+  setCryptoPrefix(session.userId, devicePrefix(session));
   await saveSession(session);
   return session;
 }
@@ -215,6 +269,8 @@ export async function login(server: string, user: string, password: string): Pro
 export async function logout(userId: string): Promise<void> {
   const client = await clients.get(userId)?.catch(() => null);
   clients.delete(userId);
+  const stored = readAll().find((s) => s.userId === userId);
+  const prefix = stored ? cryptoPrefix(stored as Session) : legacyPrefix(userId);
   if (client) {
     client.stopClient();
     try {
@@ -222,8 +278,16 @@ export async function logout(userId: string): Promise<void> {
     } catch {
       /* токен мог уже протухнуть — всё равно чистим локально */
     }
-    await client.clearStores();
+    // раньше здесь не передавали имя хранилища, и ключи шифрования оставались на диске
+    await client.clearStores({ cryptoDatabasePrefix: prefix }).catch(() => {});
+  } else {
+    // клиент не запустился (например, ошибка при входе) — всё равно выходим на сервере и чистим
+    const s = stored ? await restore(stored).catch(() => null) : null;
+    if (s) await createClient({ baseUrl: s.baseUrl, accessToken: s.accessToken }).logout(true).catch(() => {});
   }
+  await deleteCryptoDb(prefix);
+  if (prefix !== legacyPrefix(userId)) await deleteCryptoDb(legacyPrefix(userId));
+  setCryptoPrefix(userId, null);
   await clearSession(userId);
 }
 
