@@ -18,6 +18,12 @@ const ADMIN_USER = env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = env.ADMIN_PASSWORD || "";
 /** адрес сайта — для ссылки в письме и проверки Origin у действий в админке */
 const SITE = (env.SITE_URL || "https://jsmassenger.ru").replace(/\/+$/, "");
+/** Форма админки отправлена с этого же сайта (у сайта может быть несколько адресов — старый и новый). */
+const sameSite = (req) => {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  return origin === SITE || origin === `https://${req.headers.host}` || origin === `http://${req.headers.host}`;
+};
 const MAIL_TO = env.MAIL_TO || "";
 const MAIL_FROM = env.MAIL_FROM || env.SMTP_USER || "";
 
@@ -363,7 +369,7 @@ ${rows
 async function adminAction(req, res) {
   // защита от подделки запроса с чужого сайта: действие — только со страницы админки
   const origin = req.headers.origin;
-  if (origin && origin !== SITE && origin !== `http://${req.headers.host}`) return send(res, 403, "Forbidden");
+  if (!sameSite(req)) return send(res, 403, "Forbidden");
   const form = new URLSearchParams(await readBody(req));
   const it = items.find((x) => x.id === form.get("id"));
   const act = form.get("do");
@@ -405,7 +411,7 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, adminPlusPage(url, { esc, page, tz: env.TZ }), { "Content-Type": "text/html; charset=utf-8", "X-Frame-Options": "DENY" });
       if (url.pathname === "/admin/plus/action" && req.method === "POST") {
         const origin = req.headers.origin;
-        if (origin && origin !== SITE && origin !== `http://${req.headers.host}`) return send(res, 403, "Forbidden");
+        if (!sameSite(req)) return send(res, 403, "Forbidden");
         const to = await adminPlusAction(new URLSearchParams(await readBody(req)));
         return send(res, 303, "", { Location: to });
       }
