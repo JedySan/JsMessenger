@@ -97,7 +97,7 @@ server {
         proxy_set_header Host \$host;
         client_max_body_size 25m; # голосовые на расшифровку
     }
-    location /admin {
+    location ^~ /admin { # ^~: иначе admin.css и картинки отзывов уйдут в правило для статики ниже
         proxy_pass http://127.0.0.1:8787;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header Host \$host;
