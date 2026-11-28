@@ -17,7 +17,7 @@ const DB_FILE = path.join(DATA_DIR, "feedback.json");
 const ADMIN_USER = env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = env.ADMIN_PASSWORD || "";
 /** адрес сайта — для ссылки в письме и проверки Origin у действий в админке */
-const SITE = (env.SITE_URL || "https://jsmassenger.ru").replace(/\/+$/, "");
+const SITE = (env.SITE_URL || "https://jsmessenger.ru").replace(/\/+$/, "");
 /** Форма админки отправлена с этого же сайта (у сайта может быть несколько адресов — старый и новый). */
 const sameSite = (req) => {
   const origin = req.headers.origin;

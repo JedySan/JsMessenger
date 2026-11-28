@@ -6,7 +6,7 @@ import { Modal, Toggle } from "./ui";
 import { electron, isAndroidApp, isIOSApp, isTauri } from "../platform";
 import { tr } from "../i18n";
 
-const FEEDBACK_URL: string = (import.meta.env.VITE_FEEDBACK_URL ?? "").trim() || "https://jsmassenger.ru/api/feedback";
+const FEEDBACK_URL: string = (import.meta.env.VITE_FEEDBACK_URL ?? "").trim() || "https://jsmessenger.ru/api/feedback";
 
 type Kind = "bug" | "idea" | "other";
 

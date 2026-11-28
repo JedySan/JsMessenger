@@ -3,7 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import type { MatrixClient } from "matrix-js-sdk";
 
-const BASE: string = ((import.meta.env.VITE_JSM_CLOUD_URL ?? "").trim() || "https://jsmassenger.ru").replace(/\/+$/, "");
+const BASE: string = ((import.meta.env.VITE_JSM_CLOUD_URL ?? "").trim() || "https://jsmessenger.ru").replace(/\/+$/, "");
 const KEY = "jsm.plus";
 
 export interface PlusFeature {

@@ -188,7 +188,7 @@ VITE_DEFAULT_SERVER=matrix.example.com ./scripts/build-mac.sh
 
 ## Сайт
 
-`site/` — сайт jsmassenger.ru: страница в виде переписки с JsMessenger, установщики приходят «файлами»,
+`site/` — сайт jsmessenger.ru: страница в виде переписки с JsMessenger, установщики приходят «файлами»,
 ссылки и размеры берутся из последнего релиза GitHub (после выпуска версии сайт обновлять не нужно).
 Русский и английский. Выложить: `./scripts/deploy-site.sh user@server`, конфиг nginx — `site/nginx.conf.example`.
 

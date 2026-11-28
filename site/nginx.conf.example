@@ -1,25 +1,26 @@
 # Сайт JsMessenger: статические файлы из папки site/ репозитория.
-# Сертификат: certbot --nginx -d jsmassenger.ru -d www.jsmassenger.ru
+# Сертификат: certbot --nginx -d jsmessenger.ru -d www.jsmessenger.ru
+# Проще: scripts/server-setup.sh ставит сайт целиком; старый адрес jsmassenger.ru обслуживается так же (без перенаправления — на него ходят старые версии приложения).
 server {
     listen 80;
     listen [::]:80;
-    server_name jsmassenger.ru www.jsmassenger.ru;
-    return 301 https://jsmassenger.ru$request_uri;
+    server_name jsmessenger.ru www.jsmessenger.ru;
+    return 301 https://jsmessenger.ru$request_uri;
 }
 
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name jsmassenger.ru www.jsmassenger.ru;
+    server_name jsmessenger.ru www.jsmessenger.ru;
 
-    ssl_certificate     /etc/letsencrypt/live/jsmassenger.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/jsmassenger.ru/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/jsmessenger.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/jsmessenger.ru/privkey.pem;
 
     # www → без www
-    if ($host = www.jsmassenger.ru) { return 301 https://jsmassenger.ru$request_uri; }
+    if ($host = www.jsmessenger.ru) { return 301 https://jsmessenger.ru$request_uri; }
 
-    root /var/www/jsmassenger.ru;
+    root /var/www/jsmessenger.ru;
     index index.html;
 
     location / {
